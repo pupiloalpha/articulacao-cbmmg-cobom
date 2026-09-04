@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Articulação CBMMG - COBOM-BH</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <!-- App CSS -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<!-- Botão flutuante para mostrar a sidebar quando oculta -->
+<button id="sidebarShowBtn" class="btn-floating hidden">☰</button>
+    <!-- Sidebar / Painel Lateral -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>COBOM-BH<br>
+                 Articulação CBMMG
+            </h2>
+            <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir">☰</button>
+        </div>
+        <div id="status-indicator" class="status-indicator offline">Offline</div>
+        <div id="auth-section">
+            <button id="adminLoginBtn" class="btn">Login Admin</button>
+            <button id="adminLogoutBtn" class="btn hidden">Logout Admin</button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Pesquisar endereço...">
+            <button id="searchBtn" class="btn">🔍 Buscar Endereço</button>
+            <button id="useMyLocationBtn" class="btn" title="Usar minha localização">📍 Minha Localização</button>
+            <button id="mapOriginBtn" class="btn">🎯 Definir origem no mapa</button>
+            <button id="resetBtn" class="btn" style="background:#e74c3c; color:white;">Limpar</button>
+            <div id="searchResults"></div>
+            <div id="distanceResults" style="margin-top:10px; max-height:300px; overflow-y:auto;"></div>
+        </div>
+        <div id="adminTools" class="hidden">
+            <h3>Ferramentas Admin</h3>
+            <div id="dropZone" class="drop-zone">
+                Arraste e solte .kml/.kmz aqui ou clique para enviar
+                <input type="file" id="fileInput" accept=".kml,.kmz" multiple hidden>
+            </div>
+            <button id="addMarkerBtn" class="btn">Adicionar POI</button>
+            <button id="addPolygonBtn" class="btn">Desenhar Polígono</button>
+            <button id="exportBackupBtn" class="btn">Exportar Backup</button>
+            <button id="importBackupBtn" class="btn">Importar Backup</button>
+            <input type="file" id="importFileInput" accept=".json" hidden>
+            <button id="clearRoutesCacheBtn" class="btn">Limpar Cache de Rotas</button>
+            <button id="downloadTilesBtn" class="btn">Baixar Tiles Offline</button>
+            <!-- Modal para configurar download de tiles -->
+            <div id="tileModal" class="modal hidden">
+                <div class="modal-content">
+                    <span class="close-modal" id="closeTileModal">&times;</span>
+                    <h3>Download de Tiles</h3>
+                    <label>Zoom mínimo: <input type="number" id="minZoom" value="10" min="0" max="18"></label><br>
+                    <label>Zoom máximo: <input type="number" id="maxZoom" value="14" min="0" max="18"></label><br>
+                    <button id="startTileDownload" class="btn">Iniciar Download</button>
+                    <div id="tileProgress"></div>
+                </div>
+            </div>
+        </div>
+        <div id="layerList">
+            <h3>Camadas</h3>
+            <ul id="layersUl"></ul>
+        </div>
+        <div id="viewControls">
+    <h3>Visualização</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <label>
+            <input type="checkbox" class="view-checkbox" data-mode="all" checked> Todas
+        </label>
+        <label>
+            <input type="checkbox" class="view-checkbox" data-mode="points"> Pontos
+        </label>
+        <label>
+            <input type="checkbox" class="view-checkbox" data-mode="none"> Limpo
+        </label>
+    </div>
+</div>  
+    </div>
+
+    <!-- Mapa -->
+    <div id="map"></div>
+
+    <!-- Modal de Login Admin -->
+    <div id="loginModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" id="closeLoginModal">&times;</span>
+            <h3>Login Administrador</h3>
+            <input type="password" id="pinInput" placeholder="Digite o PIN">
+            <button id="confirmLoginBtn" class="btn">Entrar</button>
+            <p id="loginError" style="color:red;"></p>
+        </div>
+    </div>
+
+    <!-- Scripts das bibliotecas -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/dexie@4.0.4/dist/dexie.js"></script>
+    <script src="https://unpkg.com/@turf/turf@7.0.0/turf.min.js"></script>
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/@tmcw/togeojson@5.0.0/dist/togeojson.umd.js"></script>
+
+    <!-- App Scripts -->
+    <script src="./db.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
