@@ -6,7 +6,7 @@ let mapClickMode = false;
 let baseLayer;
 let overlayLayers = {};
 let originMarker = null;
-let currentOrigin = null;   // adicionado: armazena a origem atual
+let currentOrigin = null;   // armazena a origem atual { lat, lng, description }
 let isAdmin = false;
 let drawingMode = null;
 let polygonPoints = [];
@@ -130,3 +130,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Função resetAll - Limpa dados temporários e recupera vista inicial (ajustada)
+function resetAll() {
+    const searchResults = document.getElementById('searchResults');
+    const distanceResults = document.getElementById('distanceResults');
+    const searchInput = document.getElementById('searchInput');
+
+    if (searchResults) searchResults.innerHTML = '';
+    if (distanceResults) distanceResults.innerHTML = '';
+    if (searchInput) searchInput.value = '';
+
+    if (mapClickMode) {
+        mapClickMode = false;
+        const btn = document.getElementById('mapOriginBtn');
+        if (btn) btn.textContent = '🎯 Definir origem no mapa';
+        if (map) map.getContainer().style.cursor = '';
+    }
+
+    // Remove marcador de origem
+    if (originMarker && map) {
+        map.removeLayer(originMarker);
+        originMarker = null;
+    }
+    // Remove linhas e marcadores de distância
+    if (window.distanceLine && map) {
+        map.removeLayer(window.distanceLine);
+        window.distanceLine = null;
+    }
+    if (window.distanceMarker && map) {
+        map.removeLayer(window.distanceMarker);
+        window.distanceMarker = null;
+    }
+    // Remove controle de roteamento, se existir
+    if (window.routingControl && map) {
+        map.removeControl(window.routingControl);
+        window.routingControl = null;
+    }
+    // Reseta a origem atual
+    currentOrigin = null;
+    if (map) map.setView([-15.7934, -47.8822], 4);
+    showToast('Campos e origem limpos.', 'info');
+}
+// Exporta globalmente para uso no app.js
+window.resetAll = resetAll;

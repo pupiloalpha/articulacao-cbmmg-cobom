@@ -225,13 +225,31 @@ function syncViewCheckboxes(mode) {
 
 // Manipula o clique em uma feição do mapa
 function handleFeatureClick(e, feature, layer) {
-    const coords = e.latlng;
-    
-    if (!originMarker) {
-        setOrigin(coords.lat, coords.lng, feature.properties?.name || 'Ponto selecionado');
-        calculateDistancesToAllFeatures(coords.lat, coords.lng);
-    } else {
-        // Se já tem origem, desenha rota/linha para a feição clicada
+    // Se o modo de seleção de origem estiver ativo, usa o clique para definir a origem
+    if (mapClickMode) {
+        mapClickMode = false;
+        document.getElementById('mapOriginBtn').textContent = '🎯 Definir origem no mapa';
+        map.getContainer().style.cursor = '';
+        const latlng = e.latlng;
+        setOrigin(latlng.lat, latlng.lng, 'Origem manual (clique na feição)');
+        map.setView([latlng.lat, latlng.lng], 15);
+        calculateDistancesToAllFeatures(latlng.lat, latlng.lng);
+        return;
+    }
+
+    // Se não há origem, define o ponto clicado como origem (apenas para pontos)
+    if (!originMarker && feature.geometry.type === 'Point') {
+        const coords = feature.geometry.coordinates;
+        setOrigin(coords[1], coords[0], feature.properties?.name || 'Ponto selecionado');
+        map.setView([coords[1], coords[0]], 15);
+        calculateDistancesToAllFeatures(coords[1], coords[0]);
+        return;
+    }
+
+    // Se já existe origem, tenta desenhar rota/linha para a feição
+    if (originMarker) {
         drawRouteOrLine(feature);
+    } else {
+        showToast('Defina uma origem primeiro (busca, GPS ou clique no mapa).', 'warning');
     }
 }
