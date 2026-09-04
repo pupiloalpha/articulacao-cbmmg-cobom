@@ -19,20 +19,17 @@ let layerVisibility = {};
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
 
-    // Executa operações assíncronas com segurança usando IIFE async
-    (async () => {
-        try {
-            await seedInitialData();
-            await loadStreetDataFromGitHub();
-            
-            if (typeof reloadLayers === 'function') {
-                await reloadLayers();
-            }
-            zoomToAllFeatures();
-        } catch (e) {
-            console.warn('Erro ao inicializar dados assíncronos:', e);
+    try {
+        await seedInitialData();
+        await loadStreetDataFromGitHub();
+        
+        if (typeof reloadLayers === 'function') {
+            await reloadLayers();
         }
-    })();
+        zoomToAllFeatures();
+    } catch (e) {
+        console.warn('Erro ao inicializar dados assíncronos:', e);
+    }
     
     setupAuth();
     initAdminAuthListeners();
