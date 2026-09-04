@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Articulação CBMMG - COBOM-BH</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="./vendor/leaflet.css" />
+    <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css" />
     <!-- App CSS -->
     <link rel="stylesheet" href="./styles.css">
 </head>
@@ -96,16 +96,23 @@
         </div>
     </div>
 
-    <!-- Scripts das bibliotecas -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-    <script src="https://unpkg.com/dexie@4.0.4/dist/dexie.js"></script>
-    <script src="https://unpkg.com/@turf/turf@7.0.0/turf.min.js"></script>
-    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://unpkg.com/@tmcw/togeojson@5.0.0/dist/togeojson.umd.js"></script>
+    <!-- Scripts das bibliotecas locais -->
+    <script src="./vendor/leaflet.js"></script>
+    <script src="./vendor/leaflet-routing-machine.js"></script>
+    <script src="./vendor/dexie.js"></script>
+    <script src="./vendor/turf.min.js"></script>
+    <script src="./vendor/jszip.min.js"></script>
+    <script src="./vendor/togeojson.umd.js"></script>
 
     <!-- App Scripts -->
     <script src="./db.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/map.js"></script>
+    <script src="./js/layers.js"></script>
+    <script src="./js/search.js"></script>
+    <script src="./js/gps.js"></script>
+    <script src="./js/tiles.js"></script>
+    <script src="./js/admin.js"></script>
     <script src="./app.js"></script>
 </body>
 </html>

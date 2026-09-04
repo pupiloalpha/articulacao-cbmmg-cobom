@@ -9,13 +9,19 @@ const STATIC_ASSETS = [
     './app.js',
     './manifest.json',
     './data/backup_inicial.json',
-    // Bibliotecas de terceiros (CDN)
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://unpkg.com/dexie@4.0.4/dist/dexie.js',
-    'https://unpkg.com/@turf/turf@7.0.0/turf.min.js',
-    'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
-    'https://unpkg.com/@tmcw/togeojson@5.0.0/dist/togeojson.umd.js'
+    './data/ruas/index.json',
+    './data/ruas/rmbh.geojson',
+    './icons/icon-192.png',
+    './icons/icon-512.png',
+    // Bibliotecas de terceiros (locais)
+    './vendor/leaflet.css',
+    './vendor/leaflet-routing-machine.css',
+    './vendor/leaflet.js',
+    './vendor/leaflet-routing-machine.js',
+    './vendor/dexie.js',
+    './vendor/turf.min.js',
+    './vendor/jszip.min.js',
+    './vendor/togeojson.umd.js'
 ];
 
 // Instalação: pré-cacheia os assets essenciais
