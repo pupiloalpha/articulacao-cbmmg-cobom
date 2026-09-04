@@ -161,6 +161,53 @@ async function seedInitialData() {
     await reloadLayers();
 }
 
+// Carrega os dados das ruas do GitHub na primeira execução
+async function loadStreetDataFromGitHub() {
+    try {
+        // Verifica se já existe uma camada com nome que contenha "Ruas"
+        const existingLayers = await DB.getLayers();
+        const hasStreetLayer = existingLayers.some(l => l.name.includes('Ruas') || l.name.includes('Logradouros'));
+        if (hasStreetLayer) {
+            console.log('Dados de ruas já carregados.');
+            return;
+        }
+
+        // URL base do seu repositório (troque para o seu usuário e branch)
+        const baseUrl = 'https://raw.githubusercontent.com/seu-usuario/gis-pwa-offline/main/';
+
+        // Baixa o índice
+        const indexResponse = await fetch(baseUrl + 'data/ruas/index.json');
+        if (!indexResponse.ok) throw new Error('Falha ao baixar índice de ruas.');
+        const files = await indexResponse.json();
+
+        // Baixa e importa cada arquivo
+        for (const fileInfo of files) {
+            const geojsonResponse = await fetch(baseUrl + fileInfo.url);
+            if (!geojsonResponse.ok) {
+                console.warn(`Falha ao baixar ${fileInfo.url}`);
+                continue;
+            }
+            const geojson = await geojsonResponse.json();
+
+            // Salva a camada no IndexedDB
+            await DB.saveLayer({
+                name: fileInfo.name,
+                type: 'geojson',
+                geojson: geojson
+            });
+            console.log(`Camada "${fileInfo.name}" importada com sucesso.`);
+        }
+
+        // Recarrega as camadas no mapa
+        await reloadLayers();
+        alert('Dados das ruas carregados com sucesso!');
+
+    } catch (error) {
+        console.error('Erro ao carregar dados das ruas:', error);
+        // Não impede o funcionamento, apenas avisa
+    }
+}
+
 // Recarrega todas as camadas do banco e adiciona ao mapa
 async function reloadLayers() {
     // Remove camadas antigas do mapa
@@ -523,6 +570,19 @@ async function handleFiles(files) {
                 const kmlText = await kmlFile.async('text');
                 const kmlDom = new DOMParser().parseFromString(kmlText, 'text/xml');
                 geojson = toGeoJSON.kml(kmlDom);
+} else if (ext === 'json' || ext === 'geojson') {
+                const text = await file.text();
+                geojson = JSON.parse(text);
+                // Garante que é um FeatureCollection
+                if (!geojson.type || geojson.type !== 'FeatureCollection') {
+                    if (geojson.type === 'Feature') {
+                        geojson = { type: 'FeatureCollection', features: [geojson] };
+                    } else if (geojson.type === 'Point' || geojson.type === 'Polygon' || geojson.type === 'LineString') {
+                        geojson = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: geojson, properties: {} }] };
+                    } else {
+                        throw new Error('GeoJSON inválido');
+                    }
+                }
             } else {
                 alert('Formato não suportado: ' + file.name);
                 continue;
@@ -769,14 +829,48 @@ async function searchAddress(query) {
     const resultsDiv = document.getElementById('searchResults');
     resultsDiv.innerHTML = 'Buscando...';
     
-    // Tenta busca offline primeiro
+    // 1. Busca offline na tabela addresses (como já faz)
     const offlineResults = await DB.searchAddresses(query);
     if (offlineResults.length > 0) {
         displaySearchResults(offlineResults);
         return;
     }
-    
-    // Se estiver online, busca na Nominatim
+
+    // 2. Busca nas camadas de ruas (GeoJSON com geometria LineString/MultiLineString)
+    const allFeatures = [];
+    for (const layerId in overlayLayers) {
+        const layerData = await DB.getLayerById(Number(layerId));
+        if (!layerData || !layerData.geojson) continue;
+        for (const feature of layerData.geojson.features) {
+            // Verifica se é uma linha (rua) e tem atributo de nome
+            if (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString') {
+                // Tenta vários campos possíveis (prioridade para NM_LOG, que é o do IBGE)
+                const name = feature.properties?.NM_LOG || 
+                             feature.properties?.nome || 
+                             feature.properties?.name || 
+                             feature.properties?.NM_LOGRADOURO || 
+                             feature.properties?.logradouro || '';
+                if (name.toLowerCase().includes(query.toLowerCase())) {
+                    // Pega o primeiro ponto da linha como referência
+                    const coords = feature.geometry.type === 'LineString' 
+                        ? feature.geometry.coordinates[0] 
+                        : feature.geometry.coordinates[0][0];
+                    allFeatures.push({
+                        query: query,
+                        lat: coords[1],
+                        lng: coords[0],
+                        address: name
+                    });
+                }
+            }
+        }
+    }
+    if (allFeatures.length > 0) {
+        displaySearchResults(allFeatures);
+        return;
+    }
+
+    // 3. Se estiver online, busca na Nominatim (como já faz)
     if (navigator.onLine) {
         try {
             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
@@ -1202,6 +1296,7 @@ window.addEventListener('offline', updateOnlineStatus);
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     seedInitialData();
+    loadStreetDataFromGitHub();
     setupAuth();
     setupFileUpload();
     setupDrawingTools();
@@ -1209,33 +1304,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Verifica estado inicial da sidebar para esconder/mostrar o botão flutuante
 const sidebar = document.getElementById('sidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-
-    // Se for desktop (largura > 768px), abre a sidebar por padrão
-    if (window.innerWidth > 768) {
-        sidebar.classList.remove('collapsed');
-        showBtn.classList.add('hidden');   // esconde o botão flutuante
-    } else {
-        // Mobile: a sidebar já tem 'collapsed', então o botão fica visível
-        showBtn.classList.remove('hidden');
-    }
-
-    // Toggle do botão dentro da sidebar (☰)
+const showBtn = document.getElementById('sidebarShowBtn');
+if (sidebar.classList.contains('collapsed')) {
+    showBtn.classList.remove('hidden');
+} else {
+    showBtn.classList.add('hidden');
+}
+    
+    // Sidebar toggle
     document.getElementById('sidebarToggle').addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
-        // Mostra ou esconde o botão flutuante conforme o estado
-        if (sidebar.classList.contains('collapsed')) {
-            showBtn.classList.remove('hidden');
-        } else {
-            showBtn.classList.add('hidden');
-        }
-    });
-
-    // Clique no botão flutuante para reabrir a sidebar
-    showBtn.addEventListener('click', () => {
-        sidebar.classList.remove('collapsed');
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('collapsed');
+    // Mostra/esconde o botão flutuante
+    const showBtn = document.getElementById('sidebarShowBtn');
+    if (sidebar.classList.contains('collapsed')) {
+        showBtn.classList.remove('hidden');
+    } else {
         showBtn.classList.add('hidden');
-    });
+    }
+});
+    // Botão flutuante (reabrir sidebar)
+document.getElementById('sidebarShowBtn').addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.remove('collapsed');
+    document.getElementById('sidebarShowBtn').classList.add('hidden');
+});
 
     // Busca
     document.getElementById('searchBtn').addEventListener('click', () => {
