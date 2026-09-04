@@ -104,7 +104,11 @@ async function searchAddress(query) {
     // 3. Se estiver online e não achou nada offline, busca na Nominatim
     if (navigator.onLine) {
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+            // Define uma bounding box para Minas Gerais e estados vizinhos
+            // Coordenadas aproximadas: minLon=-52, maxLat=-15, maxLon=-40, minLat=-24
+            const viewbox = '-52,-15,-40,-24'; // lon_min, lat_max, lon_max, lat_min
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=BR&viewbox=${viewbox}&bounded=1&accept-language=pt`;
+            const response = await fetch(url);
             const data = await response.json();
             if (data.length > 0) {
                 const results = data.map(item => ({
@@ -117,9 +121,10 @@ async function searchAddress(query) {
                 results.forEach(r => DB.addAddress(r));
                 displaySearchResults(results);
             } else {
-                resultsDiv.innerHTML = 'Nenhum resultado encontrado.';
+                resultsDiv.innerHTML = 'Nenhum resultado encontrado na região.';
             }
         } catch (error) {
+            console.error('Erro na busca online:', error);
             resultsDiv.innerHTML = 'Erro na busca online. Tente novamente.';
         }
     } else {

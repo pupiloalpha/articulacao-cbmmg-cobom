@@ -150,7 +150,7 @@ function addLayerToMap(layerData, mode = viewMode) {
     }
 }
 
-// Atualiza a lista de camadas na interface (UI)
+// Atualiza a lista de camadas na interface (UI) - oculta camadas de ruas
 function updateLayerListUI() {
     const ul = document.getElementById('layersUl');
     if (!ul) return;
@@ -158,6 +158,11 @@ function updateLayerListUI() {
     DB.getLayers().then(layers => {
         ul.innerHTML = '';
         layers.forEach(layer => {
+            // Filtra camadas que não devem aparecer na lista (ex: ruas)
+            const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
+            const shouldHide = hiddenNames.some(keyword => layer.name.includes(keyword));
+            if (shouldHide) return;
+
             const li = document.createElement('li');
             
             const nameSpan = document.createElement('span');
@@ -226,43 +231,7 @@ function handleFeatureClick(e, feature, layer) {
         setOrigin(coords.lat, coords.lng, feature.properties?.name || 'Ponto selecionado');
         calculateDistancesToAllFeatures(coords.lat, coords.lng);
     } else {
-        const originLatLng = originMarker.getLatLng();
-        currentSearchResult = { lat: originLatLng.lat, lng: originLatLng.lng };
+        // Se já tem origem, desenha rota/linha para a feição clicada
         drawRouteOrLine(feature);
-    }
-}
-
-// Desenha linha de distância ou rota para uma feição
-function drawRouteOrLine(feature) {
-    if (!currentSearchResult) return;
-    
-    if (feature.geometry.type === 'Point') {
-        const destinationPoint = turf.point(feature.geometry.coordinates);
-        const distance = turf.distance(
-            turf.point([currentSearchResult.lng, currentSearchResult.lat]),
-            destinationPoint,
-            { units: 'kilometers' }
-        );
-        
-        const latlngs = [
-            [currentSearchResult.lat, currentSearchResult.lng],
-            [destinationPoint.geometry.coordinates[1], destinationPoint.geometry.coordinates[0]]
-        ];
-        
-        if (window.distanceLine) map.removeLayer(window.distanceLine);
-        if (window.distanceMarker) map.removeLayer(window.distanceMarker);
-        
-        window.distanceLine = L.polyline(latlngs, { color: 'red', weight: 2, dashArray: '5, 5' }).addTo(map);
-        window.distanceMarker = L.marker([destinationPoint.geometry.coordinates[1], destinationPoint.geometry.coordinates[0]])
-            .addTo(map)
-            .bindPopup(`<b>${feature.properties?.name || 'Ponto'}</b><br>Distância: ${distance.toFixed(2)} km (${(distance*1000).toFixed(0)} m)`)
-            .openPopup();
-        
-        const bounds = L.latLngBounds(latlngs);
-        map.fitBounds(bounds, { padding: [50, 50] });
-    } else {
-        const props = feature.properties || {};
-        const name = props.name || getFeatureStreetName(props) || 'Sem nome';
-        layer.bindPopup(`<b>${name}</b>`).openPopup();
     }
 }

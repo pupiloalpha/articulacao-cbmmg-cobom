@@ -6,7 +6,7 @@ let mapClickMode = false;
 let baseLayer;
 let overlayLayers = {};
 let originMarker = null;
-let currentSearchResult = null;
+let currentOrigin = null;   // adicionado: armazena a origem atual
 let isAdmin = false;
 let drawingMode = null;
 let polygonPoints = [];
