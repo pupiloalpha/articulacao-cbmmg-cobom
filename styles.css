@@ -30,6 +30,7 @@ body {
     z-index: 0;
 }
 
+/* Estado padrão: sidebar oculta (colapsada) */
 .sidebar {
     position: absolute;
     top: 0;
@@ -43,10 +44,17 @@ body {
     flex-direction: column;
     transition: transform 0.3s ease;
     overflow-y: auto;
+    transform: translateX(-100%);   /* oculta por padrão */
 }
 
-.sidebar.collapsed {
-    transform: translateX(-100%);
+/* Quando NÃO tem a classe 'collapsed', fica visível */
+.sidebar:not(.collapsed) {
+    transform: translateX(0);
+}
+
+/* Remove a media query antiga que usava '.visible' */
+@media (max-width: 768px) {
+    /* Não precisa mais de regra especial, pois o comportamento é o mesmo */
 }
 
 /* Botão de reset com cor de destaque */
