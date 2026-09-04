@@ -112,7 +112,7 @@ L.Icon.Default.mergeOptions({
     });
     baseLayer.addTo(map);
     
-    reloadLayers();
+    // REMOVIDO para evitar ReferenceError: reloadLayers();
 }
 
 // Função auxiliar para extrair coordenadas [lat, lng] de qualquer geometria
