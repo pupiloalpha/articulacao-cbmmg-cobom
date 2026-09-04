@@ -52,9 +52,19 @@ body {
     transform: translateX(0);
 }
 
-/* Remove a media query antiga que usava '.visible' */
+/* Ajuste para telas pequenas: seguir a mesma lógica de classes (usar :not(.collapsed)) */
 @media (max-width: 768px) {
-    /* Não precisa mais de regra especial, pois o comportamento é o mesmo */
+    .sidebar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        /* O transform padrão e o :not(.collapsed) já controlam a visibilidade */
+    }
+    /* Garante que em mobile a sidebar também respeite a classe 'collapsed' */
+    .sidebar:not(.collapsed) {
+        transform: translateX(0);
+    }
 }
 
 /* Botão de reset com cor de destaque */
@@ -261,7 +271,7 @@ body {
         height: 100%;
         transform: translateX(-100%);
     }
-    .sidebar.visible {
+    .sidebar:not(.collapsed) {
         transform: translateX(0);
     }
 }
