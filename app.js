@@ -18,8 +18,15 @@ let layerVisibility = {};
 // Configuração e Inicialização Principal ao carregar o DOM
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
-    seedInitialData();
-    loadStreetDataFromGitHub();
+
+    // Aguarde o processamento dos dados iniciais e de ruas
+    await seedInitialData();
+    await loadStreetDataFromGitHub();
+    
+    // Garanta a renderização de todas as camadas no mapa e aplique o enquadramento
+    await reloadLayers();
+    zoomToAllFeatures();
+    
     setupAuth();
     initAdminAuthListeners();
     setupFileUpload();
