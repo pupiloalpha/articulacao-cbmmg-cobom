@@ -41,7 +41,7 @@ async function loadStreetDataFromGitHub() {
         const existingLayers = await DB.getLayers();
         const hasStreetLayer = existingLayers.some(l => l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros')));
         if (hasStreetLayer) {
-            console.log('Dados de ruas já carregados.');
+            console.log('Dados de ruas já carregados no banco local.');
             return;
         }
 
@@ -97,7 +97,16 @@ async function reloadLayers() {
     overlayLayers = {};
     
     const layers = await DB.getLayers();
+    // Palavras-chave para identificar arquivos de malha viária
+    const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
+
     for (const layerData of layers) {
+        // AÇÃO: Verifica se a camada é uma base de ruas e impede sua renderização visual
+        const isStreetLayer = hiddenNames.some(keyword => layerData.name.includes(keyword));
+        if (isStreetLayer) {
+            continue; // Pula a inserção no mapa, mantendo disponível apenas no banco (IndexedDB) para busca
+        }
+
         if (layerVisibility[layerData.id] === undefined) {
             layerVisibility[layerData.id] = true;
         }
@@ -150,7 +159,7 @@ function addLayerToMap(layerData, mode = viewMode) {
     }
 }
 
-// Atualiza a lista de camadas na interface (UI) - oculta camadas de ruas
+// Atualiza a lista de camadas na interface (UI)
 function updateLayerListUI() {
     const ul = document.getElementById('layersUl');
     if (!ul) return;
@@ -158,7 +167,6 @@ function updateLayerListUI() {
     DB.getLayers().then(layers => {
         ul.innerHTML = '';
         layers.forEach(layer => {
-            // Filtra camadas que não devem aparecer na lista (ex: ruas)
             const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
             const shouldHide = hiddenNames.some(keyword => layer.name.includes(keyword));
             if (shouldHide) return;
@@ -170,7 +178,6 @@ function updateLayerListUI() {
             
             const actionsDiv = document.createElement('div');
             
-            // Botão de visibilidade
             const visBtn = document.createElement('button');
             visBtn.className = 'btn-icon';
             visBtn.style.fontSize = '1rem';
@@ -187,7 +194,6 @@ function updateLayerListUI() {
             
             actionsDiv.appendChild(visBtn);
 
-            // Botão de excluir (visível no modo Admin)
             if (isAdmin) {
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn-icon';
@@ -210,22 +216,18 @@ function updateLayerListUI() {
     });
 }
 
-// Define o modo de visualização ('all' | 'points' | 'none')
 function setViewMode(mode) {
     viewMode = mode;
     reloadLayers();
 }
 
-// Sincroniza os checkboxes com o estado atual
 function syncViewCheckboxes(mode) {
     document.querySelectorAll('.view-checkbox').forEach(cb => {
         cb.checked = (cb.dataset.mode === mode);
     });
 }
 
-// Manipula o clique em uma feição do mapa
 function handleFeatureClick(e, feature, layer) {
-    // Se o modo de seleção de origem estiver ativo, usa o clique para definir a origem
     if (mapClickMode) {
         mapClickMode = false;
         document.getElementById('mapOriginBtn').textContent = '🎯 Definir origem no mapa';
@@ -237,7 +239,6 @@ function handleFeatureClick(e, feature, layer) {
         return;
     }
 
-    // Se não há origem, define o ponto clicado como origem (apenas para pontos)
     if (!originMarker && feature.geometry.type === 'Point') {
         const coords = feature.geometry.coordinates;
         setOrigin(coords[1], coords[0], feature.properties?.name || 'Ponto selecionado');
@@ -246,7 +247,6 @@ function handleFeatureClick(e, feature, layer) {
         return;
     }
 
-    // Se já existe origem, tenta desenhar rota/linha para a feição
     if (originMarker) {
         drawRouteOrLine(feature);
     } else {
@@ -254,7 +254,6 @@ function handleFeatureClick(e, feature, layer) {
     }
 }
 
-// RECUPERADO: Função para desenhar a rota ou linha reta até a feição selecionada
 function drawRouteOrLine(feature) {
     if (feature.geometry.type !== 'Point') {
         showToast('Apenas feições do tipo Ponto suportam cálculo de rota no clique.', 'info');
@@ -271,6 +270,5 @@ function drawRouteOrLine(feature) {
     const to = turf.point([destLng, destLat]);
     const distance = turf.distance(from, to, { units: 'kilometers' });
     
-    // Chama a função alocada em map.js para gerar visualmente e acionar o OSRM
     focusOnFeature(destLng, destLat, name, distance);
 }
