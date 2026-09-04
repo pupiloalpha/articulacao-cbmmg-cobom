@@ -1209,31 +1209,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Verifica estado inicial da sidebar para esconder/mostrar o botão flutuante
 const sidebar = document.getElementById('sidebar');
-const showBtn = document.getElementById('sidebarShowBtn');
-if (sidebar.classList.contains('collapsed')) {
-    showBtn.classList.remove('hidden');
-} else {
-    showBtn.classList.add('hidden');
-}
-    
-    // Sidebar toggle
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-    // Mostra/esconde o botão flutuante
     const showBtn = document.getElementById('sidebarShowBtn');
-    if (sidebar.classList.contains('collapsed')) {
-        showBtn.classList.remove('hidden');
+
+    // Se for desktop (largura > 768px), abre a sidebar por padrão
+    if (window.innerWidth > 768) {
+        sidebar.classList.remove('collapsed');
+        showBtn.classList.add('hidden');   // esconde o botão flutuante
     } else {
-        showBtn.classList.add('hidden');
+        // Mobile: a sidebar já tem 'collapsed', então o botão fica visível
+        showBtn.classList.remove('hidden');
     }
-});
-    // Botão flutuante (reabrir sidebar)
-document.getElementById('sidebarShowBtn').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.remove('collapsed');
-    document.getElementById('sidebarShowBtn').classList.add('hidden');
-});
+
+    // Toggle do botão dentro da sidebar (☰)
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        // Mostra ou esconde o botão flutuante conforme o estado
+        if (sidebar.classList.contains('collapsed')) {
+            showBtn.classList.remove('hidden');
+        } else {
+            showBtn.classList.add('hidden');
+        }
+    });
+
+    // Clique no botão flutuante para reabrir a sidebar
+    showBtn.addEventListener('click', () => {
+        sidebar.classList.remove('collapsed');
+        showBtn.classList.add('hidden');
+    });
 
     // Busca
     document.getElementById('searchBtn').addEventListener('click', () => {
