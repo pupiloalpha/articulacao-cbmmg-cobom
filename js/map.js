@@ -1,5 +1,5 @@
 // js/map.js - Inicialização do mapa Leaflet, camada base com cache e cálculos de origem/distância
-// Inclui roteamento, verificação de polígonos e atualização de popup
+// Inclui roteamento, verificação de polígonos, popup dinâmico e painel de distâncias em linha reta
 
 // Classe customizada de TileLayer com cache em IndexedDB
 class OfflineTileLayer extends L.TileLayer {
@@ -59,7 +59,7 @@ class OfflineTileLayer extends L.TileLayer {
 // Inicialização do Mapa
 function initMap() {
     map = L.map('map', {
-        center: [-15.7934, -47.8822],
+        center: [-15.7934, -47.8822], // Brasília, Brasil
         zoom: 4,
         zoomControl: false
     });
@@ -83,6 +83,7 @@ function initMap() {
     };
     L.control.zoomExtended({ position: 'topright' }).addTo(map);
 
+    // Listener de clique no mapa (para definir origem manual)
     map.on('click', (e) => {
         if (mapClickMode) {
             mapClickMode = false;
@@ -104,36 +105,58 @@ function initMap() {
     reloadLayers();
 }
 
+// Função auxiliar para extrair coordenadas [lat, lng] de qualquer geometria
+function extractCoordinates(geometry) {
+    const coords = [];
+    if (geometry.type === 'Point') {
+        coords.push([geometry.coordinates[1], geometry.coordinates[0]]);
+    } else if (geometry.type === 'MultiPoint') {
+        geometry.coordinates.forEach(c => coords.push([c[1], c[0]]));
+    } else if (geometry.type === 'LineString') {
+        geometry.coordinates.forEach(c => coords.push([c[1], c[0]]));
+    } else if (geometry.type === 'MultiLineString') {
+        geometry.coordinates.forEach(line => line.forEach(c => coords.push([c[1], c[0]])));
+    } else if (geometry.type === 'Polygon') {
+        geometry.coordinates[0].forEach(c => coords.push([c[1], c[0]]));
+    } else if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates.forEach(poly => poly[0].forEach(c => coords.push([c[1], c[0]])));
+    } else if (geometry.type === 'GeometryCollection') {
+        geometry.geometries.forEach(g => coords.push(...extractCoordinates(g)));
+    }
+    return coords;
+}
+
 // Faz o enquadramento (fitBounds) de todas as feições carregadas no mapa
 function zoomToAllFeatures() {
-    let bounds = L.latLngBounds();
+    const bounds = new L.LatLngBounds();
     let hasFeatures = false;
-    
-    Object.values(overlayLayers).forEach(layer => {
-        if (map.hasLayer(layer)) {
-            const layerBounds = layer.getBounds();
-            if (layerBounds.isValid()) {
-                bounds.extend(layerBounds);
-                hasFeatures = true;
+
+    for (const layerId in overlayLayers) {
+        const layer = overlayLayers[layerId];
+        if (!map.hasLayer(layer)) continue;
+        layer.eachLayer(function(l) {
+            if (l.feature && l.feature.geometry) {
+                const coords = extractCoordinates(l.feature.geometry);
+                coords.forEach(coord => {
+                    bounds.extend(coord);
+                    hasFeatures = true;
+                });
             }
-        }
-    });
-    
+        });
+    }
+
     if (hasFeatures) {
         map.fitBounds(bounds, { padding: [50, 50] });
     } else {
-        showToast('Nenhuma feição visível no mapa para enquadrar.', 'warning');
+        map.setView([-15.7934, -47.8822], 4);
     }
 }
-
-// ===== FUNÇÕES RESGATADAS =====
 
 // Verifica em quais polígonos (feature.type Polygon/MultiPolygon) o ponto está contido
 async function checkPolygonContainment(lat, lng) {
     const point = turf.point([lng, lat]);
     const containingPolygons = [];
 
-    // Itera sobre as camadas ativas no mapa (objeto overlayLayers)
     for (const layerId in overlayLayers) {
         const layerData = await DB.getLayerById(Number(layerId));
         if (!layerData || !layerData.geojson || !layerData.geojson.features) continue;
@@ -171,31 +194,119 @@ async function updateOriginPopup(lat, lng, description) {
     
     if (originMarker) {
         originMarker.setPopupContent(popupContent);
-        originMarker.openPopup(); // reabre para atualizar
+        originMarker.openPopup();
     }
 }
 
-// Obtém distância por rota (com cache e fallback)
+// Define um ponto de origem para cálculo de distâncias
+function setOrigin(lat, lng, description) {
+    if (originMarker) map.removeLayer(originMarker);
+    originMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+    originMarker.bindPopup(`<b>Origem:</b> ${description}<br>Arraste para ajustar.`).openPopup();
+    
+    updateOriginPopup(lat, lng, description);
+    
+    originMarker.on('dragend', () => {
+        const pos = originMarker.getLatLng();
+        currentSearchResult = { lat: pos.lat, lng: pos.lng, address: description };
+        calculateDistancesToAllFeatures(pos.lat, pos.lng);
+        updateOriginPopup(pos.lat, pos.lng, description);
+    });
+    
+    currentSearchResult = { lat, lng, address: description };
+}
+
+// Função para calcular e exibir distâncias (em linha reta e contenção em polígonos)
+async function calculateDistancesToAllFeatures(originLat, originLng) {
+    const distanceContainer = document.getElementById('distanceResults');
+    if (!distanceContainer) return;
+
+    distanceContainer.innerHTML = '<p>Calculando distâncias em linha reta...</p>';
+
+    // 1. Verifica polígonos que contêm o ponto
+    const containingPolygons = await checkPolygonContainment(originLat, originLng);
+    let html = '';
+
+    if (containingPolygons.length > 0) {
+        html += '<h4 style="margin:5px 0;">Polígono(s) que contém este ponto:</h4>';
+        html += '<ul style="list-style:none; padding-left:0; margin-top:2px;">';
+        containingPolygons.forEach(p => {
+            html += `<li>• ${p.featureName} (${p.layerName})</li>`;
+        });
+        html += '</ul><hr>';
+    } else {
+        html += '<p><strong>O ponto não está dentro de nenhum polígono.</strong></p><hr>';
+    }
+
+    // 2. Calcula distâncias em linha reta para todos os pontos
+    const originPoint = turf.point([originLng, originLat]);
+    const results = [];
+
+    for (const layerId in overlayLayers) {
+        const layerData = await DB.getLayerById(Number(layerId));
+        if (!layerData || !layerData.geojson) continue;
+
+        for (const feature of layerData.geojson.features) {
+            if (feature.geometry.type !== 'Point') continue;
+
+            const coords = feature.geometry.coordinates;
+            const destPoint = turf.point(coords);
+            const distanceKm = turf.distance(originPoint, destPoint, { units: 'kilometers' });
+
+            results.push({
+                layerName: layerData.name,
+                featureName: feature.properties?.name || 'Sem nome',
+                distanceKm: distanceKm,
+                destination: coords,
+                source: 'straight'
+            });
+        }
+    }
+
+    // Ordena e exibe os 10 mais próximos
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+    const topResults = results.slice(0, 10);
+
+    if (topResults.length === 0) {
+        html += '<p>Nenhum ponto encontrado nas camadas.</p>';
+    } else {
+        html += '<h4 style="margin:5px 0;">10 pontos mais próximos (linha reta):</h4>';
+        html += '<ul style="list-style:none; padding-left:0; margin-top:2px;">';
+        for (const res of topResults) {
+            const km = res.distanceKm.toFixed(2);
+            const m = (res.distanceKm * 1000).toFixed(0);
+            html += `<li style="padding:5px; border-bottom:1px solid #eee; cursor:pointer;" 
+                         onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
+                        <strong>${res.featureName}</strong> (${res.layerName})<br>
+                        <span style="color:#c0392b;">${km} km (${m} m)</span>
+                        <span style="font-size:0.8em; color:#666; margin-left:8px;">➡️ linha reta</span>
+                    </li>`;
+        }
+        html += '</ul>';
+    }
+
+    distanceContainer.innerHTML = html;
+}
+
+// Obtém distância por rota (com cache OSRM e fallback)
 async function getRouteDistance(originLat, originLng, destLat, destLng) {
-    // 1. Verifica no cache
     const cached = await DB.getRouteFromCache(originLat, originLng, destLat, destLng);
     if (cached) {
         return {
-            distance: cached.distance, // metros
+            distance: cached.distance,
             duration: cached.duration,
             source: 'cache'
         };
     }
 
-    // 2. Se estiver online, calcula via OSRM
     if (navigator.onLine) {
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
             const response = await fetch(url);
             const data = await response.json();
             if (data.code === 'Ok') {
-                const distance = data.routes[0].distance; // metros
-                const duration = data.routes[0].duration; // segundos
+                const distance = data.routes[0].distance;
+                const duration = data.routes[0].duration;
                 await DB.saveRouteToCache(originLat, originLng, destLat, destLng, distance, duration);
                 return { distance, duration, source: 'online' };
             }
@@ -204,10 +315,9 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
         }
     }
 
-    // 3. Fallback: distância em linha reta (turf)
     const from = turf.point([originLng, originLat]);
     const to = turf.point([destLng, destLat]);
-    const straightDistance = turf.distance(from, to, { units: 'kilometers' }) * 1000; // metros
+    const straightDistance = turf.distance(from, to, { units: 'kilometers' }) * 1000;
     return {
         distance: straightDistance,
         duration: null,
@@ -217,7 +327,6 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
 
 // Desenha linha reta (fallback)
 function drawStraightLine(originPos, lat, lng, name, distance) {
-    // Remove elementos anteriores
     if (window.distanceLine) {
         map.removeLayer(window.distanceLine);
         window.distanceLine = null;
@@ -234,20 +343,16 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
     const latlngs = [[originPos.lat, originPos.lng], [lat, lng]];
     window.distanceLine = L.polyline(latlngs, { color: 'red', weight: 2, dashArray: '5,5' }).addTo(map);
     window.distanceMarker = L.marker([lat, lng]).addTo(map)
-        .bindPopup(`<b>${name}</b><br>➡️ Linha reta<br>Distância: ${(distance/1000).toFixed(2)} km`)
+        .bindPopup(`<b>${name}</b><br>➡️ Linha reta<br>Distância: ${distance.toFixed(2)} km`)
         .openPopup();
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
 }
 
-// Foca em uma feature e tenta desenhar rota (ou linha reta)
+// Foca em uma feature e desenha rota (ou linha reta)
 async function focusOnFeature(lng, lat, name, distance) {
-    if (!originMarker) {
-        showToast('Defina uma origem primeiro.', 'warning');
-        return;
-    }
+    if (!originMarker) return;
     const originPos = originMarker.getLatLng();
 
-    // Remove elementos anteriores
     if (window.distanceLine) {
         map.removeLayer(window.distanceLine);
         window.distanceLine = null;
@@ -261,20 +366,17 @@ async function focusOnFeature(lng, lat, name, distance) {
         window.routingControl = null;
     }
 
-    // Se estiver online, tenta obter a rota real (com cache)
     if (navigator.onLine) {
-        // Mostra indicador de carregamento
+        const popupContent = `<b>${name}</b><br>Calculando rota...`;
         const tempMarker = L.marker([lat, lng]).addTo(map)
-            .bindPopup(`<b>${name}</b><br>Calculando rota...`).openPopup();
+            .bindPopup(popupContent).openPopup();
 
         try {
             const route = await getRouteDistance(originPos.lat, originPos.lng, lat, lng);
             if (route && route.source !== 'straight') {
-                // Rota obtida com sucesso (cache ou online)
                 const distanceKm = (route.distance / 1000).toFixed(2);
                 const durationMin = route.duration ? Math.round(route.duration / 60) : '?';
 
-                // Desenha a rota usando Leaflet Routing Machine
                 window.routingControl = L.Routing.control({
                     waypoints: [
                         L.latLng(originPos.lat, originPos.lng),
@@ -286,7 +388,6 @@ async function focusOnFeature(lng, lat, name, distance) {
                     fitSelectedRoutes: true
                 }).addTo(map);
 
-                // Quando a rota for encontrada, atualiza o popup
                 window.routingControl.on('routesfound', function(e) {
                     const routeData = e.routes[0];
                     const dist = (routeData.summary.totalDistance / 1000).toFixed(2);
@@ -298,7 +399,6 @@ async function focusOnFeature(lng, lat, name, distance) {
                         .openPopup();
                 });
 
-                // Fallback se a rota falhar
                 window.routingControl.on('routingerror', function() {
                     map.removeLayer(tempMarker);
                     drawStraightLine(originPos, lat, lng, name, distance);
@@ -306,7 +406,6 @@ async function focusOnFeature(lng, lat, name, distance) {
 
                 return;
             } else {
-                // Fallback: linha reta
                 map.removeLayer(tempMarker);
                 drawStraightLine(originPos, lat, lng, name, distance);
             }
@@ -315,141 +414,6 @@ async function focusOnFeature(lng, lat, name, distance) {
             drawStraightLine(originPos, lat, lng, name, distance);
         }
     } else {
-        // Offline: linha reta
         drawStraightLine(originPos, lat, lng, name, distance);
-    }
-}
-
-// ===== FUNÇÕES EXISTENTES (com ajustes) =====
-
-// Define um ponto de origem para cálculo de distâncias
-function setOrigin(lat, lng, description) {
-    if (originMarker) map.removeLayer(originMarker);
-    originMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-    originMarker.bindPopup(`<b>Origem:</b> ${description}`).openPopup();
-    
-    // Atualiza currentOrigin (global) e o popup com polígonos
-    currentOrigin = { lat, lng, description };
-    updateOriginPopup(lat, lng, description);
-    
-    originMarker.on('dragend', (e) => {
-        const newPos = e.target.getLatLng();
-        currentOrigin = { lat: newPos.lat, lng: newPos.lng, description };
-        calculateDistancesToAllFeatures(newPos.lat, newPos.lng);
-        updateOriginPopup(newPos.lat, newPos.lng, description);
-    });
-    
-    calculateDistancesToAllFeatures(lat, lng);
-}
-
-// Calcula distâncias da origem para todas as feições de ponto visíveis
-async function calculateDistancesToAllFeatures(originLat, originLng) {
-    const origin = turf.point([originLng, originLat]);
-    const distances = [];
-
-    const layers = await DB.getLayers();
-    for (const layerData of layers) {
-        if (layerVisibility[layerData.id] === false) continue;
-        if (!layerData.geojson) continue;
-
-        for (const feature of layerData.geojson.features) {
-            if (feature.geometry.type === 'Point') {
-                const destination = turf.point(feature.geometry.coordinates);
-                const distanceKm = turf.distance(origin, destination, { units: 'kilometers' });
-                
-                distances.push({
-                    feature: feature,
-                    distanceKm: distanceKm,
-                    layerName: layerData.name
-                });
-            }
-        }
-    }
-
-    distances.sort((a, b) => a.distanceKm - b.distanceKm);
-    displayDistanceResults(distances.slice(0, 10));
-}
-
-// Exibe os resultados de distância e permite focar na feature
-function displayDistanceResults(results) {
-    const resultsDiv = document.getElementById('distanceResults');
-    if (!resultsDiv) return;
-    resultsDiv.innerHTML = '<h4>Pontos Próximos</h4>';
-
-    if (results.length === 0) {
-        resultsDiv.innerHTML += '<p>Nenhum ponto encontrado.</p>';
-        return;
-    }
-
-    results.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'distance-result-item';
-        div.style.padding = '6px';
-        div.style.marginBottom = '4px';
-        div.style.background = '#f8f9fa';
-        div.style.borderLeft = '3px solid #3498db';
-        div.style.cursor = 'pointer';
-
-        const name = item.feature.properties?.name || 'Ponto sem nome';
-        const distFormatted = item.distanceKm < 1 
-            ? `${(item.distanceKm * 1000).toFixed(0)} m` 
-            : `${item.distanceKm.toFixed(2)} km`;
-
-        div.innerHTML = `<b>${name}</b><br><small>${item.layerName} - ${distFormatted}</small>`;
-        
-        div.addEventListener('click', () => {
-            const coords = item.feature.geometry.coordinates; // [lng, lat]
-            // Usa focusOnFeature para desenhar rota ou linha
-            focusOnFeature(coords[0], coords[1], name, item.distanceKm);
-        });
-
-        resultsDiv.appendChild(div);
-    });
-}
-
-// Função principal para desenhar rota/linha a partir de uma feature clicada
-function drawRouteOrLine(feature) {
-    if (!originMarker) {
-        showToast('Defina uma origem primeiro.', 'warning');
-        return;
-    }
-    // Extrai coordenadas representativas (para LineString, pega o ponto médio; para Point, o próprio)
-    let coords = null;
-    const geom = feature.geometry;
-    if (geom.type === 'Point') {
-        coords = geom.coordinates;
-    } else if (geom.type === 'LineString' || geom.type === 'MultiLineString') {
-        // Pega o primeiro ponto da linha (ou o médio)
-        const line = geom.type === 'LineString' ? geom.coordinates : geom.coordinates[0];
-        if (line && line.length) {
-            const mid = Math.floor(line.length / 2);
-            coords = line[mid] || line[0];
-        }
-    } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
-        // Para polígonos, apenas abre popup com nome (sem rota)
-        const props = feature.properties || {};
-        const name = props.name || 'Sem nome';
-        showToast(`Clique em ${name} (polígono) – rota não disponível.`, 'info');
-        // Cria um marcador temporário no centro aproximado
-        const center = turf.center(turf.feature(geom));
-        const centerCoords = center.geometry.coordinates;
-        L.marker([centerCoords[1], centerCoords[0]])
-            .addTo(map)
-            .bindPopup(`<b>${name}</b><br>(Polígono)`)
-            .openPopup();
-        return;
-    } else {
-        showToast('Tipo de geometria não suportado para rota.', 'warning');
-        return;
-    }
-
-    if (coords) {
-        const name = feature.properties?.name || 'Ponto selecionado';
-        // distance estimada (será recalculada pela rota)
-        const originPos = originMarker.getLatLng();
-        const from = turf.point([originPos.lng, originPos.lat]);
-        const to = turf.point(coords);
-        const dist = turf.distance(from, to, { units: 'kilometers' });
-        focusOnFeature(coords[0], coords[1], name, dist);
     }
 }

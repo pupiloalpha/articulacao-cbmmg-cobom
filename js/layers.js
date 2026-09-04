@@ -253,3 +253,24 @@ function handleFeatureClick(e, feature, layer) {
         showToast('Defina uma origem primeiro (busca, GPS ou clique no mapa).', 'warning');
     }
 }
+
+// RECUPERADO: Função para desenhar a rota ou linha reta até a feição selecionada
+function drawRouteOrLine(feature) {
+    if (feature.geometry.type !== 'Point') {
+        showToast('Apenas feições do tipo Ponto suportam cálculo de rota no clique.', 'info');
+        return;
+    }
+    
+    const coords = feature.geometry.coordinates;
+    const destLng = coords[0];
+    const destLat = coords[1];
+    const name = feature.properties?.name || 'Destino selecionado';
+    
+    const originPos = originMarker.getLatLng();
+    const from = turf.point([originPos.lng, originPos.lat]);
+    const to = turf.point([destLng, destLat]);
+    const distance = turf.distance(from, to, { units: 'kilometers' });
+    
+    // Chama a função alocada em map.js para gerar visualmente e acionar o OSRM
+    focusOnFeature(destLng, destLat, name, distance);
+}

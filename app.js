@@ -62,6 +62,22 @@ document.addEventListener('DOMContentLoaded', () => {
         resetBtn.addEventListener('click', resetAll);
     }
 
+    // RECUPERADO: Controle do botão de definir origem manualmente no mapa
+    const mapOriginBtn = document.getElementById('mapOriginBtn');
+    if (mapOriginBtn) {
+        mapOriginBtn.addEventListener('click', () => {
+            mapClickMode = !mapClickMode;
+            if (mapClickMode) {
+                mapOriginBtn.textContent = 'Cancelar marcação';
+                if (map) map.getContainer().style.cursor = 'crosshair';
+                showToast('Clique no mapa para definir a origem.', 'info');
+            } else {
+                mapOriginBtn.textContent = '🎯 Definir origem no mapa';
+                if (map) map.getContainer().style.cursor = '';
+            }
+        });
+    }
+
     // Controle da busca por endereço e autocomplete debounce
     const searchInputEl = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
