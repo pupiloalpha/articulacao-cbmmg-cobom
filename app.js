@@ -18,19 +18,10 @@ let layerVisibility = {};
 // Configuração e Inicialização Principal ao carregar o DOM
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
-
-    try {
-        await seedInitialData();
-        await loadStreetDataFromGitHub();
-        
-        if (typeof reloadLayers === 'function') {
-            await reloadLayers();
-        }
-        zoomToAllFeatures();
-    } catch (e) {
-        console.warn('Erro ao inicializar dados assíncronos:', e);
-    }
-    
+    seedInitialData();
+    loadStreetDataFromGitHub();
+    reloadLayers();
+    zoomToAllFeatures();
     setupAuth();
     initAdminAuthListeners();
     setupFileUpload();
