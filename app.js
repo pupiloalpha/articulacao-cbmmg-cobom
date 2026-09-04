@@ -19,13 +19,20 @@ let layerVisibility = {};
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
 
-    // Aguarde o processamento dos dados iniciais e de ruas
-    await seedInitialData();
-    await loadStreetDataFromGitHub();
-    
-    // Garanta a renderização de todas as camadas no mapa e aplique o enquadramento
-    await reloadLayers();
-    zoomToAllFeatures();
+    // Executa operações assíncronas com segurança usando IIFE async
+    (async () => {
+        try {
+            await seedInitialData();
+            await loadStreetDataFromGitHub();
+            
+            if (typeof reloadLayers === 'function') {
+                await reloadLayers();
+            }
+            zoomToAllFeatures();
+        } catch (e) {
+            console.warn('Erro ao inicializar dados assíncronos:', e);
+        }
+    })();
     
     setupAuth();
     initAdminAuthListeners();
