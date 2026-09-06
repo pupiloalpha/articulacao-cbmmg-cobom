@@ -18,6 +18,23 @@ function setupAuth() {
     updateLayerListUI();
 }
 
+// Atualização de visibilidade das ferramentas administrativas e da Aba 3
+function updateAdminUI() {
+    const tabAdminBtn = document.getElementById('tabAdminBtn');
+    const adminTools = document.getElementById('adminTools');
+
+    if (isAdmin) {
+        if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
+        if (adminTools) adminTools.classList.remove('hidden');
+        switchSidebarTab('tab-admin'); // Transiciona automaticamente para a Aba 3
+    } else {
+        if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
+        if (adminTools) adminTools.classList.add('hidden');
+        switchSidebarTab('tab-despacho'); // Retorna para a Aba 1 de Despacho ao deslogar
+    }
+    updateLayerListUI();
+}
+
 // Hash SHA-256 em hexadecimal
 async function sha256(str) {
     try {
