@@ -226,29 +226,21 @@ function setOrigin(lat, lng, description) {
     currentSearchResult = { lat, lng, address: description };
 }
 
-// Função para calcular e exibir distâncias (em linha reta e contenção em polígonos)
+// Controle de requisições assíncronas de rota para evitar condições de corrida
+let currentRouteRequestId = 0;
+
+// Função para calcular e exibir distâncias (Jurisdição COBOM + Top Candidatas + ETA Assíncrono)
 async function calculateDistancesToAllFeatures(originLat, originLng) {
     const distanceContainer = document.getElementById('distanceResults');
     if (!distanceContainer) return;
 
-    distanceContainer.innerHTML = '<p>Calculando distâncias em linha reta...</p>';
+    // Incrementa token para descartar respostas de requisições anteriores
+    const reqId = ++currentRouteRequestId;
 
-    // 1. Verifica polígonos que contêm o ponto
+    // 1. Verifica polígonos que contêm o ponto (Jurisdição Territorial)
     const containingPolygons = await checkPolygonContainment(originLat, originLng);
-    let html = '';
-
-    if (containingPolygons.length > 0) {
-        html += '<h4 style="margin:5px 0;">Polígono(s) que contém este ponto:</h4>';
-        html += '<ul style="list-style:none; padding-left:0; margin-top:2px;">';
-        containingPolygons.forEach(p => {
-            html += `<li>• ${p.featureName} (${p.layerName})</li>`;
-        });
-        html += '</ul><hr>';
-    } else {
-        html += '<p><strong>O ponto não está dentro de nenhum polígono.</strong></p><hr>';
-    }
-
-    // 2. Calcula distâncias em linha reta para todos os pontos
+    
+    // 2. Calcula distâncias em linha reta para todas as unidades operacionais (excluindo municípios)
     const originPoint = turf.point([originLng, originLat]);
     const results = [];
 
@@ -269,11 +261,11 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
             const distanceKm = turf.distance(originPoint, destPoint, { units: 'kilometers' });
 
             const props = feature.properties || {};
-            const subtitle = props.UEOP ? ` • ${props.UEOP}` : '';
+            const subtitle = props.UEOP ? ` • ${props.UEOP}` : (props.layerName ? ` • ${props.layerName}` : '');
 
             results.push({
                 layerName: layerData.name,
-                featureName: feature.properties?.name || 'Sem nome',
+                featureName: feature.properties?.name || 'Unidade BM',
                 subtitle: subtitle,
                 distanceKm: distanceKm,
                 destination: coords,
@@ -282,32 +274,130 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         }
     }
 
-    // Ordena e exibe os 10 mais próximos
+    // Ordena por proximidade euclidiana e seleciona Top 5
     results.sort((a, b) => a.distanceKm - b.distanceKm);
-    const topResults = results.slice(0, 10);
+    const topResults = results.slice(0, 5);
 
-    if (topResults.length === 0) {
-        html += '<p>Nenhum ponto encontrado nas camadas.</p>';
+    // Constrói HTML do Painel de Despacho Operacional
+    let html = '<div class="dispatch-panel">';
+
+    // Card de Jurisdição Territorial
+    let jurisdictionHtml = '';
+    if (containingPolygons.length > 0) {
+        jurisdictionHtml = containingPolygons.map(p => `🛡️ ${p.featureName} <small style="opacity:0.8">(${p.layerName})</small>`).join('<br>');
     } else {
-        html += '<h4 style="margin:5px 0;">10 pontos mais próximos (linha reta):</h4>';
-        html += '<ul style="list-style:none; padding-left:0; margin-top:2px;">';
-        for (const res of topResults) {
-            const km = res.distanceKm.toFixed(2);
-            const m = (res.distanceKm * 1000).toFixed(0);
-            html += `<li style="padding:5px; border-bottom:1px solid #eee; cursor:pointer;" 
-                         onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
-                        <strong>${res.featureName}</strong> <span style="font-size:0.85em; color:#555;">${res.subtitle} (${res.layerName})</span><br>
-                        <span style="color:#c0392b; font-weight:600;">${km} km (${m} m)</span>
-                        <span style="font-size:0.8em; color:#666; margin-left:8px;">➡️ linha reta</span>
-                    </li>`;
-        }
-        html += '</ul>';
+        jurisdictionHtml = '<span style="color:#e74c3c; font-weight:normal;">⚠️ Fora de polígonos mapeados (ou divisa intermunicipal)</span>';
     }
 
+    html += `
+        <div class="dispatch-jurisdiction-card">
+            <div class="dispatch-jurisdiction-title">🚨 Jurisdição Territorial Responsável</div>
+            <div class="dispatch-jurisdiction-name">${jurisdictionHtml}</div>
+        </div>
+    `;
+
+    // Lista de Unidades BM Próximas
+    if (topResults.length === 0) {
+        html += '<p style="padding:10px; font-size:12px; color:#666;">Nenhuma unidade de bombeiros encontrada nas camadas carregadas.</p>';
+    } else {
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <span style="font-size:12px; font-weight:700; color:#2c3e50;">🚒 Unidades Candidatas ao Despacho:</span>
+                <span style="font-size:10px; color:#7f8c8d;">1-clique para traçar rota</span>
+            </div>
+            <div class="dispatch-units-list">
+        `;
+
+        topResults.forEach((res, i) => {
+            const straightKm = res.distanceKm.toFixed(2);
+            const sub = res.subtitle ? res.subtitle.replace(/^ • /, '') : res.layerName;
+            const initialBadge = i < 3 
+                ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando tempo...</span>`
+                : `<span class="eta-badge-straight" id="eta-badge-unit-${i}">➡️ ${straightKm} km (reta)</span>`;
+
+            html += `
+                <div class="dispatch-unit-card" id="dispatch-unit-card-${i}"
+                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
+                    <div class="dispatch-unit-header">
+                        <div class="dispatch-unit-name">
+                            <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
+                        </div>
+                    </div>
+                    <div class="dispatch-unit-details">
+                        <span>${sub}</span>
+                        <div id="eta-container-unit-${i}">${initialBadge}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    }
+
+    html += '</div>';
     distanceContainer.innerHTML = html;
+
+    // Dispara cálculo assíncrono em segundo plano para as Top 3 unidades (não-bloqueante)
+    if (topResults.length > 0) {
+        fetchTopRoutesAsync(originLat, originLng, topResults, reqId);
+    }
 }
 
-// Obtém distância por rota (com cache OSRM e fallback)
+// Busca rotas e tempos de resposta (ETA) em paralelo para as Top 3 candidatas
+async function fetchTopRoutesAsync(originLat, originLng, topResults, reqId) {
+    const candidatesToRoute = topResults.slice(0, 3);
+    const routePromises = candidatesToRoute.map((cand, index) => {
+        return getRouteDistance(originLat, originLng, cand.destination[1], cand.destination[0])
+            .then(route => ({ index, cand, route }))
+            .catch(err => ({ index, cand, error: err }));
+    });
+
+    const settled = await Promise.allSettled(routePromises);
+
+    // Se o usuário já mudou o ponto ou realizou outra busca, ignora resultado obsoleto
+    if (reqId !== currentRouteRequestId) return;
+
+    let bestIndex = -1;
+    let minDuration = Infinity;
+
+    settled.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+            const { index, cand, route } = result.value;
+            const container = document.getElementById(`eta-container-unit-${index}`);
+            if (!container) return;
+
+            if (route && route.duration !== null && route.duration !== undefined) {
+                cand.route = route;
+                const durMin = Math.round(route.duration / 60);
+                const distKm = (route.distance / 1000).toFixed(1);
+                container.innerHTML = `<span class="eta-badge-ready" id="eta-badge-unit-${index}">🚗 ~${durMin} min (${distKm} km)</span>`;
+
+                if (route.duration < minDuration) {
+                    minDuration = route.duration;
+                    bestIndex = index;
+                }
+            } else {
+                const km = cand.distanceKm.toFixed(2);
+                container.innerHTML = `<span class="eta-badge-straight" id="eta-badge-unit-${index}">➡️ ${km} km (reta)</span>`;
+            }
+        }
+    });
+
+    // Destaque visual para a unidade com o melhor tempo de resposta (ETA)
+    if (bestIndex >= 0 && minDuration !== Infinity) {
+        const bestCard = document.getElementById(`dispatch-unit-card-${bestIndex}`);
+        const bestContainer = document.getElementById(`eta-container-unit-${bestIndex}`);
+        if (bestCard) bestCard.classList.add('card-best-eta');
+        if (bestContainer) {
+            const bestCandidate = candidatesToRoute[bestIndex];
+            const durMin = Math.round(bestCandidate.route.duration / 60);
+            const distKm = (bestCandidate.route.distance / 1000).toFixed(1);
+            bestContainer.innerHTML = `<span class="eta-badge-best" id="eta-badge-unit-${bestIndex}">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
+        }
+    }
+}
+
+// Obtém distância por rota (com timeout de 4s, cache OSRM em IndexedDB e fallback)
 async function getRouteDistance(originLat, originLng, destLat, destLng) {
     const cached = await DB.getRouteFromCache(originLat, originLng, destLat, destLng);
     if (cached) {
@@ -319,18 +409,22 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     }
 
     if (navigator.onLine) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout para não travar
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
             const data = await response.json();
-            if (data.code === 'Ok') {
+            if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
                 const distance = data.routes[0].distance;
                 const duration = data.routes[0].duration;
                 await DB.saveRouteToCache(originLat, originLng, destLat, destLng, distance, duration);
                 return { distance, duration, source: 'online' };
             }
         } catch (e) {
-            console.warn('Falha ao obter rota online:', e);
+            clearTimeout(timeoutId);
+            // Ignora falha de rede/timeout silenciosamente para fallback
         }
     }
 
@@ -344,7 +438,7 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     };
 }
 
-// Desenha linha reta (fallback)
+// Desenha linha reta (fallback visual para offline ou ausência de malha viária)
 function drawStraightLine(originPos, lat, lng, name, distance) {
     if (window.distanceLine) {
         map.removeLayer(window.distanceLine);
@@ -360,14 +454,14 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
     }
 
     const latlngs = [[originPos.lat, originPos.lng], [lat, lng]];
-    window.distanceLine = L.polyline(latlngs, { color: 'red', weight: 2, dashArray: '5,5' }).addTo(map);
+    window.distanceLine = L.polyline(latlngs, { color: '#e74c3c', weight: 3, dashArray: '6,6' }).addTo(map);
     window.distanceMarker = L.marker([lat, lng]).addTo(map)
-        .bindPopup(`<b>${name}</b><br>➡️ Linha reta<br>Distância: ${distance.toFixed(2)} km`)
+        .bindPopup(`<b>${name}</b><br>➡️ Linha reta (offline)<br>Distância: ${distance.toFixed(2)} km`)
         .openPopup();
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
 }
 
-// Foca em uma feature e desenha rota (ou linha reta)
+// Foca em uma unidade BM selecionada e desenha o traçado da rota no mapa sob demanda
 async function focusOnFeature(lng, lat, name, distance) {
     if (!originMarker) return;
     const originPos = originMarker.getLatLng();
@@ -386,7 +480,7 @@ async function focusOnFeature(lng, lat, name, distance) {
     }
 
     if (navigator.onLine) {
-        const popupContent = `<b>${name}</b><br>Calculando rota...`;
+        const popupContent = `<b>${name}</b><br>🚗 Carregando traçado da rota...`;
         const tempMarker = L.marker([lat, lng]).addTo(map)
             .bindPopup(popupContent).openPopup();
 
@@ -404,17 +498,29 @@ async function focusOnFeature(lng, lat, name, distance) {
                     routeWhileDragging: false,
                     showAlternatives: false,
                     addWaypoints: false,
-                    fitSelectedRoutes: true
+                    fitSelectedRoutes: true,
+                    lineOptions: {
+                        styles: [{ color: '#e74c3c', weight: 5, opacity: 0.85 }]
+                    }
                 }).addTo(map);
 
                 window.routingControl.on('routesfound', function(e) {
                     const routeData = e.routes[0];
                     const dist = (routeData.summary.totalDistance / 1000).toFixed(2);
                     const dur = Math.round(routeData.summary.totalTime / 60);
-                    const sourceLabel = route.source === 'cache' ? 'cache' : 'online';
+                    const sourceLabel = route.source === 'cache' ? 'cache local' : 'tempo real';
                     map.removeLayer(tempMarker);
                     window.distanceMarker = L.marker([lat, lng]).addTo(map)
-                        .bindPopup(`<b>${name}</b><br>🚗 Rota (${sourceLabel})<br>Distância: ${dist} km<br>Duração: ~${dur} min`)
+                        .bindPopup(`
+                            <div style="font-family:sans-serif;">
+                                <b style="color:#c0392b; font-size:13px;">🚒 ${name}</b><br>
+                                <div style="margin-top:4px; font-size:12px;">
+                                    <b>Tempo estimado:</b> ~${dur} min<br>
+                                    <b>Distância por via:</b> ${dist} km<br>
+                                    <span style="font-size:10px; color:#7f8c8d;">Fonte: ${sourceLabel}</span>
+                                </div>
+                            </div>
+                        `)
                         .openPopup();
                 });
 
@@ -430,6 +536,7 @@ async function focusOnFeature(lng, lat, name, distance) {
             }
         } catch (e) {
             console.warn('Erro ao obter rota:', e);
+            if (tempMarker) map.removeLayer(tempMarker);
             drawStraightLine(originPos, lat, lng, name, distance);
         }
     } else {

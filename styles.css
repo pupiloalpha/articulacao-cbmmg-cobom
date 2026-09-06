@@ -775,4 +775,158 @@ body {
     border-radius: 4px;
 }
 
+/* ==========================================================================
+   Painel de Apoio à Decisão de Despacho (COBOM / 193)
+   ========================================================================== */
+
+.dispatch-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.dispatch-jurisdiction-card {
+    background: linear-gradient(135deg, #1c2833, #2c3e50);
+    color: #ffffff;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.dispatch-jurisdiction-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #bdc3c7;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.dispatch-jurisdiction-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1c40f;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dispatch-units-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dispatch-unit-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dispatch-unit-card:hover {
+    border-color: #e74c3c;
+    background: #fdfaf9;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(231, 76, 60, 0.12);
+}
+
+.dispatch-unit-card.card-best-eta {
+    border: 1px solid #27ae60;
+    background: #f4fbf7;
+}
+
+.dispatch-unit-card.card-best-eta:hover {
+    border-color: #219653;
+    background: #eafaf1;
+}
+
+.dispatch-unit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.dispatch-unit-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1.2;
+}
+
+.dispatch-unit-rank {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.dispatch-unit-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #7f8c8d;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Badges de ETA e Distância */
+.eta-badge-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #edf2f7;
+    color: #718096;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    animation: pulse-loading 1.2s infinite ease-in-out;
+}
+
+.eta-badge-best {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #d4efdf;
+    color: #1e8449;
+    border: 1px solid #a9dfbf;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.eta-badge-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ebf5fb;
+    color: #2471a3;
+    border: 1px solid #aed6f1;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.eta-badge-straight {
+    font-size: 11px;
+    color: #95a5a6;
+}
+
+@keyframes pulse-loading {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+
 
