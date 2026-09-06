@@ -302,7 +302,7 @@ function formatFeatureTooltip(feature) {
     `;
 }
 
-// Formata o conteúdo HTML para o popup ao clicar (inclui botões de ação operacional)
+// Formata o conteúdo HTML para o popup ao clicar (inclui botões de ação operacional e edição)
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
@@ -312,6 +312,15 @@ function formatFeaturePopup(feature) {
     if (!coords) {
         return tooltipHtml;
     }
+
+    const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
+    const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
+
+    const editBtnHtml = (layerDbId !== 'null' && featureIdx !== 'null') ? `
+        <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
+            ✏️ Editar Dados
+        </button>
+    ` : '';
 
     const actionsHtml = `
         <div class="feature-popup-actions">
@@ -324,6 +333,7 @@ function formatFeaturePopup(feature) {
             <button class="btn-popup-action btn-popup-copy" onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
                 📋 Copiar Coord.
             </button>
+            ${editBtnHtml}
         </div>
     `;
 
@@ -333,6 +343,14 @@ function formatFeaturePopup(feature) {
 // Adiciona uma camada ao mapa a partir dos dados, com filtro opcional e interações ricas
 function addLayerToMap(layerData, mode = viewMode) {
     if (!layerData.geojson || !map) return;
+
+    // Indexa as feições com o ID da camada e o índice para permitir edição precisa
+    if (Array.isArray(layerData.geojson.features)) {
+        layerData.geojson.features.forEach((feat, idx) => {
+            feat._layerDbId = layerData.id;
+            feat._featureIndex = idx;
+        });
+    }
 
     const geojsonLayer = L.geoJSON(layerData.geojson, {
         filter: function(feature) {

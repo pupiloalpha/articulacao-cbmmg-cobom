@@ -342,3 +342,350 @@ function setupBackupAndRoutes() {
         });
     }
 }
+
+// ==========================================================================
+// Módulo de Edição de Feições (Atributos, Geometria e JSON)
+// ==========================================================================
+
+let currentEditingContext = null;
+let isJsonEditMode = false;
+
+// Abre o modal de edição carregando a feição selecionada
+window.openEditFeatureModal = async function(layerId, featureIndex) {
+    const layerData = await DB.getLayerById(Number(layerId));
+    if (!layerData || !layerData.geojson || !Array.isArray(layerData.geojson.features)) {
+        showToast('Não foi possível carregar a camada da feição.', 'error');
+        return;
+    }
+
+    const feature = layerData.geojson.features[featureIndex];
+    if (!feature) {
+        showToast('Feição não encontrada na camada.', 'error');
+        return;
+    }
+
+    currentEditingContext = {
+        layerId: Number(layerId),
+        featureIndex: Number(featureIndex),
+        layerData: layerData,
+        feature: JSON.parse(JSON.stringify(feature)) // Cópia profunda
+    };
+
+    isJsonEditMode = false;
+    const jsonContainer = document.getElementById('editFeatureJsonContainer');
+    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
+    const toggleBtn = document.getElementById('toggleJsonModeBtn');
+
+    if (jsonContainer) jsonContainer.classList.add('hidden');
+    if (fieldsContainer) fieldsContainer.classList.remove('hidden');
+    if (toggleBtn) toggleBtn.textContent = '📋 Alternar Modo JSON';
+
+    // Configura títulos
+    const modalTitle = document.getElementById('editFeatureModalTitle');
+    const modalSubtitle = document.getElementById('editFeatureCategory');
+    const name = feature.properties?.name || 'Feição sem nome';
+    const classification = typeof getFeatureClassification === 'function' ? getFeatureClassification(feature) : feature.geometry?.type;
+
+    if (modalTitle) modalTitle.textContent = `✏️ Editar Feição: ${name}`;
+    if (modalSubtitle) modalSubtitle.textContent = `Camada: "${layerData.name}" | Tipo: ${classification} (${feature.geometry?.type})`;
+
+    renderEditFeatureForm(currentEditingContext.feature);
+
+    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+    if (jsonTextarea) {
+        jsonTextarea.value = JSON.stringify(feature, null, 2);
+    }
+
+    const modal = document.getElementById('editFeatureModal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+// Renderiza os campos de formulário apropriados para a feição
+function renderEditFeatureForm(feature) {
+    const container = document.getElementById('editFeatureFieldsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const props = feature.properties || {};
+    const geom = feature.geometry || {};
+
+    // 1. Coordenadas (para Pontos)
+    if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
+        const coordsRow = document.createElement('div');
+        coordsRow.className = 'form-row-coords';
+        coordsRow.innerHTML = `
+            <div class="form-group-edit">
+                <label>Latitude:</label>
+                <input type="number" step="any" id="editProp_coordLat" value="${geom.coordinates[1] !== undefined ? geom.coordinates[1] : ''}" required>
+            </div>
+            <div class="form-group-edit">
+                <label>Longitude:</label>
+                <input type="number" step="any" id="editProp_coordLng" value="${geom.coordinates[0] !== undefined ? geom.coordinates[0] : ''}" required>
+            </div>
+        `;
+        container.appendChild(coordsRow);
+    }
+
+    // 2. Definição de campos principais conforme o tipo
+    const isPolygon = geom.type === 'Polygon' || geom.type === 'MultiPolygon';
+
+    const mainFields = isPolygon ? [
+        { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text', value: props.name || '' },
+        { key: 'NM_MUN', label: 'Município Sede / Referência:', type: 'text', value: props.NM_MUN || props.Field3 || '' },
+        { key: 'CD_MUN', label: 'Código IBGE do Município:', type: 'text', value: props.CD_MUN || props.Field1 || '' },
+        { key: 'AREA_KM2', label: 'Área Territorial Coberta (km²):', type: 'text', value: props.AREA_KM2 || '' },
+        { key: 'Field8', label: 'Tipo da Fração (BBM, CIA, PEL, PA, etc.):', type: 'text', value: props.Field8 || '' },
+        { key: 'Field10', label: 'Denominação Completa da Fração:', type: 'text', value: props.Field10 || '' },
+        { key: 'Field7', label: 'Comando Operacional / Batalhão:', type: 'text', value: props.Field7 || '' },
+        { key: 'Field5', label: 'Situação / Status:', type: 'text', value: props.Field5 || '' },
+        { key: 'Field11', label: 'Data de Instalação (AAAA/MM/DD):', type: 'text', value: props.Field11 || '' },
+        { key: 'fill', label: 'Cor de Preenchimento (Hex):', type: 'text', value: props.fill || '#0288d1' }
+    ] : [
+        { key: 'name', label: 'Nome da Fração / Unidade BM:', type: 'text', value: props.name || '' },
+        { key: 'UEOP', label: 'Batalhão / UEOP de Vinculação:', type: 'text', value: props.UEOP || '' },
+        { key: 'COB', label: 'Comando Operacional (COB):', type: 'text', value: props.COB || '' }
+    ];
+
+    const renderedKeys = new Set(mainFields.map(f => f.key));
+    // Ignorar chaves de controle interno na lista de campos customizados
+    const systemKeys = new Set([
+        '_layerId', '_layerName', '_layerDbId', '_featureIndex', 
+        'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
+        'fill-opacity', 'stroke-opacity', 'stroke-width', 'stroke',
+        'auxiliary_storage_labeling_positionx', 'auxiliary_storage_labeling_positiony',
+        'SIGLA_UF', 'Field1', 'Field3', 'Field4', 'Field9'
+    ]);
+
+    mainFields.forEach(field => {
+        const group = document.createElement('div');
+        group.className = 'form-group-edit';
+        group.innerHTML = `
+            <label>${field.label}</label>
+            <input type="${field.type}" data-key="${field.key}" value="${escapeHtml(String(field.value))}">
+        `;
+        container.appendChild(group);
+    });
+
+    // 3. Outras propriedades existentes
+    const customPropsHeader = document.createElement('div');
+    customPropsHeader.innerHTML = '<h4 style="font-size:12px; color:#7f8c8d; margin-top:8px; margin-bottom:4px; text-transform:uppercase;">Outros Atributos</h4>';
+    container.appendChild(customPropsHeader);
+
+    const customContainer = document.createElement('div');
+    customContainer.id = 'customPropsList';
+    customContainer.style.display = 'flex';
+    customContainer.style.flexDirection = 'column';
+    customContainer.style.gap = '8px';
+
+    Object.keys(props).forEach(key => {
+        if (!renderedKeys.has(key) && !systemKeys.has(key)) {
+            const row = createCustomPropRow(key, props[key]);
+            customContainer.appendChild(row);
+        }
+    });
+
+    container.appendChild(customContainer);
+}
+
+// Cria uma linha para propriedade personalizada (chave e valor)
+function createCustomPropRow(key = '', value = '') {
+    const row = document.createElement('div');
+    row.className = 'custom-prop-row';
+    row.innerHTML = `
+        <input type="text" placeholder="Nome do Atributo" class="custom-prop-key" value="${escapeHtml(String(key))}">
+        <input type="text" placeholder="Valor" class="custom-prop-value" value="${escapeHtml(String(value))}">
+        <button type="button" class="btn-remove-prop" title="Remover atributo">&times;</button>
+    `;
+
+    row.querySelector('.btn-remove-prop').addEventListener('click', () => {
+        row.remove();
+    });
+
+    return row;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+}
+
+// Inicializa os listeners do modal de edição de feições
+function initEditFeatureModalListeners() {
+    const modal = document.getElementById('editFeatureModal');
+    const closeBtn = document.getElementById('closeEditFeatureModal');
+    const cancelBtn = document.getElementById('cancelEditFeatureBtn');
+    const saveBtn = document.getElementById('saveFeatureBtn');
+    const deleteBtn = document.getElementById('deleteFeatureBtn');
+    const addCustomBtn = document.getElementById('addCustomPropBtn');
+    const toggleJsonBtn = document.getElementById('toggleJsonModeBtn');
+    const jsonContainer = document.getElementById('editFeatureJsonContainer');
+    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
+    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+
+    const closeModal = () => {
+        if (modal) modal.classList.add('hidden');
+        currentEditingContext = null;
+    };
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+    if (toggleJsonBtn) {
+        toggleJsonBtn.addEventListener('click', () => {
+            isJsonEditMode = !isJsonEditMode;
+            if (isJsonEditMode) {
+                // Sincroniza do formulário para o JSON antes de alternar
+                syncFormToJson();
+                if (fieldsContainer) fieldsContainer.classList.add('hidden');
+                if (jsonContainer) jsonContainer.classList.remove('hidden');
+                toggleBtn.textContent = '📝 Modo Formulário';
+            } else {
+                // Sincroniza do JSON para o formulário
+                try {
+                    const parsed = JSON.parse(jsonTextarea.value);
+                    currentEditingContext.feature = parsed;
+                    renderEditFeatureForm(parsed);
+                    if (jsonContainer) jsonContainer.classList.add('hidden');
+                    if (fieldsContainer) fieldsContainer.classList.remove('hidden');
+                    toggleBtn.textContent = '📋 Alternar Modo JSON';
+                } catch (e) {
+                    showToast('Erro de sintaxe no JSON: ' + e.message, 'error');
+                    isJsonEditMode = true;
+                }
+            }
+        });
+    }
+
+    if (addCustomBtn) {
+        addCustomBtn.addEventListener('click', () => {
+            const list = document.getElementById('customPropsList');
+            if (list) {
+                const newRow = createCustomPropRow('', '');
+                list.appendChild(newRow);
+                const firstInput = newRow.querySelector('.custom-prop-key');
+                if (firstInput) firstInput.focus();
+            }
+        });
+    }
+
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            if (!currentEditingContext) return;
+            const name = currentEditingContext.feature.properties?.name || 'esta feição';
+            if (confirm(`Tem certeza que deseja excluir permanentemente "${name}"?`)) {
+                const { layerId, featureIndex, layerData } = currentEditingContext;
+                layerData.geojson.features.splice(featureIndex, 1);
+                await DB.updateLayer(layerId, { geojson: layerData.geojson });
+                await reloadLayers();
+                closeModal();
+                showToast(`Feição "${name}" excluída com sucesso!`, 'info');
+            }
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            if (!currentEditingContext) return;
+            const { layerId, featureIndex, layerData } = currentEditingContext;
+
+            try {
+                if (isJsonEditMode) {
+                    const parsed = JSON.parse(jsonTextarea.value);
+                    layerData.geojson.features[featureIndex] = parsed;
+                } else {
+                    const feature = layerData.geojson.features[featureIndex];
+                    if (!feature.properties) feature.properties = {};
+
+                    // Atualiza coordenadas se for Ponto
+                    const latInput = document.getElementById('editProp_coordLat');
+                    const lngInput = document.getElementById('editProp_coordLng');
+                    if (latInput && lngInput && feature.geometry.type === 'Point') {
+                        const newLat = parseFloat(latInput.value);
+                        const newLng = parseFloat(lngInput.value);
+                        if (!isNaN(newLat) && !isNaN(newLng)) {
+                            feature.geometry.coordinates = [newLng, newLat, feature.geometry.coordinates[2] || 0];
+                            feature.properties.Latitude = String(newLat);
+                            feature.properties.Longitude = String(newLng);
+                            feature.properties.LATITUDE = String(newLat);
+                            feature.properties.LONGITUDE = String(newLng);
+                        }
+                    }
+
+                    // Atualiza campos principais do formulário
+                    const inputs = fieldsContainer.querySelectorAll('input[data-key]');
+                    inputs.forEach(input => {
+                        const key = input.dataset.key;
+                        const val = input.value.trim();
+                        feature.properties[key] = val;
+                    });
+
+                    // Atualiza campos customizados
+                    const customRows = fieldsContainer.querySelectorAll('.custom-prop-row');
+                    customRows.forEach(row => {
+                        const keyInput = row.querySelector('.custom-prop-key');
+                        const valInput = row.querySelector('.custom-prop-value');
+                        if (keyInput && valInput) {
+                            const k = keyInput.value.trim();
+                            const v = valInput.value.trim();
+                            if (k) {
+                                feature.properties[k] = v;
+                            }
+                        }
+                    });
+
+                    // Atualiza descrição textual sintética
+                    if (feature.properties.UEOP && feature.properties.COB) {
+                        feature.properties.description = `COB: ${feature.properties.COB}<br>UEOP: ${feature.properties.UEOP}`;
+                    }
+                }
+
+                // Salva no banco de dados local (IndexedDB)
+                await DB.updateLayer(layerId, { geojson: layerData.geojson });
+                await reloadLayers();
+                closeModal();
+                showToast('Informações da feição atualizadas com sucesso!', 'success');
+            } catch (error) {
+                console.error('Erro ao salvar feição:', error);
+                showToast('Erro ao salvar feição: ' + error.message, 'error');
+            }
+        });
+    }
+}
+
+// Sincroniza os campos do formulário para o texto JSON bruto
+function syncFormToJson() {
+    if (!currentEditingContext) return;
+    const { feature } = currentEditingContext;
+    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
+    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+    if (!fieldsContainer || !jsonTextarea) return;
+
+    const latInput = document.getElementById('editProp_coordLat');
+    const lngInput = document.getElementById('editProp_coordLng');
+    if (latInput && lngInput && feature.geometry.type === 'Point') {
+        const newLat = parseFloat(latInput.value);
+        const newLng = parseFloat(lngInput.value);
+        if (!isNaN(newLat) && !isNaN(newLng)) {
+            feature.geometry.coordinates = [newLng, newLat, feature.geometry.coordinates[2] || 0];
+        }
+    }
+
+    const inputs = fieldsContainer.querySelectorAll('input[data-key]');
+    inputs.forEach(input => {
+        feature.properties[input.dataset.key] = input.value.trim();
+    });
+
+    const customRows = fieldsContainer.querySelectorAll('.custom-prop-row');
+    customRows.forEach(row => {
+        const k = row.querySelector('.custom-prop-key')?.value.trim();
+        const v = row.querySelector('.custom-prop-value')?.value.trim();
+        if (k) feature.properties[k] = v;
+    });
+
+    jsonTextarea.value = JSON.stringify(feature, null, 2);
+}
+

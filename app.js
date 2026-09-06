@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDrawingTools();
     setupGpsTracking();
     setupTileDownload();
+    initEditFeatureModalListeners();
     updateOnlineStatus();
 
     // Controle da Sidebar / Painel Lateral

@@ -96,6 +96,37 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Feição -->
+    <div id="editFeatureModal" class="modal hidden">
+        <div class="modal-content modal-edit-feature">
+            <span class="close-modal" id="closeEditFeatureModal">&times;</span>
+            <h3 id="editFeatureModalTitle">✏️ Editar Feição</h3>
+            <div id="editFeatureCategory" class="edit-feature-subtitle"></div>
+            
+            <form id="editFeatureForm" onsubmit="return false;">
+                <div id="editFeatureFieldsContainer" class="edit-feature-fields"></div>
+                
+                <div class="edit-feature-custom-actions">
+                    <button type="button" id="addCustomPropBtn" class="btn" style="background:#34495e; font-size:12px;">+ Adicionar Campo</button>
+                    <button type="button" id="toggleJsonModeBtn" class="btn" style="background:#7f8c8d; font-size:12px;">📋 Alternar Modo JSON</button>
+                </div>
+
+                <div id="editFeatureJsonContainer" class="hidden" style="margin-top:10px;">
+                    <label style="font-size:12px; font-weight:bold; color:#555;">GeoJSON Bruto:</label>
+                    <textarea id="editFeatureJsonTextarea" rows="8" style="width:100%; font-family:monospace; font-size:11px; padding:6px; border:1px solid #ccc; border-radius:4px; resize:vertical;"></textarea>
+                </div>
+
+                <div class="modal-footer" style="margin-top:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <button type="button" id="deleteFeatureBtn" class="btn" style="background:#e74c3c; color:white;">🗑️ Excluir</button>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="cancelEditFeatureBtn" class="btn" style="background:#95a5a6; color:white;">Cancelar</button>
+                        <button type="button" id="saveFeatureBtn" class="btn" style="background:#27ae60; color:white; font-weight:bold;">💾 Salvar Alterações</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts das bibliotecas locais -->
     <script src="./vendor/leaflet.js"></script>
     <script src="./vendor/leaflet-routing-machine.js"></script>
