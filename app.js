@@ -7,7 +7,7 @@ let baseLayer;
 let overlayLayers = {};
 let originMarker = null;
 let currentOrigin = null;   // armazena a origem atual { lat, lng, description }
-let isAdmin = false;
+window.isAdmin = false;
 let drawingMode = null;
 let polygonPoints = [];
 let polygonTempLayer = null;
