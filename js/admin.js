@@ -352,6 +352,11 @@ let isJsonEditMode = false;
 
 // Abre o modal de edição carregando a feição selecionada
 window.openEditFeatureModal = async function(layerId, featureIndex) {
+    if (typeof isAdmin === 'undefined' || !isAdmin) {
+        showToast('Você não tem permissão para editar esta feição.', 'error');
+        return;
+    }
+    
     const layerData = await DB.getLayerById(Number(layerId));
     if (!layerData || !layerData.geojson || !Array.isArray(layerData.geojson.features)) {
         showToast('Não foi possível carregar a camada da feição.', 'error');
