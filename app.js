@@ -1,4 +1,4 @@
-// app.js - Entrada, Controle de Abas e Orquestração Principal da Aplicação
+// app.js - Entrada e Orquestração Principal da Aplicação
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initEditFeatureModalListeners();
     updateOnlineStatus();
 
-    // Controle da Sidebar e Botão Flutuante
+    // Controle da Sidebar / Painel Lateral
     const sidebar = document.getElementById('sidebar');
     const showBtn = document.getElementById('sidebarShowBtn');
     const toggleBtn = document.getElementById('sidebarToggle');
@@ -65,39 +65,23 @@ document.addEventListener('DOMContentLoaded', () => {
         resetBtn.addEventListener('click', resetAll);
     }
 
-    // Inicialização da Navegação por Abas (Tabs Navigation)
-    initSidebarTabs();
-
-    // Atalho rápido de Configuração/Admin no cabeçalho (Ícone ⚙️)
-    const quickAdminBtn = document.getElementById('quickAdminBtn');
-    if (quickAdminBtn) {
-        quickAdminBtn.addEventListener('click', () => {
-            if (isAdmin) {
-                switchSidebarTab('tab-admin');
-            } else {
-                const loginModal = document.getElementById('loginModal');
-                if (loginModal) loginModal.classList.remove('hidden');
-            }
-        });
-    }
-
-    // Listener do Botão de Origem no Mapa
+    // RECUPERADO: Controle do botão de definir origem manualmente no mapa
     const mapOriginBtn = document.getElementById('mapOriginBtn');
     if (mapOriginBtn) {
         mapOriginBtn.addEventListener('click', () => {
             mapClickMode = !mapClickMode;
             if (mapClickMode) {
-                mapOriginBtn.textContent = '❌ Cancelar';
+                mapOriginBtn.textContent = 'Cancelar marcação';
                 if (map) map.getContainer().style.cursor = 'crosshair';
-                showToast('Clique em qualquer ponto do mapa para definir a origem.', 'info');
+                showToast('Clique no mapa para definir a origem.', 'info');
             } else {
-                mapOriginBtn.textContent = '🎯 No Mapa';
+                mapOriginBtn.textContent = '🎯 Definir origem no mapa';
                 if (map) map.getContainer().style.cursor = '';
             }
         });
     }
 
-    // Controle da busca por endereço com Autocomplete Debounce
+    // Controle da busca por endereço e autocomplete debounce
     const searchInputEl = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
     let searchDebounceTimer = null;
@@ -166,69 +150,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Inicialização da Lógica de Alternância das Abas
-function initSidebarTabs() {
-    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetTabId = btn.dataset.tab;
-            switchSidebarTab(targetTabId);
-        });
-    });
-}
-
-// Troca de Aba Ativa
-function switchSidebarTab(tabId) {
-    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
-    const tabPanes = document.querySelectorAll('.tab-content-wrapper .tab-pane');
-
-    tabButtons.forEach(btn => {
-        if (btn.dataset.tab === tabId) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-
-    tabPanes.forEach(pane => {
-        if (pane.id === tabId) {
-            pane.classList.add('active');
-        } else {
-            pane.classList.remove('active');
-        }
-    });
-}
-
-// Exporta a função para escopo global
-window.switchSidebarTab = switchSidebarTab;
-
-// Função resetAll - Limpa dados temporários e recupera vista inicial
+// Função resetAll - Limpa dados temporários e recupera vista inicial (ajustada)
 function resetAll() {
     const searchResults = document.getElementById('searchResults');
     const distanceResults = document.getElementById('distanceResults');
     const searchInput = document.getElementById('searchInput');
 
     if (searchResults) searchResults.innerHTML = '';
-    if (distanceResults) {
-        distanceResults.innerHTML = `
-            <div class="dispatch-placeholder">
-                <p>📍 Digite um endereço, use o GPS ou clique em <strong>"🎯 No Mapa"</strong> para iniciar o cálculo de jurisdição e do Top 5 unidades com ETA.</p>
-            </div>
-        `;
-    }
+    if (distanceResults) distanceResults.innerHTML = '';
     if (searchInput) searchInput.value = '';
 
     if (mapClickMode) {
         mapClickMode = false;
         const btn = document.getElementById('mapOriginBtn');
-        if (btn) btn.textContent = '🎯 No Mapa';
+        if (btn) btn.textContent = '🎯 Definir origem no mapa';
         if (map) map.getContainer().style.cursor = '';
     }
 
+    // Remove marcador de origem
     if (originMarker && map) {
         map.removeLayer(originMarker);
         originMarker = null;
     }
+    // Remove linhas e marcadores de distância
     if (window.distanceLine && map) {
         map.removeLayer(window.distanceLine);
         window.distanceLine = null;
@@ -237,14 +181,15 @@ function resetAll() {
         map.removeLayer(window.distanceMarker);
         window.distanceMarker = null;
     }
+    // Remove controle de roteamento, se existir
     if (window.routingControl && map) {
         map.removeControl(window.routingControl);
         window.routingControl = null;
     }
-
+    // Reseta a origem atual
     currentOrigin = null;
     if (map) map.setView([-15.7934, -47.8822], 4);
-    showToast('Campos e marcações do mapa foram limpos.', 'info');
+    showToast('Campos e origem limpos.', 'info');
 }
-
+// Exporta globalmente para uso no app.js
 window.resetAll = resetAll;
