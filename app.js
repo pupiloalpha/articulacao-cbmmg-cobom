@@ -1,195 +1,243 @@
-// app.js - Entrada e Orquestração Principal da Aplicação
+/**
+ * app.js - Ponto de entrada e controlador de interface da aplicação PWA COBOM/CBMMG
+ */
 
-// Variáveis de estado global compartilhadas entre módulos
-let map;
-let mapClickMode = false;
-let baseLayer;
-let overlayLayers = {};
-let originMarker = null;
-let currentOrigin = null;   // armazena a origem atual { lat, lng, description }
-let isAdmin = false;
-let drawingMode = null;
-let polygonPoints = [];
-let polygonTempLayer = null;
-let adminPinHash = localStorage.getItem('adminPinHash');
-let viewMode = 'all';
-let layerVisibility = {};
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Inicializando COBOM Articulação BM PWA...');
 
-// Configuração e Inicialização Principal ao carregar o DOM
-document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    seedInitialData();
-    loadStreetDataFromGitHub();
-    reloadLayers();
-    zoomToAllFeatures();
-    setupAuth();
-    initAdminAuthListeners();
-    setupFileUpload();
-    setupDrawingTools();
-    setupGpsTracking();
-    setupTileDownload();
-    initEditFeatureModalListeners();
+    // 1. Inicializar Banco de Dados IndexedDB (db.js)
+    if (window.dbManager) {
+        await window.dbManager.init();
+    }
+
+    // 2. Inicializar Mapa Leaflet (map.js)
+    if (window.mapManager) {
+        window.mapManager.init();
+    }
+
+    // 3. Inicializar Gestão de Camadas (layers.js)
+    if (window.layersManager) {
+        await window.layersManager.init();
+    }
+
+    // 4. Configurar Ouvintes de Eventos da Interface (UI)
+    setupUIEventListeners();
+
+    // 5. Verificar Conectividade Inicial
     updateOnlineStatus();
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
 
-    // Controle da Sidebar / Painel Lateral
+    // 6. Registrar Service Worker PWA
+    registerServiceWorker();
+});
+
+/**
+ * Configura todos os ouvintes de eventos da interface
+ */
+function setupUIEventListeners() {
+    // Alternância de Abas da Sidebar
+    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetTab = e.currentTarget.getAttribute('data-tab');
+            switchSidebarTab(targetTab);
+        });
+    });
+
+    // Toggle da Sidebar (Mobile e Botão de Colapsar)
     const sidebar = document.getElementById('sidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    const resetBtn = document.getElementById('resetBtn');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
 
-    if (sidebar && showBtn) {
-        if (sidebar.classList.contains('collapsed')) {
-            showBtn.classList.remove('hidden');
-        } else {
-            showBtn.classList.add('hidden');
-        }
-
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                if (sidebar.classList.contains('collapsed')) {
-                    showBtn.classList.remove('hidden');
-                } else {
-                    showBtn.classList.add('hidden');
-                }
-            });
-        }
-
-        showBtn.addEventListener('click', () => {
-            sidebar.classList.remove('collapsed');
-            showBtn.classList.add('hidden');
+    if (toggleSidebarBtn) {
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
         });
     }
 
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetAll);
+    if (collapseSidebarBtn) {
+        collapseSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+        });
     }
 
-    // RECUPERADO: Controle do botão de definir origem manualmente no mapa
-    const mapOriginBtn = document.getElementById('mapOriginBtn');
-    if (mapOriginBtn) {
-        mapOriginBtn.addEventListener('click', () => {
-            mapClickMode = !mapClickMode;
-            if (mapClickMode) {
-                mapOriginBtn.textContent = 'Cancelar marcação';
-                if (map) map.getContainer().style.cursor = 'crosshair';
-                showToast('Clique no mapa para definir a origem.', 'info');
-            } else {
-                mapOriginBtn.textContent = '🎯 Definir origem no mapa';
-                if (map) map.getContainer().style.cursor = '';
+    // Botão Rápido de Configurações/Admin no Cabeçalho
+    const quickAdminBtn = document.getElementById('quickAdminBtn');
+    if (quickAdminBtn) {
+        quickAdminBtn.addEventListener('click', () => {
+            switchSidebarTab('tab-admin');
+        });
+    }
+
+    // Quick Action Chips
+    const locateMeBtn = document.getElementById('locateMeBtn');
+    const selectOnMapBtn = document.getElementById('selectOnMapBtn');
+    const resetAllBtn = document.getElementById('resetAllBtn');
+
+    if (locateMeBtn) {
+        locateMeBtn.addEventListener('click', () => {
+            if (window.mapManager) {
+                window.mapManager.useGPSLocation();
             }
         });
     }
 
-    // Controle da busca por endereço e autocomplete debounce
-    const searchInputEl = document.getElementById('searchInput');
+    if (selectOnMapBtn) {
+        selectOnMapBtn.addEventListener('click', () => {
+            if (window.mapManager) {
+                window.mapManager.enableMapClickSelection();
+                showToast('Clique em qualquer ponto do mapa para definir a origem.', 'info');
+            }
+        });
+    }
+
+    if (resetAllBtn) {
+        resetAllBtn.addEventListener('click', () => {
+            if (window.mapManager) {
+                window.mapManager.resetOriginAndResults();
+            }
+            const addressInput = document.getElementById('addressInput');
+            if (addressInput) addressInput.value = '';
+            showToast('Origem e pesquisas limpas com sucesso.', 'info');
+        });
+    }
+
+    // Busca de Endereço
     const searchBtn = document.getElementById('searchBtn');
-    let searchDebounceTimer = null;
+    const addressInput = document.getElementById('addressInput');
 
-    if (searchBtn && searchInputEl) {
-        searchBtn.addEventListener('click', () => {
-            const query = searchInputEl.value.trim();
-            if (query) searchAddress(query);
-        });
-
-        searchInputEl.addEventListener('keypress', (e) => {
+    if (searchBtn && addressInput) {
+        searchBtn.addEventListener('click', () => performAddressSearch());
+        addressInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const query = e.target.value.trim();
-                if (query) searchAddress(query);
-            }
-        });
-
-        searchInputEl.addEventListener('input', (e) => {
-            const query = e.target.value.trim();
-            clearTimeout(searchDebounceTimer);
-            if (!query) {
-                const resDiv = document.getElementById('searchResults');
-                if (resDiv) resDiv.innerHTML = '';
-                return;
-            }
-            if (query.length >= 2) {
-                searchDebounceTimer = setTimeout(() => {
-                    searchAddress(query);
-                }, 300);
+                performAddressSearch();
             }
         });
     }
 
-    // Checkboxes de modo de visualização (Todas, Pontos, Limpo)
-    document.querySelectorAll('.view-checkbox').forEach(cb => {
-        cb.addEventListener('change', function() {
-            if (this.checked) {
-                document.querySelectorAll('.view-checkbox').forEach(other => {
-                    if (other !== this) other.checked = false;
-                });
-                setViewMode(this.dataset.mode);
-            } else {
-                const anyChecked = document.querySelector('.view-checkbox:checked');
-                if (!anyChecked) {
-                    const defaultCb = document.querySelector('.view-checkbox[data-mode="all"]');
-                    if (defaultCb) defaultCb.checked = true;
-                    setViewMode('all');
-                }
+    // Modos de Visualização de Camadas
+    const viewModeButtons = document.querySelectorAll('.view-mode-btn');
+    viewModeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            viewModeButtons.forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            const mode = e.currentTarget.getAttribute('data-mode');
+            if (window.layersManager) {
+                window.layersManager.setVisualizationMode(mode);
             }
         });
     });
 
-    syncViewCheckboxes(viewMode);
+    // Modais e Fechamento
+    const closeModalButtons = document.querySelectorAll('.close-modal-btn');
+    closeModalButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const modalId = e.currentTarget.getAttribute('data-modal');
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('hidden');
+        });
+    });
 
-    // Registro do Service Worker PWA
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado com sucesso:', registration.scope);
-                })
-                .catch(error => {
-                    console.error('Falha ao registrar Service Worker:', error);
-                });
+    // Trigger de Login
+    const loginModalTriggerBtn = document.getElementById('loginModalTriggerBtn');
+    if (loginModalTriggerBtn) {
+        loginModalTriggerBtn.addEventListener('click', () => {
+            const loginModal = document.getElementById('loginModal');
+            if (loginModal) loginModal.classList.remove('hidden');
         });
     }
-});
-
-// Função resetAll - Limpa dados temporários e recupera vista inicial (ajustada)
-function resetAll() {
-    const searchResults = document.getElementById('searchResults');
-    const distanceResults = document.getElementById('distanceResults');
-    const searchInput = document.getElementById('searchInput');
-
-    if (searchResults) searchResults.innerHTML = '';
-    if (distanceResults) distanceResults.innerHTML = '';
-    if (searchInput) searchInput.value = '';
-
-    if (mapClickMode) {
-        mapClickMode = false;
-        const btn = document.getElementById('mapOriginBtn');
-        if (btn) btn.textContent = '🎯 Definir origem no mapa';
-        if (map) map.getContainer().style.cursor = '';
-    }
-
-    // Remove marcador de origem
-    if (originMarker && map) {
-        map.removeLayer(originMarker);
-        originMarker = null;
-    }
-    // Remove linhas e marcadores de distância
-    if (window.distanceLine && map) {
-        map.removeLayer(window.distanceLine);
-        window.distanceLine = null;
-    }
-    if (window.distanceMarker && map) {
-        map.removeLayer(window.distanceMarker);
-        window.distanceMarker = null;
-    }
-    // Remove controle de roteamento, se existir
-    if (window.routingControl && map) {
-        map.removeControl(window.routingControl);
-        window.routingControl = null;
-    }
-    // Reseta a origem atual
-    currentOrigin = null;
-    if (map) map.setView([-15.7934, -47.8822], 4);
-    showToast('Campos e origem limpos.', 'info');
 }
-// Exporta globalmente para uso no app.js
-window.resetAll = resetAll;
+
+/**
+ * Alterna dinamicamente entre as abas da barra lateral
+ * @param {string} tabId ID da aba de destino (ex: 'tab-despacho', 'tab-camadas', 'tab-admin')
+ */
+function switchSidebarTab(tabId) {
+    const buttons = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    const panes = document.querySelectorAll('.sidebar-tab-content .tab-pane');
+
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    panes.forEach(pane => {
+        if (pane.id === tabId) {
+            pane.classList.add('active');
+        } else {
+            pane.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * Executa a busca por endereço digitado no campo unificado
+ */
+function performAddressSearch() {
+    const input = document.getElementById('addressInput');
+    if (!input || !input.value.trim()) return;
+
+    const query = input.value.trim();
+    if (window.mapManager) {
+        // Assegura que o resultado redirecione a visualização para a aba de despacho
+        switchSidebarTab('tab-despacho');
+        window.mapManager.searchAndSetOrigin(query);
+    }
+}
+
+/**
+ * Atualiza o indicador visual de conectividade (Status Pill)
+ */
+function updateOnlineStatus() {
+    const statusPill = document.getElementById('connectionStatusPill');
+    if (!statusPill) return;
+
+    const statusText = statusPill.querySelector('.status-text');
+
+    if (navigator.onLine) {
+        statusPill.classList.remove('offline');
+        statusPill.classList.add('online');
+        if (statusText) statusText.textContent = 'Online';
+    } else {
+        statusPill.classList.remove('online');
+        statusPill.classList.add('offline');
+        if (statusText) statusText.textContent = 'Offline';
+    }
+}
+
+/**
+ * Exibe notificações em formato Toast na tela
+ */
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3500);
+}
+
+/**
+ * Registra o Service Worker da PWA
+ */
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker registrado com sucesso:', reg.scope))
+            .catch(err => console.error('Falha ao registrar Service Worker:', err));
+    }
+}
+
+// Exportações para escopo global
+window.switchSidebarTab = switchSidebarTab;
+window.showToast = showToast;
