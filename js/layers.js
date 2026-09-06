@@ -117,7 +117,220 @@ async function reloadLayers() {
     updateLayerListUI();
 }
 
-// Adiciona uma camada ao mapa a partir dos dados, com filtro opcional
+// Identifica a classificação da feição para estilização e exibição correta
+function getFeatureClassification(feature) {
+    const geomType = feature.geometry?.type;
+    const props = feature.properties || {};
+
+    if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+        return 'POLYGON';
+    }
+
+    if (props['FRAÇÃO'] || props['Tempo-resposta'] || props['Zona de Quente'] || props['Unidades de Saúde'] || props['Unidade CBMMG']) {
+        return 'MUNICIPIO';
+    }
+
+    return 'UNIDADE_BM';
+}
+
+// Gera badge com cor correspondente ao tempo-resposta
+function getTempoRespostaBadge(tempo) {
+    if (!tempo || tempo === '-') {
+        return '<span class="feature-badge badge-tempo-neutro">Não informado</span>';
+    }
+    const t = tempo.toLowerCase();
+    if (t.includes('< 30') || t.includes('30 min') || t.includes('30min')) {
+        return `<span class="feature-badge badge-tempo-verde">⏱️ ${tempo}</span>`;
+    }
+    if (t.includes('< 1 hora') || t.includes('< 1h') || t.includes('<1h')) {
+        return `<span class="feature-badge badge-tempo-amarelo">⏱️ ${tempo}</span>`;
+    }
+    if (t.includes('> 1 hora') || t.includes('> 1h') || t.includes('>1h')) {
+        return `<span class="feature-badge badge-tempo-vermelho">⏱️ ${tempo}</span>`;
+    }
+    return `<span class="feature-badge badge-tempo-neutro">⏱️ ${tempo}</span>`;
+}
+
+// Extrai latitude e longitude representativas da feição
+function getFeatureCoords(feature) {
+    if (!feature.geometry) return null;
+    if (feature.geometry.type === 'Point') {
+        return { lng: feature.geometry.coordinates[0], lat: feature.geometry.coordinates[1] };
+    }
+    try {
+        if (typeof turf !== 'undefined' && turf.center) {
+            const c = turf.center(feature);
+            return { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+        }
+    } catch (e) {
+        console.warn('Erro ao obter centroide da feição:', e);
+    }
+    return null;
+}
+
+// Formata o conteúdo HTML para o tooltip flutuante no hover (passar o mouse)
+function formatFeatureTooltip(feature) {
+    const props = feature.properties || {};
+    const type = getFeatureClassification(feature);
+    const coords = getFeatureCoords(feature);
+
+    if (type === 'MUNICIPIO') {
+        const munName = props.name || 'Município';
+        const fracao = props['FRAÇÃO'] || '-';
+        const tempo = props['Tempo-resposta'] || '-';
+        const zona = props['Zona de Quente'] || '-';
+        const ueop = props.UEOP || '-';
+        const cob = props.COB || '-';
+        const unBm = props['Unidade CBMMG'] || '-';
+        const unSaude = props['Unidades de Saúde'] || '-';
+
+        return `
+            <div class="feature-card-header header-municipio">
+                <h4 class="feature-card-title">🏙️ ${munName}</h4>
+                <span class="feature-type-tag">Município</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Fração Atendimento:</span>
+                        <span class="feature-info-value" style="color:#c0392b;">${fracao}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Tempo-Resposta:</span>
+                        <span class="feature-info-value">${getTempoRespostaBadge(tempo)}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Zona de Risco:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-zona">${zona}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Batalhão / UEOP:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-ueop">${ueop}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Comando (COB):</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-cob">${cob}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Recursos Locais:</span>
+                        <span class="feature-info-value">🚒 ${unBm} BM | 🏥 ${unSaude} Saúde</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    if (type === 'UNIDADE_BM') {
+        const unitName = props.name || 'Unidade Operacional';
+        const ueop = props.UEOP || '-';
+        const cob = props.COB || '-';
+        const coordsStr = coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : '-';
+
+        return `
+            <div class="feature-card-header header-unidade">
+                <h4 class="feature-card-title">🚒 ${unitName}</h4>
+                <span class="feature-type-tag">Fração BM</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Batalhão / UEOP:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-ueop">${ueop}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Comando (COB):</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-cob">${cob}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Coordenadas:</span>
+                        <span class="feature-info-value" style="font-size:11px; font-family:monospace;">${coordsStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    if (type === 'POLYGON') {
+        const polyName = props.name || 'Circunscrição Territorial';
+        const mun = props.NM_MUN || props.Field3 || '-';
+        const codMun = props.CD_MUN ? `(IBGE ${props.CD_MUN})` : '';
+        const area = props.AREA_KM2 ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} km²` : '-';
+        const tipoFracao = props.Field8 ? `${props.Field8} - ${props.Field10 || ''}` : (props.Field10 || '-');
+        const comando = props.Field7 || '-';
+        const status = props.Field5 ? `${props.Field5} ${props.Field11 ? '(' + props.Field11 + ')' : ''}` : (props.Field11 || '-');
+
+        return `
+            <div class="feature-card-header header-polygon">
+                <h4 class="feature-card-title">🗺️ ${polyName}</h4>
+                <span class="feature-type-tag">Área Territorial</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município Base:</span>
+                        <span class="feature-info-value">${mun} ${codMun}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Área de Cobertura:</span>
+                        <span class="feature-info-value" style="color:#2980b9;">${area}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Tipo da Fração:</span>
+                        <span class="feature-info-value">${tipoFracao}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Comando / Unidade:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-ueop">${comando}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Situação:</span>
+                        <span class="feature-info-value">${status}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Fallback genérico para feições desconhecidas
+    return `
+        <div class="feature-card-header">
+            <h4 class="feature-card-title">📍 ${props.name || 'Feição'}</h4>
+        </div>
+        <div class="feature-card-body">
+            <p>${props.description || 'Sem descrição adicional.'}</p>
+        </div>
+    `;
+}
+
+// Formata o conteúdo HTML para o popup ao clicar (inclui botões de ação operacional)
+function formatFeaturePopup(feature) {
+    const tooltipHtml = formatFeatureTooltip(feature);
+    const coords = getFeatureCoords(feature);
+    const props = feature.properties || {};
+    const name = (props.name || 'Feição').replace(/'/g, "\\'");
+
+    if (!coords) {
+        return tooltipHtml;
+    }
+
+    const actionsHtml = `
+        <div class="feature-popup-actions">
+            <button class="btn-popup-action btn-popup-origin" onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
+                🎯 Definir Origem
+            </button>
+            <button class="btn-popup-action btn-popup-route" onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}')">
+                🚗 Rota até Aqui
+            </button>
+            <button class="btn-popup-action btn-popup-copy" onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
+                📋 Copiar Coord.
+            </button>
+        </div>
+    `;
+
+    return `<div class="feature-popup-content-inner">${tooltipHtml}${actionsHtml}</div>`;
+}
+
+// Adiciona uma camada ao mapa a partir dos dados, com filtro opcional e interações ricas
 function addLayerToMap(layerData, mode = viewMode) {
     if (!layerData.geojson || !map) return;
 
@@ -130,22 +343,77 @@ function addLayerToMap(layerData, mode = viewMode) {
             return true;
         },
         pointToLayer: (feature, latlng) => {
-            if (feature.geometry.type === 'Point') {
+            const classification = getFeatureClassification(feature);
+            
+            // Estilização diferenciada entre Unidade BM (vermelho) e Município/Articulação (azul petróleo)
+            if (classification === 'MUNICIPIO') {
                 return L.circleMarker(latlng, {
-                    radius: 8,
-                    fillColor: '#e74c3c',
-                    color: '#c0392b',
+                    radius: 7,
+                    fillColor: '#16a085',
+                    color: '#0e6251',
                     weight: 2,
                     opacity: 1,
-                    fillOpacity: 0.8
+                    fillOpacity: 0.85
                 });
             }
-            return L.marker(latlng);
+
+            return L.circleMarker(latlng, {
+                radius: 8,
+                fillColor: '#e74c3c',
+                color: '#962d22',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            });
         },
         onEachFeature: (feature, layer) => {
+            // Associa Tooltip interativo no hover (segue o cursor do mouse)
+            layer.bindTooltip(formatFeatureTooltip(feature), {
+                sticky: true,
+                className: 'feature-tooltip',
+                direction: 'auto',
+                opacity: 0.98
+            });
+
+            // Associa Popup com ações operacionais no clique
+            layer.bindPopup(formatFeaturePopup(feature), {
+                className: 'feature-popup',
+                maxWidth: 340
+            });
+
+            // Realce visual para Polígonos no hover
+            if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+                layer.on('mouseover', function(e) {
+                    const l = e.target;
+                    l._originalStyle = {
+                        weight: l.options.weight,
+                        color: l.options.color,
+                        fillOpacity: l.options.fillOpacity
+                    };
+                    l.setStyle({
+                        weight: 3,
+                        color: '#f39c12',
+                        fillOpacity: 0.45
+                    });
+                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                        l.bringToFront();
+                    }
+                });
+
+                layer.on('mouseout', function(e) {
+                    const l = e.target;
+                    if (l._originalStyle) {
+                        l.setStyle(l._originalStyle);
+                    }
+                });
+            }
+
+            // Tratamento de clique para o modo de marcação manual de origem
             layer.on('click', (e) => {
-                L.DomEvent.stopPropagation(e);
-                handleFeatureClick(e, feature, layer);
+                if (mapClickMode) {
+                    L.DomEvent.stopPropagation(e);
+                    handleFeatureClick(e, feature, layer);
+                }
             });
         }
     });

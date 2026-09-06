@@ -263,9 +263,13 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
             const destPoint = turf.point(coords);
             const distanceKm = turf.distance(originPoint, destPoint, { units: 'kilometers' });
 
+            const props = feature.properties || {};
+            const subtitle = props.UEOP ? ` • ${props.UEOP}` : (props['FRAÇÃO'] ? ` • ${props['FRAÇÃO']}` : '');
+
             results.push({
                 layerName: layerData.name,
                 featureName: feature.properties?.name || 'Sem nome',
+                subtitle: subtitle,
                 distanceKm: distanceKm,
                 destination: coords,
                 source: 'straight'
@@ -287,8 +291,8 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
             const m = (res.distanceKm * 1000).toFixed(0);
             html += `<li style="padding:5px; border-bottom:1px solid #eee; cursor:pointer;" 
                          onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
-                        <strong>${res.featureName}</strong> (${res.layerName})<br>
-                        <span style="color:#c0392b;">${km} km (${m} m)</span>
+                        <strong>${res.featureName}</strong> <span style="font-size:0.85em; color:#555;">${res.subtitle} (${res.layerName})</span><br>
+                        <span style="color:#c0392b; font-weight:600;">${km} km (${m} m)</span>
                         <span style="font-size:0.8em; color:#666; margin-left:8px;">➡️ linha reta</span>
                     </li>`;
         }
@@ -427,3 +431,45 @@ async function focusOnFeature(lng, lat, name, distance) {
         drawStraightLine(originPos, lat, lng, name, distance);
     }
 }
+
+// Helpers globais para ações acionadas a partir dos popups de feições
+window.setOriginFromFeature = function(lat, lng, name) {
+    if (map) {
+        setOrigin(lat, lng, name);
+        map.setView([lat, lng], 14);
+        calculateDistancesToAllFeatures(lat, lng);
+        showToast(`Origem definida: ${name}`, 'success');
+    }
+};
+
+window.routeToFeature = function(lng, lat, name) {
+    if (!originMarker) {
+        showToast('Defina primeiro um ponto de origem (busca, GPS ou clique) para calcular a rota.', 'warning');
+        return;
+    }
+    const originPos = originMarker.getLatLng();
+    const from = turf.point([originPos.lng, originPos.lat]);
+    const to = turf.point([lng, lat]);
+    const distance = turf.distance(from, to, { units: 'kilometers' });
+    focusOnFeature(lng, lat, name, distance);
+};
+
+window.copyFeatureCoords = function(lat, lng) {
+    const text = `${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(`Coordenadas copiadas: ${text}`, 'info');
+        }).catch(() => {
+            showToast(`Coordenadas: ${text}`, 'info');
+        });
+    } else {
+        showToast(`Coordenadas: ${text}`, 'info');
+    }
+};
+
+window.zoomToCoords = function(lat, lng, zoomLevel = 15) {
+    if (map) {
+        map.setView([lat, lng], zoomLevel);
+    }
+};
+
