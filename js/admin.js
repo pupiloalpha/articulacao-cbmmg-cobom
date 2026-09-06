@@ -87,7 +87,7 @@ function initAdminAuthListeners() {
     }
 
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
             window.isAdmin = false;
             setupAuth();
             await reloadLayers();
