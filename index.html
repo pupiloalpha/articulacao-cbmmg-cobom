@@ -3,217 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>COBOM • Articulação BM - CBMMG</title>
-    <meta name="description" content="PWA de Geoprocessamento e Apoio ao Despacho Operacional do CBMMG/COBOM">
-    <meta name="theme-color" content="#c0392b">
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-
+    <title>Articulação CBMMG - COBOM-BH</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2c3e50">
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="lib/leaflet/leaflet.css" />
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- Dexie.js (IndexedDB Wrapper) -->
-    <script src="lib/dexie.min.js"></script>
-    <!-- Turf.js (Spatial Analysis) -->
-    <script src="lib/turf.min.js"></script>
-    <!-- JSZip & toGeoJSON for KML/KMZ -->
-    <script src="lib/jszip.min.js"></script>
-    <script src="lib/togeojson.js"></script>
+    <link rel="stylesheet" href="./vendor/leaflet.css" />
+    <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css" />
+    <!-- App CSS -->
+    <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+    <!-- Botão flutuante para reabrir a sidebar quando oculta -->
+    <button id="sidebarShowBtn" class="btn-floating hidden" title="Abrir painel lateral">☰</button>
 
-    <!-- Botão de alternância da barra lateral flutuante (Mobile/Telas Pequenas) -->
-    <button id="toggleSidebarBtn" class="floating-toggle-btn" title="Alternar Painel Lateral">☰</button>
+    <!-- Sidebar / Painel Lateral Modernizado -->
+    <aside id="sidebar" class="sidebar">
+        
+        <!-- Cabeçalho Integrado Institucional -->
+        <div class="sidebar-header">
+            <div class="header-brand">
+                <span class="brand-title">COBOM • Articulação BM</span>
+                <span class="brand-subtitle">Centro de Operações de Bombeiros</span>
+            </div>
+            <div class="header-actions">
+                <button id="quickAdminBtn" class="btn-icon" title="Acesso Restrito / Configurações">⚙️</button>
+                <button id="sidebarToggle" class="btn-icon" title="Recolher Painel">☰</button>
+            </div>
+        </div>
 
-    <div class="app-container">
-        <!-- BARRA LATERAL (SIDEBAR) -->
-        <aside id="sidebar" class="sidebar">
+        <!-- Indicador de Conectividade (Status Pill Pulsante) -->
+        <div class="status-pill-container">
+            <div id="status-indicator" class="status-pill offline">
+                <span class="status-dot"></span>
+                <span id="statusText" class="status-label">📴 Offline</span>
+            </div>
+        </div>
+
+        <!-- Barra de Pesquisa Unificada Fixa com Chips de Ação Rápida -->
+        <div class="search-container">
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" placeholder="Pesquisar endereço ou logradouro..." autocomplete="off">
+                <button id="searchBtn" class="btn-search-icon" title="Buscar Endereço">🔍</button>
+            </div>
+            <div class="quick-chips-row">
+                <button id="useMyLocationBtn" class="chip-btn" title="Usar localização GPS do dispositivo">📍 Meu GPS</button>
+                <button id="mapOriginBtn" class="chip-btn" title="Marcar ponto de origem diretamente no mapa">🎯 No Mapa</button>
+                <button id="resetBtn" class="chip-btn chip-danger" title="Limpar busca e marcadores">🗑️ Limpar</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Barra de Navegação por Abas (Sidebar Tabs) -->
+        <nav class="sidebar-tabs" role="tablist">
+            <button class="tab-btn active" data-tab="tab-despacho" role="tab">
+                <span class="tab-icon">🚨</span> Despacho
+            </button>
+            <button class="tab-btn" data-tab="tab-camadas" role="tab">
+                <span class="tab-icon">🗺️</span> Camadas
+            </button>
+            <button id="tabAdminBtn" class="tab-btn hidden" data-tab="tab-admin" role="tab">
+                <span class="tab-icon">🛠️</span> Admin
+            </button>
+        </nav>
+
+        <!-- Conteúdo Fluido das Abas Operacionais -->
+        <div class="tab-content-wrapper">
             
-            <!-- Cabeçalho Institucional & Status -->
-            <div class="sidebar-header">
-                <div class="brand-container">
-                    <span class="brand-title">COBOM • Articulação BM</span>
-                    <span id="connectionStatusPill" class="status-pill online" title="Estado da Conexão">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Online</span>
-                    </span>
+            <!-- ABA 1: 🚨 Despacho / Ocorrência (Ativa por padrão) -->
+            <section id="tab-despacho" class="tab-pane active" role="tabpanel">
+                <div id="distanceResults" class="dispatch-container-scroll">
+                    <div class="dispatch-placeholder">
+                        <p>📍 Digite um endereço, use o GPS ou clique em <strong>"🎯 No Mapa"</strong> para iniciar o cálculo de jurisdição e do Top 5 unidades com ETA.</p>
+                    </div>
                 </div>
-                <div class="header-actions">
-                    <button id="quickAdminBtn" class="icon-btn" title="Configurações e Administração">⚙️</button>
-                    <button id="collapseSidebarBtn" class="icon-btn collapse-btn" title="Recolher Painel">☰</button>
-                </div>
-            </div>
+            </section>
 
-            <!-- Busca Unificada & Chips de Ação Rápida -->
-            <div class="search-section">
-                <div class="search-wrapper">
-                    <input type="text" id="addressInput" placeholder="Buscar endereço, ponto ou coordenada..." autocomplete="off">
-                    <button id="searchBtn" class="search-submit-btn" title="Pesquisar">🔍</button>
+            <!-- ABA 2: 🗺️ Camadas & Território -->
+            <section id="tab-camadas" class="tab-pane" role="tabpanel">
+                <div id="viewControls" class="view-controls-panel">
+                    <h3 class="panel-subtitle">Modos de Visualização</h3>
+                    <div class="view-checkbox-group">
+                        <label class="view-checkbox-label">
+                            <input type="checkbox" class="view-checkbox" data-mode="all" checked> Todas
+                        </label>
+                        <label class="view-checkbox-label">
+                            <input type="checkbox" class="view-checkbox" data-mode="points"> Pontos
+                        </label>
+                        <label class="view-checkbox-label">
+                            <input type="checkbox" class="view-checkbox" data-mode="none"> Limpo
+                        </label>
+                    </div>
                 </div>
-                <div id="autocompleteResults" class="autocomplete-list hidden"></div>
                 
-                <div class="quick-action-chips">
-                    <button id="locateMeBtn" class="chip-btn" title="Minha Localização">📍 Meu GPS</button>
-                    <button id="selectOnMapBtn" class="chip-btn" title="Clique no mapa para definir origem">🎯 No Mapa</button>
-                    <button id="resetAllBtn" class="chip-btn chip-danger" title="Limpar Origem e Resultados">🗑️ Limpar</button>
+                <div id="layerList" class="layer-list-container">
+                    <h3 class="panel-subtitle">Camadas Ativas</h3>
+                    <ul id="layersUl" class="layers-ul"></ul>
                 </div>
-            </div>
+            </section>
 
-            <!-- Navegação por Abas (Tabs Navigation) -->
-            <nav class="sidebar-tabs">
-                <button class="tab-btn active" data-tab="tab-despacho">🚨 Despacho</button>
-                <button class="tab-btn" data-tab="tab-camadas">🗺️ Camadas</button>
-                <button class="tab-btn" data-tab="tab-admin">🛠️ Admin</button>
-            </nav>
-
-            <!-- Conteúdo das Abas -->
-            <div class="sidebar-tab-content">
-                
-                <!-- ABA 1: DESPACHO / OCORRÊNCIA -->
-                <section id="tab-despacho" class="tab-pane active">
-                    <div id="distanceResults" class="dispatch-container">
-                        <div class="empty-state">
-                            <p>Nenhum ponto de origem selecionado.</p>
-                            <small>Utilize a busca acima, clique no mapa ou ative o GPS para calcular a jurisdição territorial e as unidades mais próximas.</small>
-                        </div>
+            <!-- ABA 3: 🛠️ Administração & Ferramentas (Somente visível após Login) -->
+            <section id="tab-admin" class="tab-pane" role="tabpanel">
+                <div id="adminTools" class="admin-panel">
+                    <div class="admin-header-status">
+                        <span>🔐 <strong>Sessão Administrativa</strong></span>
+                        <button id="adminLogoutBtn" class="btn btn-sm btn-logout">Logout</button>
                     </div>
-                </section>
 
-                <!-- ABA 2: CAMADAS & VISÃO -->
-                <section id="tab-camadas" class="tab-pane">
-                    <div class="pane-content">
-                        <h3>Modo de Visualização</h3>
-                        <div class="view-mode-selector">
-                            <button class="view-mode-btn active" data-mode="all">Todas as Camadas</button>
-                            <button class="view-mode-btn" data-mode="points">Apenas Pontos</button>
-                            <button class="view-mode-btn" data-mode="clean">Limpo (Apenas Base)</button>
-                        </div>
-
-                        <hr class="divider">
-
-                        <h3>Camadas Ativas no Banco Local</h3>
-                        <div id="layersList" class="layers-checklist">
-                            <p class="loading-text">Carregando camadas...</p>
-                        </div>
+                    <h3 class="panel-subtitle">Upload de Vetores</h3>
+                    <div id="dropZone" class="drop-zone">
+                        <span>Arraste .kml, .kmz, .json ou .geojson aqui ou clique para selecionar</span>
+                        <input type="file" id="fileInput" accept=".kml,.kmz,.json,.geojson" multiple hidden>
                     </div>
-                </section>
 
-                <!-- ABA 3: ADMINISTRAÇÃO & FERRAMENTAS -->
-                <section id="tab-admin" class="tab-pane">
-                    <div class="pane-content">
-                        <!-- Card do Estado de Autenticação -->
-                        <div class="admin-card auth-card">
-                            <div class="auth-status">
-                                <span id="adminStatusBadge" class="badge badge-guest">Modo Leitura</span>
-                                <span id="adminUserLabel" class="user-label">Sessão Não Autenticada</span>
-                            </div>
-                            <button id="loginModalTriggerBtn" class="btn btn-secondary btn-block">Acessar Modo Administrador</button>
-                        </div>
-
-                        <!-- Card de Gestão de Camadas (Restrito / Exibe Alerta se Visitante) -->
-                        <div class="admin-card">
-                            <h4>Upload de Camadas GeoJSON / KML / KMZ</h4>
-                            <div class="form-group">
-                                <label for="kmlFileInput" class="file-label">Escolher Arquivo KML/KMZ/GeoJSON</label>
-                                <input type="file" id="kmlFileInput" accept=".kml,.kmz,.json,.geojson" disabled>
-                            </div>
-                            <button id="uploadLayerBtn" class="btn btn-primary btn-block" disabled>Carregar Nova Camada</button>
-                        </div>
-
-                        <!-- Card de Download de Tiles Offline -->
-                        <div class="admin-card">
-                            <h4>Cache de Mapa Offline (Tiles)</h4>
-                            <p class="card-desc">Baixe a área visível do mapa para utilizar o portal sem acesso à internet.</p>
-                            <button id="downloadTilesBtn" class="btn btn-outline btn-block">Baixar Área Atual do Mapa</button>
-                            <div id="tileProgressContainer" class="progress-bar-container hidden">
-                                <div id="tileProgressBar" class="progress-bar">0%</div>
-                            </div>
-                        </div>
-
-                        <!-- Card de Backup e Restauração -->
-                        <div class="admin-card">
-                            <h4>Backup e Restauração de Dados</h4>
-                            <div class="button-group">
-                                <button id="exportBackupBtn" class="btn btn-outline">Exportar Backup (.json)</button>
-                                <label for="importBackupInput" class="btn btn-outline import-btn-label">Importar Backup</label>
-                                <input type="file" id="importBackupInput" accept=".json" class="hidden">
-                            </div>
-                        </div>
-
-                        <!-- Card de Edição de Feição -->
-                        <div class="admin-card admin-only-feature">
-                            <h4>Edição Direta de Feições</h4>
-                            <button id="editFeatureBtn" class="btn btn-warning btn-block" disabled>Editar Feição Selecionada</button>
-                        </div>
+                    <h3 class="panel-subtitle">Desenho & Edição</h3>
+                    <div class="admin-grid-buttons">
+                        <button id="addMarkerBtn" class="btn btn-admin">📍 Adicionar POI</button>
+                        <button id="addPolygonBtn" class="btn btn-admin">📐 Desenhar Polígono</button>
                     </div>
-                </section>
 
-            </div>
-        </aside>
+                    <h3 class="panel-subtitle">Backup & Cache</h3>
+                    <div class="admin-grid-buttons">
+                        <button id="exportBackupBtn" class="btn btn-admin">📤 Exportar Backup</button>
+                        <button id="importBackupBtn" class="btn btn-admin">📥 Importar Backup</button>
+                        <input type="file" id="importFileInput" accept=".json" hidden>
+                        <button id="clearRoutesCacheBtn" class="btn btn-admin">🧹 Limpar Cache Rotas</button>
+                        <button id="downloadTilesBtn" class="btn btn-admin">💾 Baixar Tiles Offline</button>
+                    </div>
+                </div>
+            </section>
 
-        <!-- CONTAINER DO MAPA -->
-        <main id="map" class="map-container"></main>
-    </div>
+        </div>
+    </aside>
 
-    <!-- MODAL: LOGIN ADMINISTRATIVO -->
-    <div id="loginModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Autenticação de Administrador</h3>
-                <button class="close-modal-btn" data-modal="loginModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="adminUsername">Usuário</label>
-                        <input type="text" id="adminUsername" required placeholder="Digite seu usuário">
-                    </div>
-                    <div class="form-group">
-                        <label for="adminPassword">Senha</label>
-                        <input type="password" id="adminPassword" required placeholder="Digite sua senha">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary close-modal-btn" data-modal="loginModal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Entrar</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Mapa Leaflet -->
+    <div id="map"></div>
+
+    <!-- Modal para Configuração do Download de Tiles Offline -->
+    <div id="tileModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" id="closeTileModal">&times;</span>
+            <h3>💾 Download de Tiles Offline</h3>
+            <label>Zoom mínimo: <input type="number" id="minZoom" value="10" min="0" max="18"></label><br>
+            <label>Zoom máximo: <input type="number" id="maxZoom" value="14" min="0" max="18"></label><br>
+            <button id="startTileDownload" class="btn">Iniciar Download</button>
+            <div id="tileProgress"></div>
         </div>
     </div>
 
-    <!-- MODAL: EDIÇÃO DE GEOJSON -->
-    <div id="editFeatureModal" class="modal-overlay hidden">
-        <div class="modal-card modal-large">
-            <div class="modal-header">
-                <h3>Editar Atributos da Feição GeoJSON</h3>
-                <button class="close-modal-btn" data-modal="editFeatureModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="featureJsonEditor" rows="15" class="code-editor"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary close-modal-btn" data-modal="editFeatureModal">Cancelar</button>
-                <button id="saveFeatureJsonBtn" type="button" class="btn btn-success">Salvar Alterações</button>
-            </div>
+    <!-- Modal de Login Admin -->
+    <div id="loginModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" id="closeLoginModal">&times;</span>
+            <h3>🔐 Autenticação de Administrador</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Informe o PIN credenciado para acessar as ferramentas de gestão de camadas e backups.</p>
+            <input type="password" id="pinInput" placeholder="Digite o PIN de acesso">
+            <button id="confirmLoginBtn" class="btn" style="width:100%; margin-top:10px;">Entrar</button>
+            <p id="loginError" style="color:#e74c3c; font-size:12px; margin-top:8px; font-weight:bold;"></p>
         </div>
     </div>
 
-    <!-- NOTIFICAÇÕES TOAST -->
-    <div id="toastContainer" class="toast-container"></div>
+    <!-- Modal de Edição de Feição -->
+    <div id="editFeatureModal" class="modal hidden">
+        <div class="modal-content modal-edit-feature">
+            <span class="close-modal" id="closeEditFeatureModal">&times;</span>
+            <h3 id="editFeatureModalTitle">✏️ Editar Feição</h3>
+            <div id="editFeatureCategory" class="edit-feature-subtitle"></div>
+            
+            <form id="editFeatureForm" onsubmit="return false;">
+                <div id="editFeatureFieldsContainer" class="edit-feature-fields"></div>
+                
+                <div class="edit-feature-custom-actions">
+                    <button type="button" id="addCustomPropBtn" class="btn" style="background:#34495e; font-size:12px;">+ Adicionar Campo</button>
+                    <button type="button" id="toggleJsonModeBtn" class="btn" style="background:#7f8c8d; font-size:12px;">📋 Alternar Modo JSON</button>
+                </div>
 
-    <!-- Leaflet JS -->
-    <script src="lib/leaflet/leaflet.js"></script>
+                <div id="editFeatureJsonContainer" class="hidden" style="margin-top:10px;">
+                    <label style="font-size:12px; font-weight:bold; color:#555;">GeoJSON Bruto:</label>
+                    <textarea id="editFeatureJsonTextarea" rows="8" style="width:100%; font-family:monospace; font-size:11px; padding:6px; border:1px solid #ccc; border-radius:4px; resize:vertical;"></textarea>
+                </div>
 
-    <!-- Application Scripts -->
-    <script src="db.js"></script>
-    <script src="layers.js"></script>
-    <script src="map.js"></script>
-    <script src="app.js"></script>
+                <div class="modal-footer" style="margin-top:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <button type="button" id="deleteFeatureBtn" class="btn" style="background:#e74c3c; color:white;">🗑️ Excluir</button>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="cancelEditFeatureBtn" class="btn" style="background:#95a5a6; color:white;">Cancelar</button>
+                        <button type="button" id="saveFeatureBtn" class="btn" style="background:#27ae60; color:white; font-weight:bold;">💾 Salvar Alterações</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bibliotecas Locais -->
+    <script src="./vendor/leaflet.js"></script>
+    <script src="./vendor/leaflet-routing-machine.js"></script>
+    <script src="./vendor/dexie.js"></script>
+    <script src="./vendor/turf.min.js"></script>
+    <script src="./vendor/jszip.min.js"></script>
+    <script src="./vendor/togeojson.umd.js"></script>
+
+    <!-- Scripts do App -->
+    <script src="./db.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/map.js"></script>
+    <script src="./js/layers.js"></script>
+    <script src="./js/search.js"></script>
+    <script src="./js/gps.js"></script>
+    <script src="./js/tiles.js"></script>
+    <script src="./js/admin.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>

@@ -1,171 +1,196 @@
-/**
- * app.js - Ponto de entrada e controlador de interface da aplicação PWA COBOM/CBMMG
- */
+// app.js - Entrada, Controle de Abas e Orquestração Principal da Aplicação
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Inicializando COBOM Articulação BM PWA...');
+// Variáveis de estado global compartilhadas entre módulos
+let map;
+let mapClickMode = false;
+let baseLayer;
+let overlayLayers = {};
+let originMarker = null;
+let currentOrigin = null;   // armazena a origem atual { lat, lng, description }
+let isAdmin = false;
+let drawingMode = null;
+let polygonPoints = [];
+let polygonTempLayer = null;
+let adminPinHash = localStorage.getItem('adminPinHash');
+let viewMode = 'all';
+let layerVisibility = {};
 
-    // 1. Inicializar Banco de Dados IndexedDB (db.js)
-    if (window.dbManager) {
-        await window.dbManager.init();
-    }
-
-    // 2. Inicializar Mapa Leaflet (map.js)
-    if (window.mapManager) {
-        window.mapManager.init();
-    }
-
-    // 3. Inicializar Gestão de Camadas (layers.js)
-    if (window.layersManager) {
-        await window.layersManager.init();
-    }
-
-    // 4. Configurar Ouvintes de Eventos da Interface (UI)
-    setupUIEventListeners();
-
-    // 5. Verificar Conectividade Inicial
+// Configuração e Inicialização Principal ao carregar o DOM
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    seedInitialData();
+    loadStreetDataFromGitHub();
+    reloadLayers();
+    zoomToAllFeatures();
+    setupAuth();
+    initAdminAuthListeners();
+    setupFileUpload();
+    setupDrawingTools();
+    setupGpsTracking();
+    setupTileDownload();
+    initEditFeatureModalListeners();
     updateOnlineStatus();
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
 
-    // 6. Registrar Service Worker PWA
-    registerServiceWorker();
-});
-
-/**
- * Configura todos os ouvintes de eventos da interface
- */
-function setupUIEventListeners() {
-    // Alternância de Abas da Sidebar
-    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const targetTab = e.currentTarget.getAttribute('data-tab');
-            switchSidebarTab(targetTab);
-        });
-    });
-
-    // Toggle da Sidebar (Mobile e Botão de Colapsar)
+    // Controle da Sidebar e Botão Flutuante
     const sidebar = document.getElementById('sidebar');
-    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
-    const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+    const showBtn = document.getElementById('sidebarShowBtn');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const resetBtn = document.getElementById('resetBtn');
 
-    if (toggleSidebarBtn) {
-        toggleSidebarBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
+    if (sidebar && showBtn) {
+        if (sidebar.classList.contains('collapsed')) {
+            showBtn.classList.remove('hidden');
+        } else {
+            showBtn.classList.add('hidden');
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                if (sidebar.classList.contains('collapsed')) {
+                    showBtn.classList.remove('hidden');
+                } else {
+                    showBtn.classList.add('hidden');
+                }
+            });
+        }
+
+        showBtn.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            showBtn.classList.add('hidden');
         });
     }
 
-    if (collapseSidebarBtn) {
-        collapseSidebarBtn.addEventListener('click', () => {
-            sidebar.classList.add('collapsed');
-        });
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetAll);
     }
 
-    // Botão Rápido de Configurações/Admin no Cabeçalho
+    // Inicialização da Navegação por Abas (Tabs Navigation)
+    initSidebarTabs();
+
+    // Atalho rápido de Configuração/Admin no cabeçalho (Ícone ⚙️)
     const quickAdminBtn = document.getElementById('quickAdminBtn');
     if (quickAdminBtn) {
         quickAdminBtn.addEventListener('click', () => {
-            switchSidebarTab('tab-admin');
-        });
-    }
-
-    // Quick Action Chips
-    const locateMeBtn = document.getElementById('locateMeBtn');
-    const selectOnMapBtn = document.getElementById('selectOnMapBtn');
-    const resetAllBtn = document.getElementById('resetAllBtn');
-
-    if (locateMeBtn) {
-        locateMeBtn.addEventListener('click', () => {
-            if (window.mapManager) {
-                window.mapManager.useGPSLocation();
+            if (isAdmin) {
+                switchSidebarTab('tab-admin');
+            } else {
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) loginModal.classList.remove('hidden');
             }
         });
     }
 
-    if (selectOnMapBtn) {
-        selectOnMapBtn.addEventListener('click', () => {
-            if (window.mapManager) {
-                window.mapManager.enableMapClickSelection();
+    // Listener do Botão de Origem no Mapa
+    const mapOriginBtn = document.getElementById('mapOriginBtn');
+    if (mapOriginBtn) {
+        mapOriginBtn.addEventListener('click', () => {
+            mapClickMode = !mapClickMode;
+            if (mapClickMode) {
+                mapOriginBtn.textContent = '❌ Cancelar';
+                if (map) map.getContainer().style.cursor = 'crosshair';
                 showToast('Clique em qualquer ponto do mapa para definir a origem.', 'info');
+            } else {
+                mapOriginBtn.textContent = '🎯 No Mapa';
+                if (map) map.getContainer().style.cursor = '';
             }
         });
     }
 
-    if (resetAllBtn) {
-        resetAllBtn.addEventListener('click', () => {
-            if (window.mapManager) {
-                window.mapManager.resetOriginAndResults();
-            }
-            const addressInput = document.getElementById('addressInput');
-            if (addressInput) addressInput.value = '';
-            showToast('Origem e pesquisas limpas com sucesso.', 'info');
-        });
-    }
-
-    // Busca de Endereço
+    // Controle da busca por endereço com Autocomplete Debounce
+    const searchInputEl = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
-    const addressInput = document.getElementById('addressInput');
+    let searchDebounceTimer = null;
 
-    if (searchBtn && addressInput) {
-        searchBtn.addEventListener('click', () => performAddressSearch());
-        addressInput.addEventListener('keypress', (e) => {
+    if (searchBtn && searchInputEl) {
+        searchBtn.addEventListener('click', () => {
+            const query = searchInputEl.value.trim();
+            if (query) searchAddress(query);
+        });
+
+        searchInputEl.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                performAddressSearch();
+                const query = e.target.value.trim();
+                if (query) searchAddress(query);
+            }
+        });
+
+        searchInputEl.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            clearTimeout(searchDebounceTimer);
+            if (!query) {
+                const resDiv = document.getElementById('searchResults');
+                if (resDiv) resDiv.innerHTML = '';
+                return;
+            }
+            if (query.length >= 2) {
+                searchDebounceTimer = setTimeout(() => {
+                    searchAddress(query);
+                }, 300);
             }
         });
     }
 
-    // Modos de Visualização de Camadas
-    const viewModeButtons = document.querySelectorAll('.view-mode-btn');
-    viewModeButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            viewModeButtons.forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            const mode = e.currentTarget.getAttribute('data-mode');
-            if (window.layersManager) {
-                window.layersManager.setVisualizationMode(mode);
+    // Checkboxes de modo de visualização (Todas, Pontos, Limpo)
+    document.querySelectorAll('.view-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (this.checked) {
+                document.querySelectorAll('.view-checkbox').forEach(other => {
+                    if (other !== this) other.checked = false;
+                });
+                setViewMode(this.dataset.mode);
+            } else {
+                const anyChecked = document.querySelector('.view-checkbox:checked');
+                if (!anyChecked) {
+                    const defaultCb = document.querySelector('.view-checkbox[data-mode="all"]');
+                    if (defaultCb) defaultCb.checked = true;
+                    setViewMode('all');
+                }
             }
         });
     });
 
-    // Modais e Fechamento
-    const closeModalButtons = document.querySelectorAll('.close-modal-btn');
-    closeModalButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const modalId = e.currentTarget.getAttribute('data-modal');
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add('hidden');
-        });
-    });
+    syncViewCheckboxes(viewMode);
 
-    // Trigger de Login
-    const loginModalTriggerBtn = document.getElementById('loginModalTriggerBtn');
-    if (loginModalTriggerBtn) {
-        loginModalTriggerBtn.addEventListener('click', () => {
-            const loginModal = document.getElementById('loginModal');
-            if (loginModal) loginModal.classList.remove('hidden');
+    // Registro do Service Worker PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('Service Worker registrado com sucesso:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Falha ao registrar Service Worker:', error);
+                });
         });
     }
+});
+
+// Inicialização da Lógica de Alternância das Abas
+function initSidebarTabs() {
+    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTabId = btn.dataset.tab;
+            switchSidebarTab(targetTabId);
+        });
+    });
 }
 
-/**
- * Alterna dinamicamente entre as abas da barra lateral
- * @param {string} tabId ID da aba de destino (ex: 'tab-despacho', 'tab-camadas', 'tab-admin')
- */
+// Troca de Aba Ativa
 function switchSidebarTab(tabId) {
-    const buttons = document.querySelectorAll('.sidebar-tabs .tab-btn');
-    const panes = document.querySelectorAll('.sidebar-tab-content .tab-pane');
+    const tabButtons = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-content-wrapper .tab-pane');
 
-    buttons.forEach(btn => {
-        if (btn.getAttribute('data-tab') === tabId) {
+    tabButtons.forEach(btn => {
+        if (btn.dataset.tab === tabId) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
         }
     });
 
-    panes.forEach(pane => {
+    tabPanes.forEach(pane => {
         if (pane.id === tabId) {
             pane.classList.add('active');
         } else {
@@ -174,70 +199,52 @@ function switchSidebarTab(tabId) {
     });
 }
 
-/**
- * Executa a busca por endereço digitado no campo unificado
- */
-function performAddressSearch() {
-    const input = document.getElementById('addressInput');
-    if (!input || !input.value.trim()) return;
-
-    const query = input.value.trim();
-    if (window.mapManager) {
-        // Assegura que o resultado redirecione a visualização para a aba de despacho
-        switchSidebarTab('tab-despacho');
-        window.mapManager.searchAndSetOrigin(query);
-    }
-}
-
-/**
- * Atualiza o indicador visual de conectividade (Status Pill)
- */
-function updateOnlineStatus() {
-    const statusPill = document.getElementById('connectionStatusPill');
-    if (!statusPill) return;
-
-    const statusText = statusPill.querySelector('.status-text');
-
-    if (navigator.onLine) {
-        statusPill.classList.remove('offline');
-        statusPill.classList.add('online');
-        if (statusText) statusText.textContent = 'Online';
-    } else {
-        statusPill.classList.remove('online');
-        statusPill.classList.add('offline');
-        if (statusText) statusText.textContent = 'Offline';
-    }
-}
-
-/**
- * Exibe notificações em formato Toast na tela
- */
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3500);
-}
-
-/**
- * Registra o Service Worker da PWA
- */
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker registrado com sucesso:', reg.scope))
-            .catch(err => console.error('Falha ao registrar Service Worker:', err));
-    }
-}
-
-// Exportações para escopo global
+// Exporta a função para escopo global
 window.switchSidebarTab = switchSidebarTab;
-window.showToast = showToast;
+
+// Função resetAll - Limpa dados temporários e recupera vista inicial
+function resetAll() {
+    const searchResults = document.getElementById('searchResults');
+    const distanceResults = document.getElementById('distanceResults');
+    const searchInput = document.getElementById('searchInput');
+
+    if (searchResults) searchResults.innerHTML = '';
+    if (distanceResults) {
+        distanceResults.innerHTML = `
+            <div class="dispatch-placeholder">
+                <p>📍 Digite um endereço, use o GPS ou clique em <strong>"🎯 No Mapa"</strong> para iniciar o cálculo de jurisdição e do Top 5 unidades com ETA.</p>
+            </div>
+        `;
+    }
+    if (searchInput) searchInput.value = '';
+
+    if (mapClickMode) {
+        mapClickMode = false;
+        const btn = document.getElementById('mapOriginBtn');
+        if (btn) btn.textContent = '🎯 No Mapa';
+        if (map) map.getContainer().style.cursor = '';
+    }
+
+    if (originMarker && map) {
+        map.removeLayer(originMarker);
+        originMarker = null;
+    }
+    if (window.distanceLine && map) {
+        map.removeLayer(window.distanceLine);
+        window.distanceLine = null;
+    }
+    if (window.distanceMarker && map) {
+        map.removeLayer(window.distanceMarker);
+        window.distanceMarker = null;
+    }
+    if (window.routingControl && map) {
+        map.removeControl(window.routingControl);
+        window.routingControl = null;
+    }
+
+    currentOrigin = null;
+    if (map) map.setView([-15.7934, -47.8822], 4);
+    showToast('Campos e marcações do mapa foram limpos.', 'info');
+}
+
+window.resetAll = resetAll;
