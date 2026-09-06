@@ -319,7 +319,8 @@ function formatFeaturePopup(feature) {
     const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
     const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
 
-    const editBtnHtml = (layerDbId !== 'null' && featureIdx !== 'null') ? `
+    // Só mostra botão de editar se soubermos o id/índice e se o usuário for admin
+    const editBtnHtml = (layerDbId !== 'null' && featureIdx !== 'null' && typeof isAdmin !== 'undefined' && isAdmin) ? `
         <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
             ✏️ Editar Dados
         </button>
