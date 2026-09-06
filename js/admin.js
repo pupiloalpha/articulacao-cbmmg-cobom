@@ -79,6 +79,10 @@ function initAdminAuthListeners() {
                 if (loginError) loginError.textContent = '';
                 setupAuth();
                 showToast('Login de Administrador bem-sucedido!', 'success');
+                // 🔁 Recarregar camadas para atualizar os popups
+                if (typeof reloadLayers === 'function') {
+                    reloadLayers();
+                }
             } else {
                 if (loginError) loginError.textContent = 'PIN incorreto. Tente novamente.';
             }
@@ -90,6 +94,10 @@ function initAdminAuthListeners() {
             window.isAdmin = false;
             setupAuth();
             showToast('Logout efetuado com sucesso.', 'info');
+            // 🔁 Recarregar camadas para remover os botões de edição
+            if (typeof reloadLayers === 'function') {
+                reloadLayers();
+            }
         });
     }
 }
