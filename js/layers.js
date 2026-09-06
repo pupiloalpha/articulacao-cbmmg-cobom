@@ -336,27 +336,31 @@ function addLayerToMap(layerData, mode = viewMode) {
 
     const geojsonLayer = L.geoJSON(layerData.geojson, {
         filter: function(feature) {
+            const classification = getFeatureClassification(feature);
+            // Remove a visualização dos pontos de municípios
+            if (classification === 'MUNICIPIO') {
+                return false;
+            }
+
             if (mode === 'none') return false;
             if (mode === 'points') {
                 return feature.geometry.type === 'Point';
             }
             return true;
         },
-        pointToLayer: (feature, latlng) => {
-            const classification = getFeatureClassification(feature);
-            
-            // Estilização diferenciada entre Unidade BM (vermelho) e Município/Articulação (azul petróleo)
-            if (classification === 'MUNICIPIO') {
-                return L.circleMarker(latlng, {
-                    radius: 7,
-                    fillColor: '#16a085',
-                    color: '#0e6251',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.85
-                });
+        style: function(feature) {
+            if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+                const props = feature.properties || {};
+                return {
+                    fillColor: props.fill || '#0288d1',
+                    fillOpacity: props['fill-opacity'] !== undefined ? Number(props['fill-opacity']) : 0.3,
+                    color: props.stroke || '#0288d1',
+                    weight: props['stroke-width'] !== undefined ? Number(props['stroke-width']) : 1.5,
+                    opacity: props['stroke-opacity'] !== undefined ? Number(props['stroke-opacity']) : 1
+                };
             }
-
+        },
+        pointToLayer: (feature, latlng) => {
             return L.circleMarker(latlng, {
                 radius: 8,
                 fillColor: '#e74c3c',
@@ -381,32 +385,30 @@ function addLayerToMap(layerData, mode = viewMode) {
                 maxWidth: 340
             });
 
-            // Realce visual para Polígonos no hover
-            if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-                layer.on('mouseover', function(e) {
-                    const l = e.target;
-                    l._originalStyle = {
-                        weight: l.options.weight,
-                        color: l.options.color,
-                        fillOpacity: l.options.fillOpacity
-                    };
+            // Destaque visual ao passar o mouse e restauração garantida ao sair
+            layer.on('mouseover', function(e) {
+                const l = e.target;
+                if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
                     l.setStyle({
                         weight: 3,
                         color: '#f39c12',
+                        fillColor: '#f39c12',
                         fillOpacity: 0.45
                     });
-                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                        l.bringToFront();
-                    }
-                });
+                } else if (feature.geometry.type === 'Point') {
+                    l.setStyle({
+                        radius: 11,
+                        weight: 3,
+                        color: '#f39c12',
+                        fillColor: '#e74c3c',
+                        fillOpacity: 1
+                    });
+                }
+            });
 
-                layer.on('mouseout', function(e) {
-                    const l = e.target;
-                    if (l._originalStyle) {
-                        l.setStyle(l._originalStyle);
-                    }
-                });
-            }
+            layer.on('mouseout', function(e) {
+                geojsonLayer.resetStyle(e.target);
+            });
 
             // Tratamento de clique para o modo de marcação manual de origem
             layer.on('click', (e) => {

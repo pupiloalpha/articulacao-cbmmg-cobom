@@ -259,12 +259,17 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         for (const feature of layerData.geojson.features) {
             if (feature.geometry.type !== 'Point') continue;
 
+            // Ignora pontos de municípios para calcular distância somente até Unidades/Frações BM
+            if (typeof getFeatureClassification === 'function' && getFeatureClassification(feature) === 'MUNICIPIO') {
+                continue;
+            }
+
             const coords = feature.geometry.coordinates;
             const destPoint = turf.point(coords);
             const distanceKm = turf.distance(originPoint, destPoint, { units: 'kilometers' });
 
             const props = feature.properties || {};
-            const subtitle = props.UEOP ? ` • ${props.UEOP}` : (props['FRAÇÃO'] ? ` • ${props['FRAÇÃO']}` : '');
+            const subtitle = props.UEOP ? ` • ${props.UEOP}` : '';
 
             results.push({
                 layerName: layerData.name,
