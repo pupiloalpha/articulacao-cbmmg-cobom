@@ -114,6 +114,9 @@ async function reloadLayers() {
             addLayerToMap(layerData, viewMode);
         }
     }
+    if (typeof invalidateStreetIndex === 'function') {
+        invalidateStreetIndex();
+    }
     updateLayerListUI();
 }
 
