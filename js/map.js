@@ -229,7 +229,7 @@ function setOrigin(lat, lng, description) {
 // Controle de requisições assíncronas de rota para evitar condições de corrida
 let currentRouteRequestId = 0;
 
-// Função para calcular e exibir distâncias (Jurisdição COBOM + Top Candidatas + ETA Assíncrono)
+// Função para calcular e exibir distâncias (Responsabilidade Unidades + Top Candidatas + ETA Assíncrono)
 async function calculateDistancesToAllFeatures(originLat, originLng) {
     const distanceContainer = document.getElementById('distanceResults');
     if (!distanceContainer) return;
@@ -237,7 +237,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // Incrementa token para descartar respostas de requisições anteriores
     const reqId = ++currentRouteRequestId;
 
-    // 1. Verifica polígonos que contêm o ponto (Jurisdição Territorial)
+    // 1. Verifica polígonos que contêm o ponto (Responsabilidade Territorial)
     const containingPolygons = await checkPolygonContainment(originLat, originLng);
     
     // 2. Calcula distâncias em linha reta para todas as unidades operacionais (excluindo municípios)
@@ -281,7 +281,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // Constrói HTML do Painel de Despacho Operacional
     let html = '<div class="dispatch-panel">';
 
-    // Card de Jurisdição Territorial
+    // Card de Responsabilidade Territorial
     let jurisdictionHtml = '';
     if (containingPolygons.length > 0) {
         jurisdictionHtml = containingPolygons.map(p => `🛡️ ${p.featureName} <small style="opacity:0.8">(${p.layerName})</small>`).join('<br>');
@@ -291,7 +291,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
     html += `
         <div class="dispatch-jurisdiction-card">
-            <div class="dispatch-jurisdiction-title">🚨 Jurisdição Territorial Responsável</div>
+            <div class="dispatch-jurisdiction-title">🚨 Responsabilidade Territorial</div>
             <div class="dispatch-jurisdiction-name">${jurisdictionHtml}</div>
         </div>
     `;
