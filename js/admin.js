@@ -6,7 +6,7 @@ function setupAuth() {
     const loginBtn = document.getElementById('adminLoginBtn');
     const logoutBtn = document.getElementById('adminLogoutBtn');
 
-    if (isAdmin) {
+    if (window.isAdmin) {
         if (adminTools) adminTools.classList.remove('hidden');
         if (loginBtn) loginBtn.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
@@ -73,7 +73,7 @@ function initAdminAuthListeners() {
             const pin = pinInput.value.trim();
             const success = await verifyPinAsync(pin);
             if (success) {
-                isAdmin = true;
+                window.isAdmin = true;
                 if (loginModal) loginModal.classList.add('hidden');
                 pinInput.value = '';
                 if (loginError) loginError.textContent = '';
@@ -87,7 +87,7 @@ function initAdminAuthListeners() {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            isAdmin = false;
+            window.isAdmin = false;
             setupAuth();
             showToast('Logout efetuado com sucesso.', 'info');
         });
@@ -126,7 +126,7 @@ function setupFileUpload() {
 
 // Processa arquivos KML, KMZ e GeoJSON
 async function handleFiles(files) {
-    if (!isAdmin) return;
+    if (!window.isAdmin) return;
     for (const file of files) {
         try {
             let geojson;
@@ -303,7 +303,7 @@ function setupBackupAndRoutes() {
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
-            if (!isAdmin) return;
+            if (!window.isAdmin) return;
             const backup = await DB.exportBackup();
             const blob = new Blob([backup], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -352,7 +352,7 @@ let isJsonEditMode = false;
 
 // Abre o modal de edição carregando a feição selecionada
 window.openEditFeatureModal = async function(layerId, featureIndex) {
-    if (typeof isAdmin === 'undefined' || !isAdmin) {
+    if (typeof window.isAdmin === 'undefined' || !window.isAdmin) {
         showToast('Você não tem permissão para editar esta feição.', 'error');
         return;
     }
