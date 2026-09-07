@@ -625,44 +625,59 @@ if (type === 'MACRORREGIAO') {
 }
 
 // Formata o conteúdo HTML para o popup ao clicar
+// Formata o conteúdo HTML para o popup ao clicar
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
     const props = feature.properties || {};
     const name = (props.name || props['Nome do Hospital'] || 'Feição').replace(/'/g, "\\'");
+    const isPoint = feature.geometry && feature.geometry.type === 'Point';
 
-    if (!coords) {
-        return tooltipHtml;
-    }
-
-    const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
-    const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
-
-    const editBtnHtml =
-        layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
-            ? `
-        <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
-            ✏️ Editar Dados
-        </button>
-    `
-            : '';
-
-    const actionsHtml = `
-        <div class="feature-popup-actions">
-            <button class="btn-popup-action btn-popup-origin" onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
-                🎯 Definir Origem
-            </button>
-            <button class="btn-popup-action btn-popup-route" onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}')">
-                🚗 Rota até Aqui
-            </button>
-            <button class="btn-popup-action btn-popup-copy" onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
-                📋 Copiar Coord.
-            </button>
-            ${editBtnHtml}
-        </div>
+    // Botão de fechar sempre presente
+    const closeBtnHtml = `
+        <button type="button" class="btn-popup-close"
+                onclick="if (typeof map !== 'undefined' && map) map.closePopup();"
+                title="Fechar popup">×</button>
     `;
 
-    return `<div class="feature-popup-content-inner">${tooltipHtml}${actionsHtml}</div>`;
+    // Ações só para pontos (não fazem sentido / não são funcionais em polígonos)
+    let actionsHtml = '';
+    if (isPoint && coords) {
+        const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
+        const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
+
+        const editBtnHtml =
+            layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
+                ? `
+            <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
+                ✏️ Editar Dados
+            </button>
+        `
+                : '';
+
+        actionsHtml = `
+            <div class="feature-popup-actions">
+                <button class="btn-popup-action btn-popup-origin" onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
+                    🎯 Definir Origem
+                </button>
+                <button class="btn-popup-action btn-popup-route" onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}')">
+                    🚗 Rota até Aqui
+                </button>
+                <button class="btn-popup-action btn-popup-copy" onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
+                    📋 Copiar Coord.
+                </button>
+                ${editBtnHtml}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="feature-popup-content-inner">
+            ${closeBtnHtml}
+            ${tooltipHtml}
+            ${actionsHtml}
+        </div>
+    `;
 }
 
 // Adiciona uma camada ao mapa a partir dos dados
@@ -754,7 +769,8 @@ function addLayerToMap(layerData, mode = viewMode) {
 
             layer.bindPopup(formatFeaturePopup(feature), {
                 className: 'feature-popup',
-                maxWidth: 360
+                maxWidth: 360,
+                closeButton: false
             });
 
             layer.on('mouseover', function (e) {

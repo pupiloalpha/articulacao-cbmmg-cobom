@@ -93,6 +93,12 @@ function initMap() {
     };
     L.control.zoomExtended({ position: 'topright' }).addTo(map);
 
+    // Fecha qualquer popup aberto ao dar zoom com duplo-clique
+    // (evita que o popup de polígono ocupe a tela durante o zoom)
+    map.on('dblclick', function () {
+        map.closePopup();
+    });
+
     // Listener de clique no mapa (para definir origem manual)
     map.on('click', (e) => {
         if (mapClickMode) {
