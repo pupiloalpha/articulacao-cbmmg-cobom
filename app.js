@@ -15,20 +15,41 @@ let adminPinHash = localStorage.getItem('adminPinHash');
 let viewMode = 'all';
 let layerVisibility = {};
 
+// Guarda o estado de visualização anterior para restaurar ao sair do modo origem
+let previousViewModeBeforeOrigin = null;
+let previousLayerVisibilityBeforeOrigin = null;
+
+/**
+ * Sai do modo "definir origem no mapa".
+ * @param {boolean} restore - se true, restaura o modo de visualização e a visibilidade das camadas anteriores.
+ */
+function exitMapOriginMode(restore = true) {
+    mapClickMode = false;
+
+    const btn = document.getElementById('mapOriginBtn');
+    if (btn) btn.textContent = '🎯 Ponto no mapa';
+    if (map) map.getContainer().style.cursor = '';
+
+    if (restore) {
+        // Restaura o modo de visualização anterior (ou 'all' como fallback)
+        const modeToRestore = previousViewModeBeforeOrigin !== null ? previousViewModeBeforeOrigin : 'all';
+        setViewMode(modeToRestore);
+        syncViewCheckboxes(modeToRestore);
+
+        if (previousLayerVisibilityBeforeOrigin) {
+            layerVisibility = { ...previousLayerVisibilityBeforeOrigin };
+            // reloadLayers respeita layerVisibility
+            reloadLayers();
+        }
+    }
+
+    previousViewModeBeforeOrigin = null;
+    previousLayerVisibilityBeforeOrigin = null;
+}
+
 // Configuração e Inicialização Principal ao carregar o DOM
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initMap();
-    seedInitialData();
-    loadStreetDataFromGitHub();
-    reloadLayers();
-    zoomToAllFeatures();
-    setupAuth();
-    initAdminAuthListeners();
-    setupFileUpload();
-    setupDrawingTools();
-    setupGpsTracking();
-    setupTileDownload();
-    initEditFeatureModalListeners();
     updateOnlineStatus();
 
     // Controle da Sidebar / Painel Lateral
@@ -65,18 +86,50 @@ document.addEventListener('DOMContentLoaded', () => {
         resetBtn.addEventListener('click', resetAll);
     }
 
-    // RECUPERADO: Controle do botão de definir origem manualmente no mapa
+    // ============================================================
+    // 1. Carregamento de dados + zoom inicial ajustado às feições
+    // ============================================================
+    try {
+        await seedInitialData();
+        await loadStreetDataFromGitHub();
+        await reloadLayers();
+        zoomToAllFeatures();
+    } catch (err) {
+        console.warn('Falha no carregamento inicial de dados:', err);
+        if (map) map.setView([-15.7934, -47.8822], 4);
+    }
+
+    // Restante da inicialização
+    setupAuth();
+    initAdminAuthListeners();
+    setupFileUpload();
+    setupDrawingTools();
+    setupGpsTracking();
+    setupTileDownload();
+    initEditFeatureModalListeners();
+
+    // ============================================================
+    // 2. Botão "Definir origem no mapa" – oculta feições temporariamente
+    // ============================================================
     const mapOriginBtn = document.getElementById('mapOriginBtn');
     if (mapOriginBtn) {
         mapOriginBtn.addEventListener('click', () => {
-            mapClickMode = !mapClickMode;
             if (mapClickMode) {
+                // Cancelar → restaura
+                exitMapOriginMode(true);
+                showToast('Marcação de origem cancelada.', 'info');
+            } else {
+                // Entrar no modo: salva estado e oculta feições
+                previousViewModeBeforeOrigin = viewMode;
+                previousLayerVisibilityBeforeOrigin = { ...layerVisibility };
+
+                setViewMode('none');
+                syncViewCheckboxes('none');
+
+                mapClickMode = true;
                 mapOriginBtn.textContent = 'Cancelar marcação';
                 if (map) map.getContainer().style.cursor = 'crosshair';
-                showToast('Clique no mapa para definir a origem.', 'info');
-            } else {
-                mapOriginBtn.textContent = '🎯 Definir origem no mapa';
-                if (map) map.getContainer().style.cursor = '';
+                showToast('Clique no mapa para definir a origem (feições ocultas temporariamente).', 'info', 4000);
             }
         });
     }
@@ -150,8 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Função resetAll - Limpa dados temporários e recupera vista inicial (ajustada)
-function resetAll() {
+// Função resetAll - Limpa dados temporários e recupera vista inicial
+async function resetAll() {
     const searchResults = document.getElementById('searchResults');
     const distanceResults = document.getElementById('distanceResults');
     const searchInput = document.getElementById('searchInput');
@@ -160,12 +213,20 @@ function resetAll() {
     if (distanceResults) distanceResults.innerHTML = '';
     if (searchInput) searchInput.value = '';
 
+    // Sai do modo origem (se estiver ativo)
     if (mapClickMode) {
-        mapClickMode = false;
-        const btn = document.getElementById('mapOriginBtn');
-        if (btn) btn.textContent = '🎯 Definir origem no mapa';
-        if (map) map.getContainer().style.cursor = '';
+        exitMapOriginMode(false); // limpa flags sem restaurar ainda
     }
+
+    // Sempre volta para o modo padrão "all"
+    viewMode = 'all';
+    syncViewCheckboxes('all');
+
+    // Limpa qualquer sobrescrita de visibilidade individual
+    layerVisibility = {};
+
+    // Aguarda o recarregamento completo das camadas
+    await reloadLayers();
 
     // Remove marcador de origem
     if (originMarker && map) {
@@ -181,15 +242,22 @@ function resetAll() {
         map.removeLayer(window.distanceMarker);
         window.distanceMarker = null;
     }
-    // Remove controle de roteamento, se existir
+    // Remove controle de roteamento
     if (window.routingControl && map) {
         map.removeControl(window.routingControl);
         window.routingControl = null;
     }
-    // Reseta a origem atual
+
     currentOrigin = null;
-    if (map) map.setView([-15.7934, -47.8822], 4);
-    showToast('Campos e origem limpos.', 'info');
+
+    // Agora sim enquadra nas feições (já estão no mapa)
+    if (map) {
+        zoomToAllFeatures();
+    }
+
+    showToast('Campos e origem limpos. Visualização restaurada.', 'info');
 }
-// Exporta globalmente para uso no app.js
 window.resetAll = resetAll;
+
+// Exporta a função de saída do modo origem para uso em map.js / layers.js
+window.exitMapOriginMode = exitMapOriginMode;

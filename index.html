@@ -37,7 +37,7 @@
                     <!-- Grid de Ações Rápidas de Origem -->
                     <div class="btn-grid-actions">
                         <button id="useMyLocationBtn" class="btn" title="Usar localização GPS">📍 GPS Atual</button>
-                        <button id="mapOriginBtn" class="btn" title="Clique no mapa para marcar origem">🎯 Origem no Mapa</button>
+                        <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">🎯 Ponto no Mapa</button>
                     </div>
                     
                 <button id="resetBtn" class="btn btn-danger">🗑️ Limpar Pesquisa</button>
@@ -107,7 +107,7 @@
         </div>
     </div>
 
-    <!-- Modal de Edição de Feição -->
+    <!-- Modal de Edição / Criação de Feição -->
     <div id="editFeatureModal" class="modal hidden">
         <div class="modal-content modal-edit-feature">
             <span class="close-modal" id="closeEditFeatureModal">&times;</span>
@@ -115,6 +115,18 @@
             <div id="editFeatureCategory" class="edit-feature-subtitle"></div>
             
             <form id="editFeatureForm" onsubmit="return false;">
+                <!-- Seletor de camada (visível apenas no modo criação) -->
+                <div id="createLayerSelector" class="form-group-edit hidden" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Camada de destino:</label>
+                    <select id="targetLayerSelect" style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+                        <option value="new">➕ Nova camada</option>
+                    </select>
+                </div>
+                <div id="newLayerNameGroup" class="form-group-edit hidden" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Nome da nova camada:</label>
+                    <input type="text" id="newLayerNameInput" placeholder="Ex: Meus POIs / Minhas Áreas" style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+                </div>
+
                 <div id="editFeatureFieldsContainer" class="edit-feature-fields"></div>
                 
                 <div class="edit-feature-custom-actions">

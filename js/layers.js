@@ -89,22 +89,20 @@ async function loadStreetDataFromGitHub() {
     }
 }
 
-// Recarrega todas as camadas do banco e adiciona ao mapa
+// Recarrega todas as camadas do banco e adiciona ao mapa (respeitando order)
 async function reloadLayers() {
     Object.values(overlayLayers).forEach(layer => {
         if (map && map.hasLayer(layer)) map.removeLayer(layer);
     });
     overlayLayers = {};
     
-    const layers = await DB.getLayers();
-    // Palavras-chave para identificar arquivos de malha viária
+    const layers = await DB.getLayers(); // já vem ordenado por "order"
     const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
 
     for (const layerData of layers) {
-        // AÇÃO: Verifica se a camada é uma base de ruas e impede sua renderização visual
         const isStreetLayer = hiddenNames.some(keyword => layerData.name.includes(keyword));
         if (isStreetLayer) {
-            continue; // Pula a inserção no mapa, mantendo disponível apenas no banco (IndexedDB) para busca
+            continue;
         }
 
         if (layerVisibility[layerData.id] === undefined) {
@@ -171,7 +169,7 @@ function getFeatureCoords(feature) {
     return null;
 }
 
-// Formata o conteúdo HTML para o tooltip flutuante no hover (passar o mouse)
+// Formata o conteúdo HTML para o tooltip flutuante no hover
 function formatFeatureTooltip(feature) {
     const props = feature.properties || {};
     const type = getFeatureClassification(feature);
@@ -294,7 +292,6 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
-    // Fallback genérico para feições desconhecidas
     return `
         <div class="feature-card-header">
             <h4 class="feature-card-title">📍 ${props.name || 'Feição'}</h4>
@@ -305,7 +302,7 @@ function formatFeatureTooltip(feature) {
     `;
 }
 
-// Formata o conteúdo HTML para o popup ao clicar (inclui botões de ação operacional e edição)
+// Formata o conteúdo HTML para o popup ao clicar
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
@@ -319,7 +316,6 @@ function formatFeaturePopup(feature) {
     const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
     const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
 
-    // Só mostra botão de editar se soubermos o id/índice e se o usuário for admin
     const editBtnHtml = (layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin) ? `
         <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
             ✏️ Editar Dados
@@ -344,11 +340,10 @@ function formatFeaturePopup(feature) {
     return `<div class="feature-popup-content-inner">${tooltipHtml}${actionsHtml}</div>`;
 }
 
-// Adiciona uma camada ao mapa a partir dos dados, com filtro opcional e interações ricas
+// Adiciona uma camada ao mapa a partir dos dados
 function addLayerToMap(layerData, mode = viewMode) {
     if (!layerData.geojson || !map) return;
 
-    // Indexa as feições com o ID da camada e o índice para permitir edição precisa
     if (Array.isArray(layerData.geojson.features)) {
         layerData.geojson.features.forEach((feat, idx) => {
             feat._layerDbId = layerData.id;
@@ -359,7 +354,6 @@ function addLayerToMap(layerData, mode = viewMode) {
     const geojsonLayer = L.geoJSON(layerData.geojson, {
         filter: function(feature) {
             const classification = getFeatureClassification(feature);
-            // Remove a visualização dos pontos de municípios
             if (classification === 'MUNICIPIO') {
                 return false;
             }
@@ -393,7 +387,6 @@ function addLayerToMap(layerData, mode = viewMode) {
             });
         },
         onEachFeature: (feature, layer) => {
-            // Associa Tooltip interativo no hover (segue o cursor do mouse)
             layer.bindTooltip(formatFeatureTooltip(feature), {
                 sticky: true,
                 className: 'feature-tooltip',
@@ -401,13 +394,11 @@ function addLayerToMap(layerData, mode = viewMode) {
                 opacity: 0.98
             });
 
-            // Associa Popup com ações operacionais no clique
             layer.bindPopup(formatFeaturePopup(feature), {
                 className: 'feature-popup',
                 maxWidth: 340
             });
 
-            // Destaque visual ao passar o mouse e restauração garantida ao sair
             layer.on('mouseover', function(e) {
                 const l = e.target;
                 if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
@@ -432,7 +423,6 @@ function addLayerToMap(layerData, mode = viewMode) {
                 geojsonLayer.resetStyle(e.target);
             });
 
-            // Tratamento de clique para o modo de marcação manual de origem
             layer.on('click', (e) => {
                 if (mapClickMode) {
                     L.DomEvent.stopPropagation(e);
@@ -451,45 +441,148 @@ function addLayerToMap(layerData, mode = viewMode) {
     }
 }
 
-// Atualiza a lista de camadas na interface (UI)
+// ==========================================================================
+// UI da lista de camadas + ações: Visibilidade, Renomear, Duplicar, Reordenar, Excluir
+// ==========================================================================
+
+async function renameLayer(layerId) {
+    const layer = await DB.getLayerById(layerId);
+    if (!layer) return;
+    const newName = prompt('Novo nome da camada:', layer.name);
+    if (newName && newName.trim() && newName.trim() !== layer.name) {
+        await DB.updateLayer(layerId, { name: newName.trim() });
+        await reloadLayers();
+        showToast(`Camada renomeada para "${newName.trim()}"`, 'success');
+    }
+}
+
+async function duplicateLayer(layerId) {
+    const layer = await DB.getLayerById(layerId);
+    if (!layer) return;
+    const newName = prompt('Nome da cópia:', layer.name + ' (cópia)');
+    if (!newName || !newName.trim()) return;
+
+    const geojsonCopy = JSON.parse(JSON.stringify(layer.geojson));
+    await DB.saveLayer({
+        name: newName.trim(),
+        type: layer.type || 'geojson',
+        geojson: geojsonCopy
+    });
+    await reloadLayers();
+    showToast(`Camada "${newName.trim()}" criada com sucesso!`, 'success');
+}
+
+async function moveLayer(layerId, direction) {
+    const layers = await DB.getLayers(); // já ordenado
+    const idx = layers.findIndex(l => l.id === layerId);
+    if (idx === -1) return;
+
+    let swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= layers.length) {
+        showToast(direction === 'up' ? 'Já está no topo.' : 'Já está no final.', 'info');
+        return;
+    }
+
+    const other = layers[swapIdx];
+    // Pula camadas ocultas de ruas se necessário, mas como elas não aparecem na UI, ok
+    await DB.swapLayerOrder(layerId, other.id);
+    await reloadLayers();
+    showToast('Ordem das camadas atualizada.', 'success');
+}
+
 function updateLayerListUI() {
     const ul = document.getElementById('layersUl');
     if (!ul) return;
 
     DB.getLayers().then(layers => {
         ul.innerHTML = '';
-        layers.forEach(layer => {
+        const visibleLayers = layers.filter(layer => {
             const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
-            const shouldHide = hiddenNames.some(keyword => layer.name.includes(keyword));
-            if (shouldHide) return;
+            return !hiddenNames.some(keyword => layer.name.includes(keyword));
+        });
 
+        visibleLayers.forEach((layer, index) => {
             const li = document.createElement('li');
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = layer.name;
+            nameSpan.style.flex = '1';
+            nameSpan.style.overflow = 'hidden';
+            nameSpan.style.textOverflow = 'ellipsis';
+            nameSpan.style.whiteSpace = 'nowrap';
             
             const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'layer-actions';
+            actionsDiv.style.display = 'flex';
+            actionsDiv.style.gap = '2px';
+            actionsDiv.style.alignItems = 'center';
             
+            // Visibilidade
             const visBtn = document.createElement('button');
-            visBtn.className = 'btn-icon';
-            visBtn.style.fontSize = '1rem';
-            visBtn.style.marginRight = '5px';
+            visBtn.className = 'btn-icon layer-btn';
+            visBtn.style.fontSize = '0.95rem';
             const isVisible = layerVisibility[layer.id] !== false;
             visBtn.innerHTML = isVisible ? '👁️' : '👁️‍🗨️';
             visBtn.title = isVisible ? 'Ocultar camada' : 'Exibir camada';
-            
             visBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 layerVisibility[layer.id] = !isVisible;
                 reloadLayers();
             });
-            
             actionsDiv.appendChild(visBtn);
 
-            if (isAdmin) {
+            if (window.isAdmin) {
+                // Renomear
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'btn-icon layer-btn';
+                renameBtn.innerHTML = '✏️';
+                renameBtn.title = 'Renomear camada';
+                renameBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    renameLayer(layer.id);
+                });
+                actionsDiv.appendChild(renameBtn);
+
+                // Duplicar
+                const dupBtn = document.createElement('button');
+                dupBtn.className = 'btn-icon layer-btn';
+                dupBtn.innerHTML = '📋';
+                dupBtn.title = 'Duplicar camada';
+                dupBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    duplicateLayer(layer.id);
+                });
+                actionsDiv.appendChild(dupBtn);
+
+                // Mover para cima
+                const upBtn = document.createElement('button');
+                upBtn.className = 'btn-icon layer-btn';
+                upBtn.innerHTML = '↑';
+                upBtn.title = 'Mover para cima (aumenta prioridade de desenho)';
+                upBtn.disabled = index === 0;
+                upBtn.style.opacity = index === 0 ? '0.35' : '1';
+                upBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveLayer(layer.id, 'up');
+                });
+                actionsDiv.appendChild(upBtn);
+
+                // Mover para baixo
+                const downBtn = document.createElement('button');
+                downBtn.className = 'btn-icon layer-btn';
+                downBtn.innerHTML = '↓';
+                downBtn.title = 'Mover para baixo';
+                downBtn.disabled = index === visibleLayers.length - 1;
+                downBtn.style.opacity = index === visibleLayers.length - 1 ? '0.35' : '1';
+                downBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveLayer(layer.id, 'down');
+                });
+                actionsDiv.appendChild(downBtn);
+
+                // Excluir
                 const delBtn = document.createElement('button');
-                delBtn.className = 'btn-icon';
-                delBtn.style.fontSize = '1rem';
+                delBtn.className = 'btn-icon layer-btn';
                 delBtn.innerHTML = '🗑️';
                 delBtn.title = 'Excluir camada';
                 delBtn.addEventListener('click', (e) => {
@@ -521,16 +614,27 @@ function syncViewCheckboxes(mode) {
 
 function handleFeatureClick(e, feature, layer) {
     if (mapClickMode) {
-        mapClickMode = false;
-        document.getElementById('mapOriginBtn').textContent = '🎯 Definir origem no mapa';
-        map.getContainer().style.cursor = '';
+        L.DomEvent.stopPropagation(e);
+
+        // Restaura as feições automaticamente
+        if (typeof window.exitMapOriginMode === 'function') {
+            window.exitMapOriginMode(true);
+        } else {
+            mapClickMode = false;
+            const btn = document.getElementById('mapOriginBtn');
+            if (btn) btn.textContent = '🎯 Ponto no mapa';
+            if (map) map.getContainer().style.cursor = '';
+        }
+
         const latlng = e.latlng;
         setOrigin(latlng.lat, latlng.lng, 'Origem manual (clique na feição)');
         map.setView([latlng.lat, latlng.lng], 15);
         calculateDistancesToAllFeatures(latlng.lat, latlng.lng);
+        showToast('Origem definida.', 'success');
         return;
     }
 
+    // ... resto da função permanece igual ...
     if (!originMarker && feature.geometry.type === 'Point') {
         const coords = feature.geometry.coordinates;
         setOrigin(coords[1], coords[0], feature.properties?.name || 'Ponto selecionado');

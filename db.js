@@ -3,27 +3,43 @@
 // Inicializa o banco de dados
 const db = new Dexie('GisPwaDB');
 
-// Define o schema
+// Schema versão 1 (legado)
 db.version(1).stores({
-    // Tabela para camadas geográficas (GeoJSON)
     layers: '++id, name, type, created, updated',
-    // Tabela para endereços/pontos de busca offline
     addresses: '++id, query, lat, lng, address, timestamp',
-    // Tabela para cache de tiles (armazenados como Blob)
     tiles: 'key, blob, timestamp',
-    // Tabela de rotas (cache de distâncias)
     routes: '[originLat+originLng+destLat+destLng], distance, duration, timestamp'
+});
+
+// Schema versão 2: adiciona campo "order" para reordenação de camadas
+db.version(2).stores({
+    layers: '++id, name, type, order, created, updated',
+    addresses: '++id, query, lat, lng, address, timestamp',
+    tiles: 'key, blob, timestamp',
+    routes: '[originLat+originLng+destLat+destLng], distance, duration, timestamp'
+}).upgrade(tx => {
+    // Migração: preenche order para camadas existentes
+    return tx.table('layers').toCollection().modify(layer => {
+        if (typeof layer.order === 'undefined' || layer.order === null) {
+            layer.order = layer.id || Date.now();
+        }
+    });
 });
 
 // Funções para Camadas
 async function saveLayer(layerData) {
     layerData.created = new Date();
     layerData.updated = new Date();
+    if (typeof layerData.order === 'undefined' || layerData.order === null) {
+        const last = await db.layers.orderBy('order').last();
+        layerData.order = (last && typeof last.order === 'number') ? last.order + 1 : 1;
+    }
     return await db.layers.add(layerData);
 }
 
 async function getLayers() {
-    return await db.layers.toArray();
+    // Retorna sempre ordenado por "order" ascendente
+    return await db.layers.orderBy('order').toArray();
 }
 
 async function getLayerById(id) {
@@ -39,6 +55,17 @@ async function deleteLayer(id) {
     return await db.layers.delete(id);
 }
 
+/** Troca a ordem de duas camadas (usado pelas setas ↑↓) */
+async function swapLayerOrder(idA, idB) {
+    const layerA = await db.layers.get(idA);
+    const layerB = await db.layers.get(idB);
+    if (!layerA || !layerB) return false;
+    const orderA = layerA.order;
+    await db.layers.update(idA, { order: layerB.order, updated: new Date() });
+    await db.layers.update(idB, { order: orderA, updated: new Date() });
+    return true;
+}
+
 // Funções para Endereços (busca offline)
 async function addAddress(addressRecord) {
     addressRecord.timestamp = new Date();
@@ -46,12 +73,11 @@ async function addAddress(addressRecord) {
 }
 
 async function searchAddresses(query) {
-    // Busca simples por substring no campo query ou address
     const all = await db.addresses.toArray();
     const lowerQuery = query.toLowerCase();
     return all.filter(addr => 
-        addr.query.toLowerCase().includes(lowerQuery) || 
-        addr.address.toLowerCase().includes(lowerQuery)
+        (addr.query && addr.query.toLowerCase().includes(lowerQuery)) || 
+        (addr.address && addr.address.toLowerCase().includes(lowerQuery))
     );
 }
 
@@ -66,7 +92,7 @@ async function getTile(key) {
 
 async function saveTile(key, blob) {
     const record = { key, blob, timestamp: new Date() };
-    await db.tiles.put(record); // usa put para atualizar se existir
+    await db.tiles.put(record);
 }
 
 async function clearTiles() {
@@ -75,7 +101,6 @@ async function clearTiles() {
 
 // Funções para rotas (cache)
 async function getRouteFromCache(originLat, originLng, destLat, destLng) {
-    const key = `${originLat}_${originLng}_${destLat}_${destLng}`;
     return await db.routes.get({ originLat, originLng, destLat, destLng });
 }
 
@@ -85,8 +110,8 @@ async function saveRouteToCache(originLat, originLng, destLat, destLng, distance
         originLng,
         destLat,
         destLng,
-        distance, // em metros
-        duration, // em segundos
+        distance,
+        duration,
         timestamp: new Date()
     };
     await db.routes.put(record);
@@ -101,7 +126,6 @@ async function exportBackup() {
     const layers = await db.layers.toArray();
     const addresses = await db.addresses.toArray();
     
-    // Combina todas as features em um FeatureCollection para backup
     const allFeatures = [];
     layers.forEach(layer => {
         const geojson = layer.geojson;
@@ -116,7 +140,7 @@ async function exportBackup() {
     });
     
     const backup = {
-        version: '1.0',
+        version: '1.1',
         exportedAt: new Date().toISOString(),
         featureCollection: {
             type: 'FeatureCollection',
@@ -131,20 +155,16 @@ async function exportBackup() {
 async function importBackup(jsonString) {
     try {
         const backup = JSON.parse(jsonString);
-        // Limpa o banco atual
         await db.layers.clear();
         await db.addresses.clear();
         
-        // Restaura endereços
         if (backup.addresses && Array.isArray(backup.addresses)) {
             for (const addr of backup.addresses) {
                 await addAddress(addr);
             }
         }
         
-        // Restaura camadas a partir do FeatureCollection
         if (backup.featureCollection && backup.featureCollection.features) {
-            // Agrupa features por _layerName ou _layerId
             const grouped = {};
             backup.featureCollection.features.forEach(feature => {
                 const layerName = feature.properties?._layerName || 'Backup Layer';
@@ -154,7 +174,6 @@ async function importBackup(jsonString) {
                         features: []
                     };
                 }
-                // Remove propriedades internas
                 const cleanFeature = { ...feature };
                 if (cleanFeature.properties) {
                     delete cleanFeature.properties._layerId;
@@ -163,7 +182,6 @@ async function importBackup(jsonString) {
                 grouped[layerName].features.push(cleanFeature);
             });
             
-            // Salva cada grupo como uma camada
             for (const [name, geojson] of Object.entries(grouped)) {
                 await saveLayer({
                     name: name,
@@ -186,6 +204,7 @@ window.DB = {
     getLayerById,
     updateLayer,
     deleteLayer,
+    swapLayerOrder,
     addAddress,
     searchAddresses,
     getTile,

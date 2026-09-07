@@ -872,3 +872,48 @@ body {
     .sidebar { width: 100%; max-width: 320px; }
     #toast-container { bottom: 10px; right: 10px; left: 10px; }
 }
+
+/* ==========================================================================
+   Ações extras da lista de camadas (renomear, duplicar, reordenar)
+   ========================================================================== */
+.layer-actions {
+    display: flex;
+    gap: 1px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.layer-btn {
+    background: transparent !important;
+    border: none;
+    color: var(--text-color);
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem !important;
+    padding: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.layer-btn:hover {
+    background: #f1f5f9 !important;
+}
+
+.layer-btn:disabled {
+    cursor: not-allowed;
+}
+
+#layersUl li {
+    gap: 6px;
+}
+
+/* Destaque dos botões de desenho ativos */
+#addMarkerBtn.active,
+#addPolygonBtn.active {
+    background: #27ae60 !important;
+    box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.35);
+}

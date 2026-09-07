@@ -1,19 +1,25 @@
 // js/admin.js - Autenticação por PIN, upload de KML/KMZ/GeoJSON, backup e ferramentas de desenho
 
 // Configura estado visual e botões da seção administrativa
+// Configura estado visual e botões da seção administrativa
 function setupAuth() {
     const adminTools = document.getElementById('adminTools');
     const loginBtn = document.getElementById('adminLoginBtn');
     const logoutBtn = document.getElementById('adminLogoutBtn');
+    const searchContainer = document.querySelector('.search-container');
 
     if (window.isAdmin) {
         if (adminTools) adminTools.classList.remove('hidden');
         if (loginBtn) loginBtn.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
+        // Oculta a área de busca operacional quando administrador
+        if (searchContainer) searchContainer.classList.add('hidden');
     } else {
         if (adminTools) adminTools.classList.add('hidden');
         if (loginBtn) loginBtn.classList.remove('hidden');
         if (logoutBtn) logoutBtn.classList.add('hidden');
+        // Restaura a área de busca quando sai do modo admin
+        if (searchContainer) searchContainer.classList.remove('hidden');
     }
     updateLayerListUI();
 }
@@ -187,7 +193,10 @@ async function handleFiles(files) {
     }
 }
 
-// Ferramentas de Desenho (POI e Polígonos)
+// ==========================================================================
+// Ferramentas de Desenho (POI e Polígonos) - MELHORADAS
+// ==========================================================================
+
 function setupDrawingTools() {
     const addMarkerBtn = document.getElementById('addMarkerBtn');
     const addPolygonBtn = document.getElementById('addPolygonBtn');
@@ -195,14 +204,31 @@ function setupDrawingTools() {
     if (addMarkerBtn) {
         addMarkerBtn.addEventListener('click', () => {
             if (drawingMode === 'marker') {
+                // Cancela modo
                 drawingMode = null;
                 map.off('click', handleMapClickForMarker);
                 addMarkerBtn.classList.remove('active');
+                addMarkerBtn.textContent = 'Adicionar POI';
+                showToast('Modo POI cancelado.', 'info');
             } else {
+                // Entra em modo
                 drawingMode = 'marker';
+                // Limpa qualquer modo de polígono residual
+                if (polygonTempLayer && map) {
+                    map.removeLayer(polygonTempLayer);
+                    polygonTempLayer = null;
+                }
+                polygonPoints = [];
+                map.off('click', handleMapClickForPolygon);
+                if (addPolygonBtn) {
+                    addPolygonBtn.classList.remove('active');
+                    addPolygonBtn.textContent = 'Desenhar Polígono';
+                }
+
                 map.on('click', handleMapClickForMarker);
                 addMarkerBtn.classList.add('active');
-                showToast('Clique no mapa para posicionar o POI.', 'info');
+                addMarkerBtn.textContent = '✕ Cancelar POI';
+                showToast('📍 Modo POI ativo: clique no mapa para posicionar o ponto. Em seguida preencha os dados no formulário.', 'info', 4500);
             }
         });
     }
@@ -210,18 +236,40 @@ function setupDrawingTools() {
     if (addPolygonBtn) {
         addPolygonBtn.addEventListener('click', () => {
             if (drawingMode === 'polygon') {
-                drawingMode = null;
-                map.off('click', handleMapClickForPolygon);
-                addPolygonBtn.classList.remove('active');
-                finishPolygon();
+                // Tentativa de finalizar
+                if (polygonPoints.length >= 3) {
+                    finishPolygonAndOpenModal();
+                } else {
+                    // Cancela se poucos pontos
+                    drawingMode = null;
+                    map.off('click', handleMapClickForPolygon);
+                    addPolygonBtn.classList.remove('active');
+                    addPolygonBtn.textContent = 'Desenhar Polígono';
+                    if (polygonTempLayer && map) {
+                        map.removeLayer(polygonTempLayer);
+                        polygonTempLayer = null;
+                    }
+                    polygonPoints = [];
+                    showToast('Desenho de polígono cancelado (mínimo 3 pontos necessários).', 'info');
+                }
             } else {
+                // Entra em modo
                 drawingMode = 'polygon';
                 polygonPoints = [];
                 if (polygonTempLayer && map) map.removeLayer(polygonTempLayer);
                 polygonTempLayer = L.layerGroup().addTo(map);
+
+                // Limpa modo marker
+                map.off('click', handleMapClickForMarker);
+                if (addMarkerBtn) {
+                    addMarkerBtn.classList.remove('active');
+                    addMarkerBtn.textContent = 'Adicionar POI';
+                }
+
                 map.on('click', handleMapClickForPolygon);
                 addPolygonBtn.classList.add('active');
-                showToast('Clique no mapa para adicionar os vértices do polígono.', 'info');
+                addPolygonBtn.textContent = '✓ Finalizar Polígono';
+                showToast('🗺️ Modo Polígono: clique sucessivamente no mapa para os vértices. Quando terminar (mín. 3 pontos), clique em "✓ Finalizar Polígono".', 'info', 5000);
             }
         });
     }
@@ -230,70 +278,78 @@ function setupDrawingTools() {
 }
 
 function handleMapClickForMarker(e) {
-    const name = prompt('Nome do POI (Ponto de Interesse):');
-    if (name && name.trim()) {
-        const feature = {
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [e.latlng.lng, e.latlng.lat]
-            },
-            properties: { name: name.trim() }
-        };
-        const geojson = { type: 'FeatureCollection', features: [feature] };
-        DB.saveLayer({
-            name: name.trim(),
-            type: 'geojson',
-            geojson: geojson
-        }).then(() => {
-            reloadLayers();
-            showToast(`POI "${name.trim()}" criado com sucesso!`, 'success');
-        });
-    }
+    // Cria feature temporária e abre modal de criação
+    const feature = {
+        type: 'Feature',
+        geometry: {
+            type: 'Point',
+            coordinates: [e.latlng.lng, e.latlng.lat]
+        },
+        properties: { name: '' }
+    };
+
+    // Sai do modo desenho
     drawingMode = null;
     map.off('click', handleMapClickForMarker);
     const addMarkerBtn = document.getElementById('addMarkerBtn');
-    if (addMarkerBtn) addMarkerBtn.classList.remove('active');
+    if (addMarkerBtn) {
+        addMarkerBtn.classList.remove('active');
+        addMarkerBtn.textContent = 'Adicionar POI';
+    }
+
+    openCreateFeatureModal(feature, 'Novo POI');
 }
 
 function handleMapClickForPolygon(e) {
     polygonPoints.push([e.latlng.lat, e.latlng.lng]);
     if (polygonTempLayer && map) map.removeLayer(polygonTempLayer);
     polygonTempLayer = L.layerGroup().addTo(map);
-    L.polyline(polygonPoints, { color: 'blue' }).addTo(polygonTempLayer);
-    polygonPoints.forEach(p => L.circleMarker(p, { radius: 4, color: 'red' }).addTo(polygonTempLayer));
+    L.polyline(polygonPoints, { color: '#2980b9', weight: 3 }).addTo(polygonTempLayer);
+    polygonPoints.forEach(p => L.circleMarker(p, { radius: 5, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9 }).addTo(polygonTempLayer));
+
+    // Feedback de quantos pontos
+    const n = polygonPoints.length;
+    if (n === 1) {
+        showToast('1º vértice marcado. Continue clicando...', 'info', 2000);
+    } else if (n === 2) {
+        showToast('2 vértices. Adicione pelo menos mais 1.', 'info', 2000);
+    } else {
+        showToast(`${n} vértices. Clique em "✓ Finalizar Polígono" quando pronto.`, 'info', 2000);
+    }
 }
 
-function finishPolygon() {
+function finishPolygonAndOpenModal() {
     if (polygonPoints.length < 3) {
         showToast('Um polígono necessita de pelo menos 3 pontos.', 'warning');
-        polygonPoints = [];
         return;
     }
-    const name = prompt('Nome do polígono:');
-    if (name && name.trim()) {
-        const closedCoords = [...polygonPoints, polygonPoints[0]];
-        const feature = {
-            type: 'Feature',
-            geometry: {
-                type: 'Polygon',
-                coordinates: [[...closedCoords.map(([lat, lng]) => [lng, lat])]]
-            },
-            properties: { name: name.trim() }
-        };
-        const geojson = { type: 'FeatureCollection', features: [feature] };
-        DB.saveLayer({
-            name: name.trim(),
-            type: 'geojson',
-            geojson: geojson
-        }).then(() => {
-            reloadLayers();
-            showToast(`Polígono "${name.trim()}" criado com sucesso!`, 'success');
-        });
+
+    // Fecha o anel
+    const closedCoords = [...polygonPoints, polygonPoints[0]];
+    const feature = {
+        type: 'Feature',
+        geometry: {
+            type: 'Polygon',
+            coordinates: [[...closedCoords.map(([lat, lng]) => [lng, lat])]]
+        },
+        properties: { name: '', fill: '#0288d1' }
+    };
+
+    // Limpa estado de desenho
+    drawingMode = null;
+    map.off('click', handleMapClickForPolygon);
+    const addPolygonBtn = document.getElementById('addPolygonBtn');
+    if (addPolygonBtn) {
+        addPolygonBtn.classList.remove('active');
+        addPolygonBtn.textContent = 'Desenhar Polígono';
     }
-    if (polygonTempLayer && map) map.removeLayer(polygonTempLayer);
-    polygonTempLayer = null;
+    if (polygonTempLayer && map) {
+        map.removeLayer(polygonTempLayer);
+        polygonTempLayer = null;
+    }
     polygonPoints = [];
+
+    openCreateFeatureModal(feature, 'Novo Polígono');
 }
 
 // Backup Export/Import e Limpeza de Cache de Rotas
@@ -346,13 +402,14 @@ function setupBackupAndRoutes() {
 }
 
 // ==========================================================================
-// Módulo de Edição de Feições (Atributos, Geometria e JSON)
+// Módulo de Edição / Criação de Feições (reutilizado)
 // ==========================================================================
 
 let currentEditingContext = null;
 let isJsonEditMode = false;
+let isCreateMode = false;
 
-// Abre o modal de edição carregando a feição selecionada
+// Abre o modal de EDIÇÃO de feição existente
 window.openEditFeatureModal = async function(layerId, featureIndex) {
     if (typeof window.isAdmin === 'undefined' || !window.isAdmin) {
         showToast('Você não tem permissão para editar esta feição.', 'error');
@@ -371,31 +428,17 @@ window.openEditFeatureModal = async function(layerId, featureIndex) {
         return;
     }
 
+    isCreateMode = false;
     currentEditingContext = {
+        isNew: false,
         layerId: Number(layerId),
         featureIndex: Number(featureIndex),
         layerData: layerData,
-        feature: JSON.parse(JSON.stringify(feature)) // Cópia profunda
+        feature: JSON.parse(JSON.stringify(feature))
     };
 
     isJsonEditMode = false;
-    const jsonContainer = document.getElementById('editFeatureJsonContainer');
-    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
-    const toggleBtn = document.getElementById('toggleJsonModeBtn');
-
-    if (jsonContainer) jsonContainer.classList.add('hidden');
-    if (fieldsContainer) fieldsContainer.classList.remove('hidden');
-    if (toggleBtn) toggleBtn.textContent = '📋 Alternar Modo JSON';
-
-    // Configura títulos
-    const modalTitle = document.getElementById('editFeatureModalTitle');
-    const modalSubtitle = document.getElementById('editFeatureCategory');
-    const name = feature.properties?.name || 'Feição sem nome';
-    const classification = typeof getFeatureClassification === 'function' ? getFeatureClassification(feature) : feature.geometry?.type;
-
-    if (modalTitle) modalTitle.textContent = `✏️ Editar Feição: ${name}`;
-    if (modalSubtitle) modalSubtitle.textContent = `Camada: "${layerData.name}" | Tipo: ${classification} (${feature.geometry?.type})`;
-
+    prepareModalForEditOrCreate();
     renderEditFeatureForm(currentEditingContext.feature);
 
     const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
@@ -406,6 +449,121 @@ window.openEditFeatureModal = async function(layerId, featureIndex) {
     const modal = document.getElementById('editFeatureModal');
     if (modal) modal.classList.remove('hidden');
 };
+
+// Abre o modal de CRIAÇÃO de nova feição (POI ou Polígono)
+window.openCreateFeatureModal = async function(feature, defaultTitle = 'Nova Feição') {
+    if (typeof window.isAdmin === 'undefined' || !window.isAdmin) {
+        showToast('Você não tem permissão para criar feições.', 'error');
+        return;
+    }
+
+    isCreateMode = true;
+    currentEditingContext = {
+        isNew: true,
+        feature: JSON.parse(JSON.stringify(feature)),
+        defaultTitle: defaultTitle
+    };
+
+    isJsonEditMode = false;
+    prepareModalForEditOrCreate();
+    renderEditFeatureForm(currentEditingContext.feature);
+
+    // Preenche seletor de camadas
+    await populateTargetLayerSelect();
+
+    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+    if (jsonTextarea) {
+        jsonTextarea.value = JSON.stringify(feature, null, 2);
+    }
+
+    const modal = document.getElementById('editFeatureModal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+function prepareModalForEditOrCreate() {
+    const modalTitle = document.getElementById('editFeatureModalTitle');
+    const modalSubtitle = document.getElementById('editFeatureCategory');
+    const deleteBtn = document.getElementById('deleteFeatureBtn');
+    const saveBtn = document.getElementById('saveFeatureBtn');
+    const layerSelector = document.getElementById('createLayerSelector');
+    const newLayerGroup = document.getElementById('newLayerNameGroup');
+    const jsonContainer = document.getElementById('editFeatureJsonContainer');
+    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
+    const toggleBtn = document.getElementById('toggleJsonModeBtn');
+
+    if (jsonContainer) jsonContainer.classList.add('hidden');
+    if (fieldsContainer) fieldsContainer.classList.remove('hidden');
+    if (toggleBtn) toggleBtn.textContent = '📋 Alternar Modo JSON';
+
+    if (isCreateMode) {
+        if (modalTitle) modalTitle.textContent = `➕ ${currentEditingContext.defaultTitle || 'Nova Feição'}`;
+        if (modalSubtitle) modalSubtitle.textContent = 'Preencha os atributos e escolha a camada de destino.';
+        if (deleteBtn) deleteBtn.classList.add('hidden');
+        if (saveBtn) {
+            saveBtn.textContent = '💾 Criar Feição';
+            saveBtn.style.background = '#27ae60';
+        }
+        if (layerSelector) layerSelector.classList.remove('hidden');
+        if (newLayerGroup) newLayerGroup.classList.remove('hidden');
+    } else {
+        const name = currentEditingContext.feature.properties?.name || 'Feição sem nome';
+        const classification = typeof getFeatureClassification === 'function' 
+            ? getFeatureClassification(currentEditingContext.feature) 
+            : currentEditingContext.feature.geometry?.type;
+        if (modalTitle) modalTitle.textContent = `✏️ Editar Feição: ${name}`;
+        if (modalSubtitle) {
+            modalSubtitle.textContent = `Camada: "${currentEditingContext.layerData.name}" | Tipo: ${classification}`;
+        }
+        if (deleteBtn) deleteBtn.classList.remove('hidden');
+        if (saveBtn) {
+            saveBtn.textContent = '💾 Salvar Alterações';
+            saveBtn.style.background = '#27ae60';
+        }
+        if (layerSelector) layerSelector.classList.add('hidden');
+        if (newLayerGroup) newLayerGroup.classList.add('hidden');
+    }
+}
+
+async function populateTargetLayerSelect() {
+    const select = document.getElementById('targetLayerSelect');
+    if (!select) return;
+
+    // Limpa opções extras (mantém a primeira "Nova camada")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    const layers = await DB.getLayers();
+    const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
+    layers.forEach(layer => {
+        if (hiddenNames.some(k => layer.name.includes(k))) return;
+        const opt = document.createElement('option');
+        opt.value = layer.id;
+        opt.textContent = layer.name;
+        select.appendChild(opt);
+    });
+
+    // Default = Nova camada
+    select.value = 'new';
+    toggleNewLayerNameVisibility();
+}
+
+function toggleNewLayerNameVisibility() {
+    const select = document.getElementById('targetLayerSelect');
+    const group = document.getElementById('newLayerNameGroup');
+    if (!select || !group) return;
+    if (select.value === 'new') {
+        group.classList.remove('hidden');
+        const input = document.getElementById('newLayerNameInput');
+        if (input && !input.value) {
+            const geomType = currentEditingContext?.feature?.geometry?.type || 'Feição';
+            input.value = geomType === 'Point' ? 'Meus POIs' : 'Minhas Áreas';
+            input.focus();
+        }
+    } else {
+        group.classList.add('hidden');
+    }
+}
 
 // Renderiza os campos de formulário apropriados para a feição
 function renderEditFeatureForm(feature) {
@@ -448,13 +606,12 @@ function renderEditFeatureForm(feature) {
         { key: 'Field11', label: 'Data de Instalação (AAAA/MM/DD):', type: 'text', value: props.Field11 || '' },
         { key: 'fill', label: 'Cor de Preenchimento (Hex):', type: 'text', value: props.fill || '#0288d1' }
     ] : [
-        { key: 'name', label: 'Nome da Fração / Unidade BM:', type: 'text', value: props.name || '' },
+        { key: 'name', label: 'Nome da Fração / Unidade BM / POI:', type: 'text', value: props.name || '' },
         { key: 'UEOP', label: 'Batalhão / UEOP de Vinculação:', type: 'text', value: props.UEOP || '' },
         { key: 'COB', label: 'Comando Operacional (COB):', type: 'text', value: props.COB || '' }
     ];
 
     const renderedKeys = new Set(mainFields.map(f => f.key));
-    // Ignorar chaves de controle interno na lista de campos customizados
     const systemKeys = new Set([
         '_layerId', '_layerName', '_layerDbId', '_featureIndex', 
         'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
@@ -494,7 +651,6 @@ function renderEditFeatureForm(feature) {
     container.appendChild(customContainer);
 }
 
-// Cria uma linha para propriedade personalizada (chave e valor)
 function createCustomPropRow(key = '', value = '') {
     const row = document.createElement('div');
     row.className = 'custom-prop-row';
@@ -513,14 +669,14 @@ function createCustomPropRow(key = '', value = '') {
 
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;')
+    return String(str).replace(/&/g, '&amp;')
               .replace(/"/g, '&quot;')
               .replace(/'/g, '&#39;')
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;');
 }
 
-// Inicializa os listeners do modal de edição de feições
+// Inicializa os listeners do modal de edição/criação de feições
 function initEditFeatureModalListeners() {
     const modal = document.getElementById('editFeatureModal');
     const closeBtn = document.getElementById('closeEditFeatureModal');
@@ -532,33 +688,37 @@ function initEditFeatureModalListeners() {
     const jsonContainer = document.getElementById('editFeatureJsonContainer');
     const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
     const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+    const targetLayerSelect = document.getElementById('targetLayerSelect');
 
     const closeModal = () => {
         if (modal) modal.classList.add('hidden');
         currentEditingContext = null;
+        isCreateMode = false;
     };
 
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
+    if (targetLayerSelect) {
+        targetLayerSelect.addEventListener('change', toggleNewLayerNameVisibility);
+    }
+
     if (toggleJsonBtn) {
         toggleJsonBtn.addEventListener('click', () => {
             isJsonEditMode = !isJsonEditMode;
             if (isJsonEditMode) {
-                // Sincroniza do formulário para o JSON antes de alternar
                 syncFormToJson();
                 if (fieldsContainer) fieldsContainer.classList.add('hidden');
                 if (jsonContainer) jsonContainer.classList.remove('hidden');
-                toggleBtn.textContent = '📝 Modo Formulário';
+                toggleJsonBtn.textContent = '📝 Modo Formulário';
             } else {
-                // Sincroniza do JSON para o formulário
                 try {
                     const parsed = JSON.parse(jsonTextarea.value);
                     currentEditingContext.feature = parsed;
                     renderEditFeatureForm(parsed);
                     if (jsonContainer) jsonContainer.classList.add('hidden');
                     if (fieldsContainer) fieldsContainer.classList.remove('hidden');
-                    toggleBtn.textContent = '📋 Alternar Modo JSON';
+                    toggleJsonBtn.textContent = '📋 Alternar Modo JSON';
                 } catch (e) {
                     showToast('Erro de sintaxe no JSON: ' + e.message, 'error');
                     isJsonEditMode = true;
@@ -581,7 +741,7 @@ function initEditFeatureModalListeners() {
 
     if (deleteBtn) {
         deleteBtn.addEventListener('click', async () => {
-            if (!currentEditingContext) return;
+            if (!currentEditingContext || currentEditingContext.isNew) return;
             const name = currentEditingContext.feature.properties?.name || 'esta feição';
             if (confirm(`Tem certeza que deseja excluir permanentemente "${name}"?`)) {
                 const { layerId, featureIndex, layerData } = currentEditingContext;
@@ -597,64 +757,66 @@ function initEditFeatureModalListeners() {
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
             if (!currentEditingContext) return;
-            const { layerId, featureIndex, layerData } = currentEditingContext;
 
             try {
+                // 1. Atualiza o objeto feature a partir do formulário ou JSON
                 if (isJsonEditMode) {
                     const parsed = JSON.parse(jsonTextarea.value);
-                    layerData.geojson.features[featureIndex] = parsed;
+                    currentEditingContext.feature = parsed;
                 } else {
-                    const feature = layerData.geojson.features[featureIndex];
-                    if (!feature.properties) feature.properties = {};
-
-                    // Atualiza coordenadas se for Ponto
-                    const latInput = document.getElementById('editProp_coordLat');
-                    const lngInput = document.getElementById('editProp_coordLng');
-                    if (latInput && lngInput && feature.geometry.type === 'Point') {
-                        const newLat = parseFloat(latInput.value);
-                        const newLng = parseFloat(lngInput.value);
-                        if (!isNaN(newLat) && !isNaN(newLng)) {
-                            feature.geometry.coordinates = [newLng, newLat, feature.geometry.coordinates[2] || 0];
-                            feature.properties.Latitude = String(newLat);
-                            feature.properties.Longitude = String(newLng);
-                            feature.properties.LATITUDE = String(newLat);
-                            feature.properties.LONGITUDE = String(newLng);
-                        }
-                    }
-
-                    // Atualiza campos principais do formulário
-                    const inputs = fieldsContainer.querySelectorAll('input[data-key]');
-                    inputs.forEach(input => {
-                        const key = input.dataset.key;
-                        const val = input.value.trim();
-                        feature.properties[key] = val;
-                    });
-
-                    // Atualiza campos customizados
-                    const customRows = fieldsContainer.querySelectorAll('.custom-prop-row');
-                    customRows.forEach(row => {
-                        const keyInput = row.querySelector('.custom-prop-key');
-                        const valInput = row.querySelector('.custom-prop-value');
-                        if (keyInput && valInput) {
-                            const k = keyInput.value.trim();
-                            const v = valInput.value.trim();
-                            if (k) {
-                                feature.properties[k] = v;
-                            }
-                        }
-                    });
-
-                    // Atualiza descrição textual sintética
-                    if (feature.properties.UEOP && feature.properties.COB) {
-                        feature.properties.description = `COB: ${feature.properties.COB}<br>UEOP: ${feature.properties.UEOP}`;
-                    }
+                    applyFormValuesToFeature(currentEditingContext.feature);
                 }
 
-                // Salva no banco de dados local (IndexedDB)
-                await DB.updateLayer(layerId, { geojson: layerData.geojson });
+                // 2. Fluxo de CRIAÇÃO
+                if (currentEditingContext.isNew) {
+                    const select = document.getElementById('targetLayerSelect');
+                    const targetValue = select ? select.value : 'new';
+
+                    if (targetValue === 'new') {
+                        const nameInput = document.getElementById('newLayerNameInput');
+                        let layerName = (nameInput && nameInput.value.trim()) || '';
+                        if (!layerName) {
+                            const geomType = currentEditingContext.feature.geometry?.type || 'Feição';
+                            layerName = geomType === 'Point' ? 'Meus POIs' : 'Minhas Áreas';
+                        }
+                        const geojson = {
+                            type: 'FeatureCollection',
+                            features: [currentEditingContext.feature]
+                        };
+                        await DB.saveLayer({
+                            name: layerName,
+                            type: 'geojson',
+                            geojson: geojson
+                        });
+                        showToast(`Feição criada na nova camada "${layerName}"!`, 'success');
+                    } else {
+                        const layerId = Number(targetValue);
+                        const layerData = await DB.getLayerById(layerId);
+                        if (!layerData) {
+                            showToast('Camada de destino não encontrada.', 'error');
+                            return;
+                        }
+                        if (!layerData.geojson) {
+                            layerData.geojson = { type: 'FeatureCollection', features: [] };
+                        }
+                        if (!Array.isArray(layerData.geojson.features)) {
+                            layerData.geojson.features = [];
+                        }
+                        layerData.geojson.features.push(currentEditingContext.feature);
+                        await DB.updateLayer(layerId, { geojson: layerData.geojson });
+                        showToast(`Feição adicionada à camada "${layerData.name}"!`, 'success');
+                    }
+                } 
+                // 3. Fluxo de EDIÇÃO
+                else {
+                    const { layerId, featureIndex, layerData } = currentEditingContext;
+                    layerData.geojson.features[featureIndex] = currentEditingContext.feature;
+                    await DB.updateLayer(layerId, { geojson: layerData.geojson });
+                    showToast('Informações da feição atualizadas com sucesso!', 'success');
+                }
+
                 await reloadLayers();
                 closeModal();
-                showToast('Informações da feição atualizadas com sucesso!', 'success');
             } catch (error) {
                 console.error('Erro ao salvar feição:', error);
                 showToast('Erro ao salvar feição: ' + error.message, 'error');
@@ -663,36 +825,61 @@ function initEditFeatureModalListeners() {
     }
 }
 
-// Sincroniza os campos do formulário para o texto JSON bruto
-function syncFormToJson() {
-    if (!currentEditingContext) return;
-    const { feature } = currentEditingContext;
-    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
-    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
-    if (!fieldsContainer || !jsonTextarea) return;
+// Aplica valores do formulário de volta ao objeto feature
+function applyFormValuesToFeature(feature) {
+    if (!feature.properties) feature.properties = {};
 
+    const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
+    if (!fieldsContainer) return;
+
+    // Coordenadas de ponto
     const latInput = document.getElementById('editProp_coordLat');
     const lngInput = document.getElementById('editProp_coordLng');
-    if (latInput && lngInput && feature.geometry.type === 'Point') {
+    if (latInput && lngInput && feature.geometry && feature.geometry.type === 'Point') {
         const newLat = parseFloat(latInput.value);
         const newLng = parseFloat(lngInput.value);
         if (!isNaN(newLat) && !isNaN(newLng)) {
             feature.geometry.coordinates = [newLng, newLat, feature.geometry.coordinates[2] || 0];
+            feature.properties.Latitude = String(newLat);
+            feature.properties.Longitude = String(newLng);
+            feature.properties.LATITUDE = String(newLat);
+            feature.properties.LONGITUDE = String(newLng);
         }
     }
 
+    // Campos principais
     const inputs = fieldsContainer.querySelectorAll('input[data-key]');
     inputs.forEach(input => {
-        feature.properties[input.dataset.key] = input.value.trim();
+        const key = input.dataset.key;
+        feature.properties[key] = input.value.trim();
     });
 
+    // Campos customizados
     const customRows = fieldsContainer.querySelectorAll('.custom-prop-row');
     customRows.forEach(row => {
-        const k = row.querySelector('.custom-prop-key')?.value.trim();
-        const v = row.querySelector('.custom-prop-value')?.value.trim();
-        if (k) feature.properties[k] = v;
+        const keyInput = row.querySelector('.custom-prop-key');
+        const valInput = row.querySelector('.custom-prop-value');
+        if (keyInput && valInput) {
+            const k = keyInput.value.trim();
+            const v = valInput.value.trim();
+            if (k) {
+                feature.properties[k] = v;
+            }
+        }
     });
 
-    jsonTextarea.value = JSON.stringify(feature, null, 2);
+    // Descrição sintética
+    if (feature.properties.UEOP && feature.properties.COB) {
+        feature.properties.description = `COB: ${feature.properties.COB}<br>UEOP: ${feature.properties.UEOP}`;
+    }
 }
 
+// Sincroniza os campos do formulário para o texto JSON bruto
+function syncFormToJson() {
+    if (!currentEditingContext) return;
+    applyFormValuesToFeature(currentEditingContext.feature);
+    const jsonTextarea = document.getElementById('editFeatureJsonTextarea');
+    if (jsonTextarea) {
+        jsonTextarea.value = JSON.stringify(currentEditingContext.feature, null, 2);
+    }
+}
