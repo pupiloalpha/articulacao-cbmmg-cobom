@@ -57,7 +57,7 @@ async function loadStreetDataFromGitHub() {
         }
 
         if (!files) {
-            const baseUrl = 'https://raw.githubusercontent.com/seu-usuario/gis-pwa-offline/main/';
+            const baseUrl = 'https://raw.githubusercontent.com/pupiloalpha/articulacao-cbmmg-cobom/refs/heads/main/';
             const indexResponse = await fetch(baseUrl + 'data/ruas/index.json');
             if (!indexResponse.ok) throw new Error('Falha ao baixar índice de ruas.');
             files = await indexResponse.json();
