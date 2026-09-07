@@ -1,5 +1,5 @@
 // js/map.js - Inicialização do mapa Leaflet, camada base com cache e cálculos de origem/distância
-// Inclui roteamento, verificação de polígonos, popup dinâmico e painel de distâncias em linha reta
+// Inclui roteamento, verificação de polígonos, popup dinâmico e painel de distâncias (Unidades + Hospitais)
 
 // Classe customizada de TileLayer com cache em IndexedDB
 class OfflineTileLayer extends L.TileLayer {
@@ -59,20 +59,20 @@ class OfflineTileLayer extends L.TileLayer {
 // Inicialização do Mapa
 function initMap() {
     map = L.map('map', {
-        center: [-15.7934, -47.8822], // Brasília, Brasil
+        center: [-15.7934, -47.8822],
         zoom: 4,
         zoomControl: false
     });
 
     // Remove os caminhos padrão defeituosos
-delete L.Icon.Default.prototype._getIconUrl;
+    delete L.Icon.Default.prototype._getIconUrl;
 
-// Força o recarregamento dos ícones a partir de uma CDN confiável
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+    // Força o recarregamento dos ícones a partir de uma CDN confiável
+    L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+    });
     
     L.control.zoom({ position: 'topright' }).addTo(map);
     
@@ -97,7 +97,8 @@ L.Icon.Default.mergeOptions({
     map.on('click', (e) => {
         if (mapClickMode) {
             mapClickMode = false;
-            document.getElementById('mapOriginBtn').textContent = '🎯 Definir origem no mapa';
+            const btn = document.getElementById('mapOriginBtn');
+            if (btn) btn.textContent = '🎯 Ponto no Mapa';
             map.getContainer().style.cursor = '';
             
             setOrigin(e.latlng.lat, e.latlng.lng, 'Origem manual');
@@ -111,8 +112,6 @@ L.Icon.Default.mergeOptions({
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     });
     baseLayer.addTo(map);
-    
-    // REMOVIDO para evitar ReferenceError: reloadLayers();
 }
 
 // Função auxiliar para extrair coordenadas [lat, lng] de qualquer geometria
@@ -162,7 +161,7 @@ function zoomToAllFeatures() {
     }
 }
 
-// Verifica em quais polígonos (feature.type Polygon/MultiPolygon) o ponto está contido
+// Verifica em quais polígonos o ponto está contido
 async function checkPolygonContainment(lat, lng) {
     const point = turf.point([lng, lat]);
     const containingPolygons = [];
@@ -172,21 +171,57 @@ async function checkPolygonContainment(lat, lng) {
         if (!layerData || !layerData.geojson || !layerData.geojson.features) continue;
 
         for (const feature of layerData.geojson.features) {
-            if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-                try {
-                    const polygonFeature = turf.feature(feature.geometry);
-                    if (turf.booleanPointInPolygon(point, polygonFeature)) {
-                        containingPolygons.push({
-                            layerName: layerData.name,
-                            featureName: feature.properties?.name || 'Sem nome'
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Erro ao verificar contenção do polígono:', e);
+            if (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon') {
+                continue;
+            }
+
+            try {
+                const polygonFeature = turf.feature(feature.geometry);
+                if (!turf.booleanPointInPolygon(point, polygonFeature)) {
+                    continue;
                 }
+
+                // Classifica a feição para extrair o nome correto
+                const classification = typeof getFeatureClassification === 'function'
+                    ? getFeatureClassification(feature)
+                    : null;
+
+                let featureName = 'Sem nome';
+
+                if (classification === 'MACRORREGIAO') {
+                    featureName =
+                        feature.properties?.Macrorregiao_Saude ||
+                        feature.properties?.['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+                        feature.properties?.['Macrorregião de Saúde'] ||
+                        feature.properties?.name ||
+                        'Macrorregião';
+                } else if (classification === 'MICRORREGIAO') {
+                    featureName =
+                        feature.properties?.['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
+                        feature.properties?.['Microrregião de Saúde'] ||
+                        feature.properties?.NM_RGI ||
+                        feature.properties?.name ||
+                        'Microrregião';
+                } else {
+                    // Articulação CBMMG ou outros polígonos
+                    featureName =
+                        feature.properties?.name ||
+                        feature.properties?.NM_MUN ||
+                        feature.properties?.Field3 ||
+                        'Sem nome';
+                }
+
+                containingPolygons.push({
+                    layerName: layerData.name,
+                    featureName: featureName,
+                    classification: classification
+                });
+            } catch (e) {
+                console.warn('Erro ao verificar contenção do polígono:', e);
             }
         }
     }
+
     return containingPolygons;
 }
 
@@ -229,20 +264,20 @@ function setOrigin(lat, lng, description) {
 // Controle de requisições assíncronas de rota para evitar condições de corrida
 let currentRouteRequestId = 0;
 
-// Função para calcular e exibir distâncias (Responsabilidade Unidades + Top Candidatas + ETA Assíncrono)
+// Função principal: calcula distâncias para Unidades BM + Hospitais
 async function calculateDistancesToAllFeatures(originLat, originLng) {
     const distanceContainer = document.getElementById('distanceResults');
     if (!distanceContainer) return;
 
-    // Incrementa token para descartar respostas de requisições anteriores
     const reqId = ++currentRouteRequestId;
 
-    // 1. Verifica polígonos que contêm o ponto (Responsabilidade Territorial)
+    // 1. Responsabilidade Territorial
     const containingPolygons = await checkPolygonContainment(originLat, originLng);
     
-    // 2. Calcula distâncias em linha reta para todas as unidades operacionais (excluindo municípios)
+    // 2. Coleta de Points
     const originPoint = turf.point([originLng, originLat]);
-    const results = [];
+    const unitResults = [];
+    const hospitalResults = [];
 
     for (const layerId in overlayLayers) {
         const layerData = await DB.getLayerById(Number(layerId));
@@ -251,69 +286,109 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         for (const feature of layerData.geojson.features) {
             if (feature.geometry.type !== 'Point') continue;
 
-            // Ignora pontos de municípios para calcular distância somente até Unidades/Frações BM
-            if (typeof getFeatureClassification === 'function' && getFeatureClassification(feature) === 'MUNICIPIO') {
-                continue;
-            }
+            const classification = typeof getFeatureClassification === 'function'
+                ? getFeatureClassification(feature)
+                : 'OTHER';
+
+            // Ignora MUNICIPIO (já filtrado, mas por segurança)
+            if (classification === 'MUNICIPIO') continue;
 
             const coords = feature.geometry.coordinates;
             const destPoint = turf.point(coords);
             const distanceKm = turf.distance(originPoint, destPoint, { units: 'kilometers' });
 
             const props = feature.properties || {};
-            const subtitle = props.UEOP ? ` • ${props.UEOP}` : (props.layerName ? ` • ${props.layerName}` : '');
+            const name = props.name || props['Nome do Hospital'] || 'Ponto';
 
-            results.push({
+            const item = {
                 layerName: layerData.name,
-                featureName: feature.properties?.name || 'Unidade BM',
-                subtitle: subtitle,
+                featureName: name,
                 distanceKm: distanceKm,
-                destination: coords,
-                source: 'straight'
-            });
+                destination: coords, // [lng, lat]
+                classification: classification,
+                subtitle: ''
+            };
+
+            if (classification === 'HOSPITAL') {
+                item.subtitle = props.Município || props.Municipio || props['Macrorregião de Saúde'] || layerData.name;
+                hospitalResults.push(item);
+            } else if (classification === 'UNIDADE_BM') {
+                item.subtitle = props.UEOP ? props.UEOP : (props.COB || layerData.name);
+                unitResults.push(item);
+            }
         }
     }
 
-    // Ordena por proximidade euclidiana e seleciona Top 5
-    results.sort((a, b) => a.distanceKm - b.distanceKm);
-    const topResults = results.slice(0, 5);
+    // Ordena e pega Top 3
+    unitResults.sort((a, b) => a.distanceKm - b.distanceKm);
+    hospitalResults.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    // Constrói HTML do Painel de Despacho Operacional
+    const topUnits = unitResults.slice(0, 3);
+    const topHospitals = hospitalResults.slice(0, 3);
+
+    // 3. Monta HTML do painel
     let html = '<div class="dispatch-panel">';
 
-    // Card de Responsabilidade Territorial
-    let jurisdictionHtml = '';
-    if (containingPolygons.length > 0) {
-        jurisdictionHtml = containingPolygons.map(p => `🛡️ ${p.featureName} <small style="opacity:0.8">(${p.layerName})</small>`).join('<br>');
-    } else {
-        jurisdictionHtml = '<span style="color:#e74c3c; font-weight:normal;">⚠️ Fora de polígonos mapeados (ou divisa intermunicipal)</span>';
-    }
+// Card de Responsabilidade Territorial
+let jurisdictionHtml = '';
+if (containingPolygons.length > 0) {
+    jurisdictionHtml = containingPolygons.map(p => {
+        // Destaca se for da camada de Articulação CBMMG (responsabilidade operacional BM)
+        const isBM = p.layerName && (
+            p.layerName.toLowerCase().includes('articula') ||
+            p.layerName.toLowerCase().includes('cbmmg') ||
+            p.layerName.toLowerCase().includes('bombeiro')
+        );
 
-    html += `
-        <div class="dispatch-jurisdiction-card">
-            <div class="dispatch-jurisdiction-title">🚨 Responsabilidade Territorial</div>
-            <div class="dispatch-jurisdiction-name">${jurisdictionHtml}</div>
+        const itemClass = isBM ? 'jurisdiction-item jurisdiction-bm' : 'jurisdiction-item';
+        const icon = isBM ? '🚒' : '🛡️';
+
+        return `
+            <div class="${itemClass}">
+                <span class="jurisdiction-icon">${icon}</span>
+                <div class="jurisdiction-text">
+                    <span class="jurisdiction-name">${p.featureName}</span>
+                    <small class="jurisdiction-layer">(${p.layerName})</small>
+                </div>
+                ${isBM ? '<span class="jurisdiction-badge-bm">BM</span>' : ''}
+            </div>
+        `;
+    }).join('');
+} else {
+    jurisdictionHtml = `
+        <div class="jurisdiction-item jurisdiction-empty">
+            <span class="jurisdiction-icon">⚠️</span>
+            <div class="jurisdiction-text">
+                <span class="jurisdiction-name">Fora de polígonos mapeados</span>
+            </div>
         </div>
     `;
+}
 
-    // Lista de Unidades BM Próximas
-    if (topResults.length === 0) {
-        html += '<p style="padding:10px; font-size:12px; color:#666;">Nenhuma unidade de bombeiros encontrada nas camadas carregadas.</p>';
+html += `
+    <div class="dispatch-jurisdiction-card">
+        <div class="dispatch-jurisdiction-title">🚨 Responsabilidade Territorial</div>
+        <div class="dispatch-jurisdiction-list">
+            ${jurisdictionHtml}
+        </div>
+    </div>
+`;
+
+    // ===== Unidades BM =====
+    html += `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+            <span style="font-size:12px; font-weight:700; color:#2c3e50;">🚒 Unidades BM mais próximas (Top 3)</span>
+            <span style="font-size:10px; color:#7f8c8d;">clique para rota</span>
+        </div>
+        <div class="dispatch-units-list">
+    `;
+
+    if (topUnits.length === 0) {
+        html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhuma unidade BM encontrada.</p>';
     } else {
-        html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                <span style="font-size:12px; font-weight:700; color:#2c3e50;">🚒 Unidades Candidatas ao Despacho:</span>
-                <span style="font-size:10px; color:#7f8c8d;">1-clique para traçar rota</span>
-            </div>
-            <div class="dispatch-units-list">
-        `;
-
-        topResults.forEach((res, i) => {
+        topUnits.forEach((res, i) => {
             const straightKm = res.distanceKm.toFixed(2);
-            const sub = res.subtitle ? res.subtitle.replace(/^ • /, '') : res.layerName;
-            const initialBadge = i < 3 
-                ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando tempo...</span>`
-                : `<span class="eta-badge-straight" id="eta-badge-unit-${i}">➡️ ${straightKm} km (reta)</span>`;
+            const initialBadge = `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando...</span>`;
 
             html += `
                 <div class="dispatch-unit-card" id="dispatch-unit-card-${i}"
@@ -324,75 +399,132 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
                         </div>
                     </div>
                     <div class="dispatch-unit-details">
-                        <span>${sub}</span>
+                        <span>${res.subtitle}</span>
                         <div id="eta-container-unit-${i}">${initialBadge}</div>
                     </div>
                 </div>
             `;
         });
-
-        html += `</div>`;
     }
+    html += `</div>`;
 
-    html += '</div>';
+    // ===== Hospitais =====
+    html += `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+            <span style="font-size:12px; font-weight:700; color:#2c3e50;">🏥 Hospitais de Referência (Top 3)</span>
+            <span style="font-size:10px; color:#7f8c8d;">clique para rota</span>
+        </div>
+        <div class="dispatch-units-list">
+    `;
+
+    if (topHospitals.length === 0) {
+        html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhum hospital encontrado nas camadas.</p>';
+    } else {
+        topHospitals.forEach((res, i) => {
+            const straightKm = res.distanceKm.toFixed(2);
+            const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
+
+            html += `
+                <div class="dispatch-unit-card" id="dispatch-hosp-card-${i}"
+                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
+                    <div class="dispatch-unit-header">
+                        <div class="dispatch-unit-name">
+                            <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
+                        </div>
+                    </div>
+                    <div class="dispatch-unit-details">
+                        <span>${res.subtitle}</span>
+                        <div id="eta-container-hosp-${i}">${initialBadge}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += `</div>`;
+
+    html += '</div>'; // fim dispatch-panel
     distanceContainer.innerHTML = html;
 
-    // Dispara cálculo assíncrono em segundo plano para as Top 3 unidades (não-bloqueante)
-    if (topResults.length > 0) {
-        fetchTopRoutesAsync(originLat, originLng, topResults, reqId);
+    // 4. Dispara cálculo assíncrono de rotas (não bloqueante)
+    if (topUnits.length > 0 || topHospitals.length > 0) {
+        fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals, reqId);
     }
 }
 
-// Busca rotas e tempos de resposta (ETA) em paralelo para as Top 3 candidatas
-async function fetchTopRoutesAsync(originLat, originLng, topResults, reqId) {
-    const candidatesToRoute = topResults.slice(0, 3);
-    const routePromises = candidatesToRoute.map((cand, index) => {
+// Busca rotas e tempos de resposta (ETA) em paralelo para Unidades + Hospitais
+async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals, reqId) {
+    const allCandidates = [
+        ...topUnits.map((cand, index) => ({ type: 'unit', index, cand })),
+        ...topHospitals.map((cand, index) => ({ type: 'hosp', index, cand }))
+    ];
+
+    const routePromises = allCandidates.map(({ type, index, cand }) => {
         return getRouteDistance(originLat, originLng, cand.destination[1], cand.destination[0])
-            .then(route => ({ index, cand, route }))
-            .catch(err => ({ index, cand, error: err }));
+            .then(route => ({ type, index, cand, route }))
+            .catch(err => ({ type, index, cand, error: err }));
     });
 
     const settled = await Promise.allSettled(routePromises);
 
-    // Se o usuário já mudou o ponto ou realizou outra busca, ignora resultado obsoleto
+    // Descarta se o usuário já mudou a origem
     if (reqId !== currentRouteRequestId) return;
 
-    let bestIndex = -1;
-    let minDuration = Infinity;
+    let bestUnitIndex = -1;
+    let minUnitDuration = Infinity;
+    let bestHospIndex = -1;
+    let minHospDuration = Infinity;
 
     settled.forEach(result => {
-        if (result.status === 'fulfilled' && result.value) {
-            const { index, cand, route } = result.value;
-            const container = document.getElementById(`eta-container-unit-${index}`);
-            if (!container) return;
+        if (result.status !== 'fulfilled' || !result.value) return;
 
-            if (route && route.duration !== null && route.duration !== undefined) {
-                cand.route = route;
-                const durMin = Math.round(route.duration / 60);
-                const distKm = (route.distance / 1000).toFixed(1);
-                container.innerHTML = `<span class="eta-badge-ready" id="eta-badge-unit-${index}">🚗 ~${durMin} min (${distKm} km)</span>`;
+        const { type, index, cand, route } = result.value;
+        const containerId = type === 'unit' ? `eta-container-unit-${index}` : `eta-container-hosp-${index}`;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-                if (route.duration < minDuration) {
-                    minDuration = route.duration;
-                    bestIndex = index;
-                }
-            } else {
-                const km = cand.distanceKm.toFixed(2);
-                container.innerHTML = `<span class="eta-badge-straight" id="eta-badge-unit-${index}">➡️ ${km} km (reta)</span>`;
+        if (route && route.duration !== null && route.duration !== undefined) {
+            cand.route = route;
+            const durMin = Math.round(route.duration / 60);
+            const distKm = (route.distance / 1000).toFixed(1);
+            container.innerHTML = `<span class="eta-badge-ready">🚗 ~${durMin} min (${distKm} km)</span>`;
+
+            if (type === 'unit' && route.duration < minUnitDuration) {
+                minUnitDuration = route.duration;
+                bestUnitIndex = index;
             }
+            if (type === 'hosp' && route.duration < minHospDuration) {
+                minHospDuration = route.duration;
+                bestHospIndex = index;
+            }
+        } else {
+            const km = cand.distanceKm.toFixed(2);
+            container.innerHTML = `<span class="eta-badge-straight">➡️ ${km} km (reta)</span>`;
         }
     });
 
-    // Destaque visual para a unidade com o melhor tempo de resposta (ETA)
-    if (bestIndex >= 0 && minDuration !== Infinity) {
-        const bestCard = document.getElementById(`dispatch-unit-card-${bestIndex}`);
-        const bestContainer = document.getElementById(`eta-container-unit-${bestIndex}`);
+    // Destaque do melhor ETA – Unidades
+    if (bestUnitIndex >= 0 && minUnitDuration !== Infinity) {
+        const bestCard = document.getElementById(`dispatch-unit-card-${bestUnitIndex}`);
+        const bestContainer = document.getElementById(`eta-container-unit-${bestUnitIndex}`);
         if (bestCard) bestCard.classList.add('card-best-eta');
         if (bestContainer) {
-            const bestCandidate = candidatesToRoute[bestIndex];
-            const durMin = Math.round(bestCandidate.route.duration / 60);
-            const distKm = (bestCandidate.route.distance / 1000).toFixed(1);
-            bestContainer.innerHTML = `<span class="eta-badge-best" id="eta-badge-unit-${bestIndex}">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
+            const bestCand = topUnits[bestUnitIndex];
+            const durMin = Math.round(bestCand.route.duration / 60);
+            const distKm = (bestCand.route.distance / 1000).toFixed(1);
+            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
+        }
+    }
+
+    // Destaque do melhor ETA – Hospitais
+    if (bestHospIndex >= 0 && minHospDuration !== Infinity) {
+        const bestCard = document.getElementById(`dispatch-hosp-card-${bestHospIndex}`);
+        const bestContainer = document.getElementById(`eta-container-hosp-${bestHospIndex}`);
+        if (bestCard) bestCard.classList.add('card-best-eta');
+        if (bestContainer) {
+            const bestCand = topHospitals[bestHospIndex];
+            const durMin = Math.round(bestCand.route.duration / 60);
+            const distKm = (bestCand.route.distance / 1000).toFixed(1);
+            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
         }
     }
 }
@@ -410,7 +542,7 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
 
     if (navigator.onLine) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout para não travar
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
             const response = await fetch(url, { signal: controller.signal });
@@ -424,10 +556,10 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
             }
         } catch (e) {
             clearTimeout(timeoutId);
-            // Ignora falha de rede/timeout silenciosamente para fallback
         }
     }
 
+    // Fallback linha reta
     const from = turf.point([originLng, originLat]);
     const to = turf.point([destLng, destLat]);
     const straightDistance = turf.distance(from, to, { units: 'kilometers' }) * 1000;
@@ -438,7 +570,7 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     };
 }
 
-// Desenha linha reta (fallback visual para offline ou ausência de malha viária)
+// Desenha linha reta (fallback visual)
 function drawStraightLine(originPos, lat, lng, name, distance) {
     if (window.distanceLine) {
         map.removeLayer(window.distanceLine);
@@ -461,7 +593,7 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
 }
 
-// Foca em uma unidade BM selecionada e desenha o traçado da rota no mapa sob demanda
+// Foca em uma unidade/hospital e desenha o traçado da rota
 async function focusOnFeature(lng, lat, name, distance) {
     if (!originMarker) return;
     const originPos = originMarker.getLatLng();
@@ -487,9 +619,6 @@ async function focusOnFeature(lng, lat, name, distance) {
         try {
             const route = await getRouteDistance(originPos.lat, originPos.lng, lat, lng);
             if (route && route.source !== 'straight') {
-                const distanceKm = (route.distance / 1000).toFixed(2);
-                const durationMin = route.duration ? Math.round(route.duration / 60) : '?';
-
                 window.routingControl = L.Routing.control({
                     waypoints: [
                         L.latLng(originPos.lat, originPos.lng),
@@ -513,7 +642,7 @@ async function focusOnFeature(lng, lat, name, distance) {
                     window.distanceMarker = L.marker([lat, lng]).addTo(map)
                         .bindPopup(`
                             <div style="font-family:sans-serif;">
-                                <b style="color:#c0392b; font-size:13px;">🚒 ${name}</b><br>
+                                <b style="color:#c0392b; font-size:13px;">${name}</b><br>
                                 <div style="margin-top:4px; font-size:12px;">
                                     <b>Tempo estimado:</b> ~${dur} min<br>
                                     <b>Distância por via:</b> ${dist} km<br>
@@ -544,7 +673,7 @@ async function focusOnFeature(lng, lat, name, distance) {
     }
 }
 
-// Helpers globais para ações acionadas a partir dos popups de feições
+// Helpers globais para ações dos popups
 window.setOriginFromFeature = function(lat, lng, name) {
     if (map) {
         setOrigin(lat, lng, name);
@@ -584,4 +713,3 @@ window.zoomToCoords = function(lat, lng, zoomLevel = 15) {
         map.setView([lat, lng], zoomLevel);
     }
 };
-

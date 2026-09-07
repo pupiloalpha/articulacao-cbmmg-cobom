@@ -1,6 +1,6 @@
 // js/layers.js - Carregamento, renderização e controle de visualização de camadas GeoJSON
 
-// Semeia dados iniciais (backup padrão)
+// Semeia dados iniciais
 async function seedInitialData() {
     const layers = await DB.getLayers();
     if (layers.length > 0) return;
@@ -9,29 +9,111 @@ async function seedInitialData() {
         const response = await fetch('./data/backup_inicial.json');
         if (!response.ok) return;
         const backup = await response.json();
-        const features = backup.featureCollection.features;
+        const features = backup.featureCollection?.features || [];
 
-        const points = features.filter(f => f.geometry.type === 'Point');
-        const polygons = features.filter(f => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon');
+        const points = features.filter(f => {
+            if (f.geometry?.type !== 'Point') return false;
+            return getFeatureClassification(f) !== 'MUNICIPIO';
+        });
 
-        if (points.length) {
-            await DB.saveLayer({
-                name: 'Unidades CBMMG',
-                type: 'geojson',
-                geojson: { type: 'FeatureCollection', features: points }
-            });
-        }
+        const polygons = features.filter(f =>
+            f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
+        );
 
+        // Polígonos primeiro (ordem baixa)
         if (polygons.length) {
             await DB.saveLayer({
                 name: 'Articulação CBMMG',
                 type: 'geojson',
+                order: 10,
                 geojson: { type: 'FeatureCollection', features: polygons }
             });
         }
+
+        // Unidades BM por cima (ordem alta)
+        if (points.length) {
+            await DB.saveLayer({
+                name: 'Unidades CBMMG',
+                type: 'geojson',
+                order: 100,
+                geojson: { type: 'FeatureCollection', features: points }
+            });
+        }
+
         await reloadLayers();
     } catch (e) {
         console.warn('Erro ao carregar dados iniciais de backup:', e);
+    }
+}
+
+// Carrega Macrorregiões e Microrregiões (ordem: Macro primeiro)
+// Mesmo padrão do seed – só na 1ª execução
+async function loadMicroMacroRegions() {
+    try {
+        const existing = await DB.getLayers();
+        const hasMicro = existing.some(l => l.name && l.name.includes('Microrregi'));
+        const hasMacro = existing.some(l => l.name && l.name.includes('Macrorregi'));
+
+        // 1. Macrorregiões primeiro (ficam por baixo)
+        if (!hasMacro) {
+            const res = await fetch('./data/macrorregioes/macrorregioes.geojson');
+            if (res.ok) {
+                const geojson = await res.json();
+                await DB.saveLayer({
+                    name: 'Macrorregiões de Saúde',
+                    type: 'geojson',
+                    order: 20,
+                    geojson: geojson
+                });
+                console.log('Camada Macrorregiões de Saúde importada.');
+            }
+        }
+
+        // 2. Microrregiões depois
+        if (!hasMicro) {
+            const res = await fetch('./data/microrregioes/microrregioes.geojson');
+            if (res.ok) {
+                const geojson = await res.json();
+                await DB.saveLayer({
+                    name: 'Microrregiões de Saúde',
+                    type: 'geojson',
+                    order: 30,
+                    geojson: geojson
+                });
+                console.log('Camada Microrregiões de Saúde importada.');
+            }
+        }
+
+    } catch (e) {
+        console.warn('Erro ao carregar Micro/Macro regiões:', e);
+    }
+}
+
+// Carrega Hospitais de Referência (mesmo padrão das ruas – indexável offline)
+async function loadHospitalsData() {
+    try {
+        const existing = await DB.getLayers();
+        const hasHospitals = existing.some(l =>
+            l.name && (l.name.includes('Hospital') || l.name.includes('Hospitais'))
+        );
+        if (hasHospitals) {
+            console.log('Dados de hospitais já carregados.');
+            return;
+        }
+
+        const res = await fetch('./data/hospitais/hospitais_referencia_mg.geojson');
+        if (!res.ok) throw new Error('Arquivo de hospitais não encontrado');
+        const geojson = await res.json();
+
+        await DB.saveLayer({
+            name: 'Hospitais de Referência MG',
+            type: 'geojson',
+            geojson: geojson
+        });
+        console.log('Camada Hospitais de Referência MG importada.');
+
+    } catch (e) {
+        console.error('Erro ao carregar hospitais:', e);
     }
 }
 
@@ -39,7 +121,9 @@ async function seedInitialData() {
 async function loadStreetDataFromGitHub() {
     try {
         const existingLayers = await DB.getLayers();
-        const hasStreetLayer = existingLayers.some(l => l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros')));
+        const hasStreetLayer = existingLayers.some(l =>
+            l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros'))
+        );
         if (hasStreetLayer) {
             console.log('Dados de ruas já carregados no banco local.');
             return;
@@ -83,9 +167,34 @@ async function loadStreetDataFromGitHub() {
 
         await reloadLayers();
         console.log('Dados das ruas carregados com sucesso!');
-
     } catch (error) {
         console.error('Erro ao carregar dados das ruas:', error);
+    }
+}
+
+// Limpeza one-time: remove feições MUNICIPIO de camadas já existentes
+async function cleanupMunicipioFeatures() {
+    try {
+        const layers = await DB.getLayers();
+        let changed = false;
+
+        for (const layer of layers) {
+            if (!layer.geojson?.features) continue;
+            const originalLen = layer.geojson.features.length;
+            layer.geojson.features = layer.geojson.features.filter(f =>
+                getFeatureClassification(f) !== 'MUNICIPIO'
+            );
+            if (layer.geojson.features.length !== originalLen) {
+                await DB.updateLayer(layer.id, { geojson: layer.geojson });
+                changed = true;
+            }
+        }
+        if (changed) {
+            console.log('Feições MUNICIPIO removidas das camadas existentes.');
+            await reloadLayers();
+        }
+    } catch (e) {
+        console.warn('Erro na limpeza de MUNICIPIO:', e);
     }
 }
 
@@ -95,18 +204,16 @@ async function reloadLayers() {
         if (map && map.hasLayer(layer)) map.removeLayer(layer);
     });
     overlayLayers = {};
-    
+
     const layers = await DB.getLayers(); // já vem ordenado por "order"
     const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
 
     for (const layerData of layers) {
         const isStreetLayer = hiddenNames.some(keyword => layerData.name.includes(keyword));
-        if (isStreetLayer) {
-            continue;
-        }
+        if (isStreetLayer) continue;
 
         if (layerVisibility[layerData.id] === undefined) {
-            layerVisibility[layerData.id] = true;
+            layerVisibility[layerData.id] = true; // Micro, Macro e Hospitais visíveis por padrão
         }
         if (layerVisibility[layerData.id]) {
             addLayerToMap(layerData, viewMode);
@@ -123,15 +230,61 @@ function getFeatureClassification(feature) {
     const geomType = feature.geometry?.type;
     const props = feature.properties || {};
 
+    // Polígonos / MultiPolígonos
     if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+
+        // 1. MACRORREGIÃO tem prioridade (campos exclusivos ou mais específicos)
+        if (
+            props.Hospitais_de_Referencia_Macrorregiao ||
+            props.Hospitais_de_Referencia_Macrorregiao_Texto ||
+            props.Macrorregiao_Saude ||
+            props['Macrorregião de Saúde'] ||
+            (props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] &&
+             !props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'])
+        ) {
+            return 'MACRORREGIAO';
+        }
+
+        // 2. MICRORREGIÃO
+        if (
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
+            props['Microrregião de Saúde'] ||
+            props['Código Micro'] ||
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Código Micro'] ||
+            (props.NM_RGI && props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Código Micro'])
+        ) {
+            return 'MICRORREGIAO';
+        }
+
+        // 3. Articulação CBMMG (polígonos operacionais)
         return 'POLYGON';
     }
 
-    if (props['FRAÇÃO'] || props['Tempo-resposta'] || props['Zona de Quente'] || props['Unidades de Saúde'] || props['Unidade CBMMG']) {
-        return 'MUNICIPIO';
+    // Points
+    if (geomType === 'Point') {
+        if (
+            props['Nome do Hospital'] ||
+            props['Macrorregião de Saúde'] ||
+            (props.name && String(props.name).toLowerCase().includes('hospital'))
+        ) {
+            return 'HOSPITAL';
+        }
+
+        // Antigos centroids de município (já filtrados)
+        if (
+            props['FRAÇÃO'] ||
+            props['Tempo-resposta'] ||
+            props['Zona de Quente'] ||
+            props['Unidades de Saúde'] ||
+            props['Unidade CBMMG']
+        ) {
+            return 'MUNICIPIO';
+        }
+
+        return 'UNIDADE_BM';
     }
 
-    return 'UNIDADE_BM';
+    return 'OTHER';
 }
 
 // Gera badge com cor correspondente ao tempo-resposta
@@ -139,7 +292,7 @@ function getTempoRespostaBadge(tempo) {
     if (!tempo || tempo === '-') {
         return '<span class="feature-badge badge-tempo-neutro">Não informado</span>';
     }
-    const t = tempo.toLowerCase();
+    const t = String(tempo).toLowerCase();
     if (t.includes('< 30') || t.includes('30 min') || t.includes('30min')) {
         return `<span class="feature-badge badge-tempo-verde">⏱️ ${tempo}</span>`;
     }
@@ -175,6 +328,168 @@ function formatFeatureTooltip(feature) {
     const type = getFeatureClassification(feature);
     const coords = getFeatureCoords(feature);
 
+    // ========== HOSPITAL ==========
+    if (type === 'HOSPITAL') {
+        const nome = props['Nome do Hospital'] || props.name || 'Hospital';
+        const mun = props.Município || props.Municipio || '-';
+        const macro = props['Macrorregião de Saúde'] || props.Macrorregiao_Saude || '-';
+        const coordsStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '-';
+
+        return `
+            <div class="feature-card-header header-hospital">
+                <h4 class="feature-card-title">🏥 ${nome}</h4>
+                <span class="feature-type-tag">Hospital de Referência</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município:</span>
+                        <span class="feature-info-value">${mun}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Macrorregião:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-macro">${macro}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Coordenadas:</span>
+                        <span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+// ========== MICRORREGIÃO ==========
+if (type === 'MICRORREGIAO') {
+    const microName =
+        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
+        props['Microrregião de Saúde'] ||
+        props.NM_RGI ||
+        props.name ||
+        'Microrregião';
+
+    const macroName =
+        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+        props['Macrorregião de Saúde'] ||
+        props.Macrorregiao_Saude ||
+        '-';
+
+    const mun = props.NM_MUN || props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Município '] || '-';
+    const pop2022 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)'];
+    const pop2025 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)'];
+    const area = props.AREA_KM2
+        ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km²`
+        : '-';
+
+    // Extração robusta da lista de hospitais
+    let hospList = props['Hospitais de Referência'] ||
+                   props.Hospitais_de_Referencia ||
+                   props.Hospitais_de_Referencia_Macrorregiao ||
+                   [];
+
+    // Fallback para versão texto
+    if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
+        hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto.split('|').map(h => h.trim()).filter(Boolean);
+    }
+
+    let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
+    if (Array.isArray(hospList) && hospList.length > 0) {
+        hospitaisHtml = hospList
+            .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
+            .join('');
+    } else if (typeof hospList === 'string' && hospList.trim()) {
+        hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
+    }
+
+    return `
+        <div class="feature-card-header header-micro">
+            <h4 class="feature-card-title">🩺 ${microName}</h4>
+            <span class="feature-type-tag">Microrregião de Saúde</span>
+        </div>
+        <div class="feature-card-body">
+            <div class="feature-info-grid">
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Município sede:</span>
+                    <span class="feature-info-value">${mun}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Macrorregião:</span>
+                    <span class="feature-info-value"><span class="feature-badge badge-macro">${macroName}</span></span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">População 2022:</span>
+                    <span class="feature-info-value">${pop2022 ? Number(pop2022).toLocaleString('pt-BR') : '-'}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">População 2025 (est.):</span>
+                    <span class="feature-info-value">${pop2025 ? Number(pop2025).toLocaleString('pt-BR') : '-'}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Área:</span>
+                    <span class="feature-info-value">${area}</span>
+                </div>
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Hospitais de Referência:</span>
+                    <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">
+                        ${hospitaisHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ========== MACRORREGIÃO ==========
+if (type === 'MACRORREGIAO') {
+    const macroName =
+        props.Macrorregiao_Saude ||
+        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+        props['Macrorregião de Saúde'] ||
+        props.name ||
+        'Macrorregião';
+
+    // Extração robusta
+    let hospList = props.Hospitais_de_Referencia_Macrorregiao ||
+                   props['Hospitais de Referência'] ||
+                   props.Hospitais_de_Referencia ||
+                   [];
+
+    // Fallback para versão texto
+    if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
+        hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto
+            .split('|')
+            .map(h => h.trim())
+            .filter(Boolean);
+    }
+
+    let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
+    if (Array.isArray(hospList) && hospList.length > 0) {
+        hospitaisHtml = hospList
+            .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
+            .join('');
+    } else if (typeof hospList === 'string' && hospList.trim()) {
+        hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
+    }
+
+    return `
+        <div class="feature-card-header header-macro">
+            <h4 class="feature-card-title">🏥 ${macroName}</h4>
+            <span class="feature-type-tag">Macrorregião de Saúde</span>
+        </div>
+        <div class="feature-card-body">
+            <div class="feature-info-grid">
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Hospitais de Referência da Macro:</span>
+                    <div style="margin-top:4px;max-height:130px;overflow-y:auto;width:100%;">
+                        ${hospitaisHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+    // ========== MUNICIPIO (legado – não deve mais aparecer) ==========
     if (type === 'MUNICIPIO') {
         const munName = props.name || 'Município';
         const fracao = props['FRAÇÃO'] || '-';
@@ -188,7 +503,7 @@ function formatFeatureTooltip(feature) {
         return `
             <div class="feature-card-header header-municipio">
                 <h4 class="feature-card-title">🏙️ ${munName}</h4>
-                <span class="feature-type-tag">Município</span>
+                <span class="feature-type-tag">Município (legado)</span>
             </div>
             <div class="feature-card-body">
                 <div class="feature-info-grid">
@@ -221,6 +536,7 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
+    // ========== UNIDADE BM ==========
     if (type === 'UNIDADE_BM') {
         const unitName = props.name || 'Unidade Operacional';
         const ueop = props.UEOP || '-';
@@ -244,21 +560,26 @@ function formatFeatureTooltip(feature) {
                     </div>
                     <div class="feature-info-row">
                         <span class="feature-info-label">Coordenadas:</span>
-                        <span class="feature-info-value" style="font-size:11px; font-family:monospace;">${coordsStr}</span>
+                        <span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span>
                     </div>
                 </div>
             </div>
         `;
     }
 
+    // ========== POLYGON (Articulação) ==========
     if (type === 'POLYGON') {
         const polyName = props.name || 'Circunscrição Territorial';
         const mun = props.NM_MUN || props.Field3 || '-';
         const codMun = props.CD_MUN ? `(IBGE ${props.CD_MUN})` : '';
-        const area = props.AREA_KM2 ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} km²` : '-';
+        const area = props.AREA_KM2
+            ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} km²`
+            : '-';
         const tipoFracao = props.Field8 ? `${props.Field8} - ${props.Field10 || ''}` : (props.Field10 || '-');
         const comando = props.Field7 || '-';
-        const status = props.Field5 ? `${props.Field5} ${props.Field11 ? '(' + props.Field11 + ')' : ''}` : (props.Field11 || '-');
+        const status = props.Field5
+            ? `${props.Field5} ${props.Field11 ? '(' + props.Field11 + ')' : ''}`
+            : (props.Field11 || '-');
 
         return `
             <div class="feature-card-header header-polygon">
@@ -292,6 +613,7 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
+    // Fallback genérico
     return `
         <div class="feature-card-header">
             <h4 class="feature-card-title">📍 ${props.name || 'Feição'}</h4>
@@ -307,7 +629,7 @@ function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
     const props = feature.properties || {};
-    const name = (props.name || 'Feição').replace(/'/g, "\\'");
+    const name = (props.name || props['Nome do Hospital'] || 'Feição').replace(/'/g, "\\'");
 
     if (!coords) {
         return tooltipHtml;
@@ -316,11 +638,14 @@ function formatFeaturePopup(feature) {
     const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
     const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
 
-    const editBtnHtml = (layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin) ? `
+    const editBtnHtml =
+        layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
+            ? `
         <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
             ✏️ Editar Dados
         </button>
-    ` : '';
+    `
+            : '';
 
     const actionsHtml = `
         <div class="feature-popup-actions">
@@ -352,11 +677,11 @@ function addLayerToMap(layerData, mode = viewMode) {
     }
 
     const geojsonLayer = L.geoJSON(layerData.geojson, {
-        filter: function(feature) {
+        filter: function (feature) {
             const classification = getFeatureClassification(feature);
-            if (classification === 'MUNICIPIO') {
-                return false;
-            }
+
+            // Remove definitivamente MUNICIPIO da visualização
+            if (classification === 'MUNICIPIO') return false;
 
             if (mode === 'none') return false;
             if (mode === 'points') {
@@ -364,9 +689,30 @@ function addLayerToMap(layerData, mode = viewMode) {
             }
             return true;
         },
-        style: function(feature) {
+        style: function (feature) {
+            const type = getFeatureClassification(feature);
+            const props = feature.properties || {};
+
             if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-                const props = feature.properties || {};
+                if (type === 'MICRORREGIAO') {
+                    return {
+                        fillColor: '#27ae60',
+                        fillOpacity: 0.18,
+                        color: '#1e8449',
+                        weight: 1.2,
+                        opacity: 0.85
+                    };
+                }
+                if (type === 'MACRORREGIAO') {
+                    return {
+                        fillColor: '#8e44ad',
+                        fillOpacity: 0.12,
+                        color: '#6c3483',
+                        weight: 1.8,
+                        opacity: 0.9
+                    };
+                }
+                // POLYGON (Articulação)
                 return {
                     fillColor: props.fill || '#0288d1',
                     fillOpacity: props['fill-opacity'] !== undefined ? Number(props['fill-opacity']) : 0.3,
@@ -377,6 +723,18 @@ function addLayerToMap(layerData, mode = viewMode) {
             }
         },
         pointToLayer: (feature, latlng) => {
+            const type = getFeatureClassification(feature);
+            if (type === 'HOSPITAL') {
+                return L.circleMarker(latlng, {
+                    radius: 7,
+                    fillColor: '#2980b9',
+                    color: '#1a5276',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                });
+            }
+            // UNIDADE_BM
             return L.circleMarker(latlng, {
                 radius: 8,
                 fillColor: '#e74c3c',
@@ -396,30 +754,30 @@ function addLayerToMap(layerData, mode = viewMode) {
 
             layer.bindPopup(formatFeaturePopup(feature), {
                 className: 'feature-popup',
-                maxWidth: 340
+                maxWidth: 360
             });
 
-            layer.on('mouseover', function(e) {
+            layer.on('mouseover', function (e) {
                 const l = e.target;
+                const type = getFeatureClassification(feature);
                 if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
                     l.setStyle({
                         weight: 3,
                         color: '#f39c12',
                         fillColor: '#f39c12',
-                        fillOpacity: 0.45
+                        fillOpacity: 0.4
                     });
                 } else if (feature.geometry.type === 'Point') {
                     l.setStyle({
-                        radius: 11,
+                        radius: type === 'HOSPITAL' ? 10 : 11,
                         weight: 3,
                         color: '#f39c12',
-                        fillColor: '#e74c3c',
                         fillOpacity: 1
                     });
                 }
             });
 
-            layer.on('mouseout', function(e) {
+            layer.on('mouseout', function (e) {
                 geojsonLayer.resetStyle(e.target);
             });
 
@@ -442,7 +800,7 @@ function addLayerToMap(layerData, mode = viewMode) {
 }
 
 // ==========================================================================
-// UI da lista de camadas + ações: Visibilidade, Renomear, Duplicar, Reordenar, Excluir
+// UI da lista de camadas + ações
 // ==========================================================================
 
 async function renameLayer(layerId) {
@@ -473,7 +831,7 @@ async function duplicateLayer(layerId) {
 }
 
 async function moveLayer(layerId, direction) {
-    const layers = await DB.getLayers(); // já ordenado
+    const layers = await DB.getLayers();
     const idx = layers.findIndex(l => l.id === layerId);
     if (idx === -1) return;
 
@@ -484,7 +842,6 @@ async function moveLayer(layerId, direction) {
     }
 
     const other = layers[swapIdx];
-    // Pula camadas ocultas de ruas se necessário, mas como elas não aparecem na UI, ok
     await DB.swapLayerOrder(layerId, other.id);
     await reloadLayers();
     showToast('Ordem das camadas atualizada.', 'success');
@@ -503,20 +860,20 @@ function updateLayerListUI() {
 
         visibleLayers.forEach((layer, index) => {
             const li = document.createElement('li');
-            
+
             const nameSpan = document.createElement('span');
             nameSpan.textContent = layer.name;
             nameSpan.style.flex = '1';
             nameSpan.style.overflow = 'hidden';
             nameSpan.style.textOverflow = 'ellipsis';
             nameSpan.style.whiteSpace = 'nowrap';
-            
+
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'layer-actions';
             actionsDiv.style.display = 'flex';
             actionsDiv.style.gap = '2px';
             actionsDiv.style.alignItems = 'center';
-            
+
             // Visibilidade
             const visBtn = document.createElement('button');
             visBtn.className = 'btn-icon layer-btn';
@@ -532,7 +889,6 @@ function updateLayerListUI() {
             actionsDiv.appendChild(visBtn);
 
             if (window.isAdmin) {
-                // Renomear
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'btn-icon layer-btn';
                 renameBtn.innerHTML = '✏️';
@@ -543,7 +899,6 @@ function updateLayerListUI() {
                 });
                 actionsDiv.appendChild(renameBtn);
 
-                // Duplicar
                 const dupBtn = document.createElement('button');
                 dupBtn.className = 'btn-icon layer-btn';
                 dupBtn.innerHTML = '📋';
@@ -554,11 +909,10 @@ function updateLayerListUI() {
                 });
                 actionsDiv.appendChild(dupBtn);
 
-                // Mover para cima
                 const upBtn = document.createElement('button');
                 upBtn.className = 'btn-icon layer-btn';
                 upBtn.innerHTML = '↑';
-                upBtn.title = 'Mover para cima (aumenta prioridade de desenho)';
+                upBtn.title = 'Mover para cima';
                 upBtn.disabled = index === 0;
                 upBtn.style.opacity = index === 0 ? '0.35' : '1';
                 upBtn.addEventListener('click', (e) => {
@@ -567,7 +921,6 @@ function updateLayerListUI() {
                 });
                 actionsDiv.appendChild(upBtn);
 
-                // Mover para baixo
                 const downBtn = document.createElement('button');
                 downBtn.className = 'btn-icon layer-btn';
                 downBtn.innerHTML = '↓';
@@ -580,7 +933,6 @@ function updateLayerListUI() {
                 });
                 actionsDiv.appendChild(downBtn);
 
-                // Excluir
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn-icon layer-btn';
                 delBtn.innerHTML = '🗑️';
@@ -593,7 +945,7 @@ function updateLayerListUI() {
                 });
                 actionsDiv.appendChild(delBtn);
             }
-            
+
             li.appendChild(nameSpan);
             li.appendChild(actionsDiv);
             ul.appendChild(li);
@@ -608,7 +960,7 @@ function setViewMode(mode) {
 
 function syncViewCheckboxes(mode) {
     document.querySelectorAll('.view-checkbox').forEach(cb => {
-        cb.checked = (cb.dataset.mode === mode);
+        cb.checked = cb.dataset.mode === mode;
     });
 }
 
@@ -616,7 +968,6 @@ function handleFeatureClick(e, feature, layer) {
     if (mapClickMode) {
         L.DomEvent.stopPropagation(e);
 
-        // Restaura as feições automaticamente
         if (typeof window.exitMapOriginMode === 'function') {
             window.exitMapOriginMode(true);
         } else {
@@ -634,10 +985,9 @@ function handleFeatureClick(e, feature, layer) {
         return;
     }
 
-    // ... resto da função permanece igual ...
     if (!originMarker && feature.geometry.type === 'Point') {
         const coords = feature.geometry.coordinates;
-        setOrigin(coords[1], coords[0], feature.properties?.name || 'Ponto selecionado');
+        setOrigin(coords[1], coords[0], feature.properties?.name || feature.properties?.['Nome do Hospital'] || 'Ponto selecionado');
         map.setView([coords[1], coords[0]], 15);
         calculateDistancesToAllFeatures(coords[1], coords[0]);
         return;
@@ -655,16 +1005,19 @@ function drawRouteOrLine(feature) {
         showToast('Apenas feições do tipo Ponto suportam cálculo de rota no clique.', 'info');
         return;
     }
-    
+
     const coords = feature.geometry.coordinates;
     const destLng = coords[0];
     const destLat = coords[1];
-    const name = feature.properties?.name || 'Destino selecionado';
-    
+    const name =
+        feature.properties?.name ||
+        feature.properties?.['Nome do Hospital'] ||
+        'Destino selecionado';
+
     const originPos = originMarker.getLatLng();
     const from = turf.point([originPos.lng, originPos.lat]);
     const to = turf.point([destLng, destLat]);
     const distance = turf.distance(from, to, { units: 'kilometers' });
-    
+
     focusOnFeature(destLng, destLat, name, distance);
 }

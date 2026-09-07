@@ -87,16 +87,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================================
-    // 1. Carregamento de dados + zoom inicial ajustado às feições
+    // 1. Carregamento harmônico das camadas e feições + spinner central
     // ============================================================
+    const loadingOverlay = document.getElementById('map-loading-overlay');
+    const loadingText = document.getElementById('loading-status-text');
+
+    function showLoading(msg) {
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        if (loadingText) loadingText.textContent = msg || 'Carregando...';
+    }
+
+    function hideLoading() {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+
+    showLoading('Inicializando mapa e dados operacionais...');
+
     try {
+        // Etapa A – Unidades BM + Articulação (seed)
+        showLoading('Carregando Unidades BM e Articulação CBMMG...');
         await seedInitialData();
-        await loadStreetDataFromGitHub();
+        await cleanupMunicipioFeatures();
+
+        // Mostra imediatamente o que já temos (feedback visual rápido)
+        await reloadLayers();
+
+        // Etapa B – Regiões de Saúde + Hospitais (paralelo)
+        showLoading('Carregando Macrorregiões, Microrregiões e Hospitais...');
+        await Promise.all([
+            loadMicroMacroRegions(),
+            loadHospitalsData()
+        ]);
+
+        // Atualiza o mapa com tudo (exceto ruas – lazy)
         await reloadLayers();
         zoomToAllFeatures();
+
+        showLoading('Pronto!');
+        // Pequeno delay para o usuário perceber a mensagem final
+        setTimeout(hideLoading, 600);
+
     } catch (err) {
         console.warn('Falha no carregamento inicial de dados:', err);
         if (map) map.setView([-15.7934, -47.8822], 4);
+        showLoading('Erro parcial no carregamento. Mapa disponível.');
+        setTimeout(hideLoading, 1800);
     }
 
     // Restante da inicialização

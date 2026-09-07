@@ -485,121 +485,314 @@ body {
     display: none;
 }
 
+/* =========================================================
+   Headers personalizados por tipo de feição
+   ========================================================= */
+
 .feature-card-header {
-    background: linear-gradient(135deg, #2c3e50, #1a252f);
-    color: #ffffff;
-    padding: 8px 12px;
+    padding: 10px 12px 8px;
+    border-radius: 8px 8px 0 0;
+    color: #fff;
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 8px;
 }
 
-.feature-card-header.header-municipio { background: linear-gradient(135deg, #16a085, #2c3e50); }
-.feature-card-header.header-unidade { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); }
-.feature-card-header.header-polygon { background: linear-gradient(135deg, #2980b9, #1c5982); }
-
 .feature-card-title {
-    font-size: 13px;
-    font-weight: 700;
     margin: 0;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    flex: 1;
 }
 
 .feature-type-tag {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.5px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.22);
+    white-space: nowrap;
+    letter-spacing: 0.3px;
 }
 
+/* Unidades BM (vermelho institucional) */
+.header-unidade {
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+}
+
+/* Hospitais (azul saúde) */
+.header-hospital {
+    background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+}
+
+/* Microrregiões de Saúde (verde) */
+.header-micro {
+    background: linear-gradient(135deg, #1e8449 0%, #27ae60 100%);
+}
+
+/* Macrorregiões de Saúde (roxo) */
+.header-macro {
+    background: linear-gradient(135deg, #6c3483 0%, #8e44ad 100%);
+}
+
+/* Polígonos de Articulação (azul padrão) */
+.header-polygon {
+    background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+}
+
+/* Município legado (cinza – quase não aparece mais) */
+.header-municipio {
+    background: linear-gradient(135deg, #5d6d7e 0%, #7f8c8d 100%);
+}
+
+/* =========================================================
+   Badges genéricos e específicos
+   ========================================================= */
+
+.feature-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+/* Badges de tempo-resposta */
+.badge-tempo-verde {
+    background: #d5f5e3;
+    color: #1e8449;
+}
+
+.badge-tempo-amarelo {
+    background: #fdebd0;
+    color: #b9770e;
+}
+
+.badge-tempo-vermelho {
+    background: #fadbd8;
+    color: #922b21;
+}
+
+.badge-tempo-neutro {
+    background: #eaecee;
+    color: #5d6d7e;
+}
+
+/* Badges de classificação operacional */
+.badge-ueop {
+    background: #d6eaf8;
+    color: #1a5276;
+}
+
+.badge-cob {
+    background: #fadbd8;
+    color: #922b21;
+}
+
+.badge-zona {
+    background: #fdebd0;
+    color: #b9770e;
+}
+
+/* Novos badges para saúde */
+.badge-macro {
+    background: #e8daef;
+    color: #6c3483;
+}
+
+.badge-micro {
+    background: #d5f5e3;
+    color: #1e8449;
+}
+
+.badge-hospital {
+    background: #d4e6f1;
+    color: #1a5276;
+}
+
+/* =========================================================
+   Ajustes no corpo do card (melhor legibilidade)
+   ========================================================= */
+
 .feature-card-body {
-    padding: 10px 12px;
+    padding: 10px 12px 12px;
     background: #fff;
+    border-radius: 0 0 8px 8px;
+    font-size: 12px;
+    color: #2c3e50;
 }
 
 .feature-info-grid {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
 }
 
 .feature-info-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    font-size: 11px;
-    border-bottom: 1px dashed #edf2f7;
-    padding-bottom: 3px;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.35;
 }
 
-.feature-info-row:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+.feature-info-label {
+    font-weight: 600;
+    color: #5d6d7e;
+    flex-shrink: 0;
+    min-width: 110px;
 }
 
-.feature-info-label { color: var(--text-muted); font-weight: 600; }
-.feature-info-value { color: var(--text-color); font-weight: 600; text-align: right; }
-
-.feature-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 700;
+.feature-info-value {
+    text-align: right;
+    word-break: break-word;
 }
 
-.badge-tempo-verde { background: #e8f8f5; color: #27ae60; border: 1px solid #a3e4d7; }
-.badge-tempo-amarelo { background: #fef9e7; color: #d4ac0d; border: 1px solid #f9e79f; }
-.badge-tempo-vermelho { background: #fdedec; color: #e74c3c; border: 1px solid #fadbd8; }
-.badge-tempo-neutro { background: #f4f6f7; color: #7f8c8d; border: 1px solid #d5dbdb; }
-.badge-ueop { background: #ebf5fb; color: #2980b9; border: 1px solid #aed6f1; }
-.badge-cob { background: #f4ecf7; color: #8e44ad; border: 1px solid #d2b4de; }
-.badge-zona { background: #fef5e7; color: #e67e22; border: 1px solid #f8c471; }
+/* Quando a linha tem conteúdo longo (lista de hospitais) */
+.feature-info-row[style*="flex-direction:column"] .feature-info-label {
+    margin-bottom: 2px;
+}
 
-.leaflet-popup-content-wrapper { padding: 0; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-md); }
-.leaflet-popup-content { margin: 0 !important; line-height: 1.4; }
+.feature-info-row[style*="flex-direction:column"] .feature-info-value,
+.feature-info-row[style*="flex-direction:column"] div {
+    text-align: left;
+    width: 100%;
+}
 
+/* =========================================================
+   Tooltip e Popup – refinamentos
+   ========================================================= */
+
+.feature-tooltip {
+    max-width: 320px !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+.feature-popup {
+    max-width: 360px !important;
+}
+
+.feature-popup .leaflet-popup-content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.feature-popup-content-inner {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Botões de ação no popup */
 .feature-popup-actions {
     display: flex;
-    gap: 4px;
-    padding: 8px 10px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
     flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px 12px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
 }
 
 .btn-popup-action {
-    flex: 1;
-    min-width: 100px;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 5px 6px;
+    flex: 1 1 auto;
+    min-width: 110px;
+    padding: 6px 10px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
-    text-align: center;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    color: white;
+    transition: background 0.15s, transform 0.1s;
+    color: #fff;
 }
 
-.btn-popup-origin { background: var(--accent-color); }
-.btn-popup-origin:hover { background: var(--accent-hover); }
-.btn-popup-route { background: #27ae60; }
-.btn-popup-route:hover { background: #219653; }
-.btn-popup-copy { background: #95a5a6; }
-.btn-popup-copy:hover { background: #7f8c8d; }
-.btn-popup-edit { background: #e67e22; }
-.btn-popup-edit:hover { background: #d35400; }
+.btn-popup-action:hover {
+    transform: translateY(-1px);
+}
+
+.btn-popup-origin {
+    background: #27ae60;
+}
+
+.btn-popup-origin:hover {
+    background: #219a52;
+}
+
+.btn-popup-route {
+    background: #2980b9;
+}
+
+.btn-popup-route:hover {
+    background: #2471a3;
+}
+
+.btn-popup-copy {
+    background: #7f8c8d;
+}
+
+.btn-popup-copy:hover {
+    background: #707b7c;
+}
+
+.btn-popup-edit {
+    background: #8e44ad;
+}
+
+.btn-popup-edit:hover {
+    background: #7d3c98;
+}
+
+/* =========================================================
+   Painel de despacho – destaque do melhor ETA
+   ========================================================= */
+
+.card-best-eta {
+    border: 2px solid #27ae60 !important;
+    background: #f0fff4 !important;
+    box-shadow: 0 0 0 1px rgba(39, 174, 96, 0.25);
+}
+
+.eta-badge-best {
+    background: #27ae60;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.eta-badge-ready {
+    background: #d5f5e3;
+    color: #1e8449;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.eta-badge-straight {
+    background: #eaecee;
+    color: #5d6d7e;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.eta-badge-loading {
+    background: #fdebd0;
+    color: #b9770e;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
 
 /* Modal de Edição de Feição */
 .modal-edit-feature {
@@ -735,22 +928,115 @@ body {
     margin-top: 6px;
 }
 
+/* =========================================================
+   Responsabilidade Territorial – layout em linhas
+   ========================================================= */
+
 .dispatch-jurisdiction-card {
-    background: linear-gradient(135deg, #1c2833, #2c3e50);
-    color: #ffffff;
+    background: #fff;
+    border: 1px solid #e0e6ed;
+    border-radius: 8px;
     padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border-left: 4px solid var(--accent-color);
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .dispatch-jurisdiction-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dispatch-jurisdiction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;                       /* espaço vertical entre as linhas */
+}
+
+.jurisdiction-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border-left: 3px solid #3498db;
+    line-height: 1.35;
+}
+
+/* =========================================================
+   Destaque da responsabilidade operacional BM
+   ========================================================= */
+
+.jurisdiction-item.jurisdiction-bm {
+    background: linear-gradient(135deg, #fff5f5 0%, #fde8e8 100%);
+    border-left: 4px solid #c0392b;
+    box-shadow: 0 1px 4px rgba(192, 57, 43, 0.12);
+    position: relative;
+}
+
+.jurisdiction-item.jurisdiction-bm .jurisdiction-name {
+    color: #c0392b;
+    font-weight: 700;
+}
+
+.jurisdiction-item.jurisdiction-bm .jurisdiction-layer {
+    color: #922b21;
+}
+
+/* Badge "BM" no canto direito */
+.jurisdiction-badge-bm {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #c0392b;
+    color: #fff;
     font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #bdc3c7;
-    margin-bottom: 2px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.4px;
+}
+
+/* Garante espaço para o badge */
+.jurisdiction-item.jurisdiction-bm .jurisdiction-text {
+    padding-right: 38px;
+}
+
+.jurisdiction-item.jurisdiction-empty {
+    border-left-color: #e74c3c;
+    background: #fdf2f2;
+}
+
+.jurisdiction-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.jurisdiction-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;                   /* permite quebra de texto longa */
+}
+
+.jurisdiction-name {
+    font-size: 12px;
     font-weight: 600;
+    color: #2c3e50;
+    word-break: break-word;
+}
+
+.jurisdiction-layer {
+    font-size: 10.5px;
+    color: #7f8c8d;
+    font-weight: 500;
 }
 
 .dispatch-jurisdiction-name {
@@ -916,4 +1202,54 @@ body {
 #addPolygonBtn.active {
     background: #27ae60 !important;
     box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.35);
+}
+
+/* ==========================================================================
+   OVERLAY DE CARREGAMENTO (SPINNER CENTRAL)
+   ========================================================================== */
+.map-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1500;
+    background: rgba(244, 246, 247, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.map-loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.map-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    text-align: center;
+    padding: 24px;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#loading-status-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+    max-width: 280px;
+    line-height: 1.4;
 }

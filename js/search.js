@@ -133,6 +133,24 @@ async function searchAddress(query) {
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
 
+    // ===== LAZY LOAD das ruas (só na primeira busca) =====
+    try {
+        const existingLayers = await DB.getLayers();
+        const hasStreetLayer = existingLayers.some(l =>
+            l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros') || l.name.includes('Street'))
+        );
+
+        if (!hasStreetLayer) {
+            resultsDiv.innerHTML = '<div class="search-status-msg">📥 Carregando base de logradouros (primeira vez)... Isso pode levar alguns segundos.</div>';
+            await loadStreetDataFromGitHub();   // função já existente em layers.js
+            // Garante que o índice seja reconstruído após o carregamento
+            invalidateStreetIndex();
+        }
+    } catch (e) {
+        console.warn('Falha ao carregar base de ruas sob demanda:', e);
+    }
+    // ===== FIM LAZY LOAD =====
+
     const expandedQuery = expandSearchQuery(rawQuery);
     const queryTokens = expandedQuery.split(/\s+/).filter(Boolean);
 
