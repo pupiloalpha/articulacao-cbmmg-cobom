@@ -1,7 +1,4267 @@
 [
-    {
-        "name": "RMBH - Ruas",
-        "url": "data/ruas/rmbh.geojson",
-        "description": "Logradouros da Região Metropolitana de Belo Horizonte"
-    }
+  {
+    "name": "Abadia dos Dourados - Logradouros",
+    "url": "data/ruas/3100104_faces_de_logradouros_2022_simplified.json",
+    "description": "Abadia dos Dourados"
+  },
+  {
+    "name": "Abaeté - Logradouros",
+    "url": "data/ruas/3100203_faces_de_logradouros_2022_simplified.json",
+    "description": "Abaeté"
+  },
+  {
+    "name": "Abre Campo - Logradouros",
+    "url": "data/ruas/3100302_faces_de_logradouros_2022_simplified.json",
+    "description": "Abre Campo"
+  },
+  {
+    "name": "Acaiaca - Logradouros",
+    "url": "data/ruas/3100401_faces_de_logradouros_2022_simplified.json",
+    "description": "Acaiaca"
+  },
+  {
+    "name": "Aguanil - Logradouros",
+    "url": "data/ruas/3100807_faces_de_logradouros_2022_simplified.json",
+    "description": "Aguanil"
+  },
+  {
+    "name": "Aimorés - Logradouros",
+    "url": "data/ruas/3101102_faces_de_logradouros_2022_simplified.json",
+    "description": "Aimorés"
+  },
+  {
+    "name": "Aiuruoca - Logradouros",
+    "url": "data/ruas/3101201_faces_de_logradouros_2022_simplified.json",
+    "description": "Aiuruoca"
+  },
+  {
+    "name": "Alagoa - Logradouros",
+    "url": "data/ruas/3101300_faces_de_logradouros_2022_simplified.json",
+    "description": "Alagoa"
+  },
+  {
+    "name": "Albertina - Logradouros",
+    "url": "data/ruas/3101409_faces_de_logradouros_2022_simplified.json",
+    "description": "Albertina"
+  },
+  {
+    "name": "Alfenas - Logradouros",
+    "url": "data/ruas/3101607_faces_de_logradouros_2022_simplified.json",
+    "description": "Alfenas"
+  },
+  {
+    "name": "Alfredo Vasconcelos - Logradouros",
+    "url": "data/ruas/3101631_faces_de_logradouros_2022_simplified.json",
+    "description": "Alfredo Vasconcelos"
+  },
+  {
+    "name": "Almenara - Logradouros",
+    "url": "data/ruas/3101706_faces_de_logradouros_2022_simplified.json",
+    "description": "Almenara"
+  },
+  {
+    "name": "Alpercata - Logradouros",
+    "url": "data/ruas/3101805_faces_de_logradouros_2022_simplified.json",
+    "description": "Alpercata"
+  },
+  {
+    "name": "Alpinópolis - Logradouros",
+    "url": "data/ruas/3101904_faces_de_logradouros_2022_simplified.json",
+    "description": "Alpinópolis"
+  },
+  {
+    "name": "Alterosa - Logradouros",
+    "url": "data/ruas/3102001_faces_de_logradouros_2022_simplified.json",
+    "description": "Alterosa"
+  },
+  {
+    "name": "Alto Caparaó - Logradouros",
+    "url": "data/ruas/3102050_faces_de_logradouros_2022_simplified.json",
+    "description": "Alto Caparaó"
+  },
+  {
+    "name": "Alto Jequitibá - Logradouros",
+    "url": "data/ruas/3153509_faces_de_logradouros_2022_simplified.json",
+    "description": "Alto Jequitibá"
+  },
+  {
+    "name": "Alto Rio Doce - Logradouros",
+    "url": "data/ruas/3102100_faces_de_logradouros_2022_simplified.json",
+    "description": "Alto Rio Doce"
+  },
+  {
+    "name": "Alvarenga - Logradouros",
+    "url": "data/ruas/3102209_faces_de_logradouros_2022_simplified.json",
+    "description": "Alvarenga"
+  },
+  {
+    "name": "Alvinópolis - Logradouros",
+    "url": "data/ruas/3102308_faces_de_logradouros_2022_simplified.json",
+    "description": "Alvinópolis"
+  },
+  {
+    "name": "Alvorada de Minas - Logradouros",
+    "url": "data/ruas/3102407_faces_de_logradouros_2022_simplified.json",
+    "description": "Alvorada de Minas"
+  },
+  {
+    "name": "Além Paraíba - Logradouros",
+    "url": "data/ruas/3101508_faces_de_logradouros_2022_simplified.json",
+    "description": "Além Paraíba"
+  },
+  {
+    "name": "Amparo do Serra - Logradouros",
+    "url": "data/ruas/3102506_faces_de_logradouros_2022_simplified.json",
+    "description": "Amparo do Serra"
+  },
+  {
+    "name": "Andradas - Logradouros",
+    "url": "data/ruas/3102605_faces_de_logradouros_2022_simplified.json",
+    "description": "Andradas"
+  },
+  {
+    "name": "Andrelândia - Logradouros",
+    "url": "data/ruas/3102803_faces_de_logradouros_2022_simplified.json",
+    "description": "Andrelândia"
+  },
+  {
+    "name": "Angelândia - Logradouros",
+    "url": "data/ruas/3102852_faces_de_logradouros_2022_simplified.json",
+    "description": "Angelândia"
+  },
+  {
+    "name": "Antônio Carlos - Logradouros",
+    "url": "data/ruas/3102902_faces_de_logradouros_2022_simplified.json",
+    "description": "Antônio Carlos"
+  },
+  {
+    "name": "Antônio Dias - Logradouros",
+    "url": "data/ruas/3103009_faces_de_logradouros_2022_simplified.json",
+    "description": "Antônio Dias"
+  },
+  {
+    "name": "Antônio Prado de Minas - Logradouros",
+    "url": "data/ruas/3103108_faces_de_logradouros_2022_simplified.json",
+    "description": "Antônio Prado de Minas"
+  },
+  {
+    "name": "Aracitaba - Logradouros",
+    "url": "data/ruas/3103306_faces_de_logradouros_2022_simplified.json",
+    "description": "Aracitaba"
+  },
+  {
+    "name": "Araguari - Logradouros",
+    "url": "data/ruas/3103504_faces_de_logradouros_2022_simplified.json",
+    "description": "Araguari"
+  },
+  {
+    "name": "Arantina - Logradouros",
+    "url": "data/ruas/3103603_faces_de_logradouros_2022_simplified.json",
+    "description": "Arantina"
+  },
+  {
+    "name": "Araponga - Logradouros",
+    "url": "data/ruas/3103702_faces_de_logradouros_2022_simplified.json",
+    "description": "Araponga"
+  },
+  {
+    "name": "Araporã - Logradouros",
+    "url": "data/ruas/3103751_faces_de_logradouros_2022_simplified.json",
+    "description": "Araporã"
+  },
+  {
+    "name": "Arapuá - Logradouros",
+    "url": "data/ruas/3103801_faces_de_logradouros_2022_simplified.json",
+    "description": "Arapuá"
+  },
+  {
+    "name": "Araxá - Logradouros",
+    "url": "data/ruas/3104007_faces_de_logradouros_2022_simplified.json",
+    "description": "Araxá"
+  },
+  {
+    "name": "Araçaí - Logradouros",
+    "url": "data/ruas/3103207_faces_de_logradouros_2022_simplified.json",
+    "description": "Araçaí"
+  },
+  {
+    "name": "Araçuaí - Logradouros",
+    "url": "data/ruas/3103405_faces_de_logradouros_2022_simplified.json",
+    "description": "Araçuaí"
+  },
+  {
+    "name": "Araújos - Logradouros",
+    "url": "data/ruas/3103900_faces_de_logradouros_2022_simplified.json",
+    "description": "Araújos"
+  },
+  {
+    "name": "Arceburgo - Logradouros",
+    "url": "data/ruas/3104106_faces_de_logradouros_2022_simplified.json",
+    "description": "Arceburgo"
+  },
+  {
+    "name": "Arcos - Logradouros",
+    "url": "data/ruas/3104205_faces_de_logradouros_2022_simplified.json",
+    "description": "Arcos"
+  },
+  {
+    "name": "Areado - Logradouros",
+    "url": "data/ruas/3104304_faces_de_logradouros_2022_simplified.json",
+    "description": "Areado"
+  },
+  {
+    "name": "Argirita - Logradouros",
+    "url": "data/ruas/3104403_faces_de_logradouros_2022_simplified.json",
+    "description": "Argirita"
+  },
+  {
+    "name": "Aricanduva - Logradouros",
+    "url": "data/ruas/3104452_faces_de_logradouros_2022_simplified.json",
+    "description": "Aricanduva"
+  },
+  {
+    "name": "Arinos - Logradouros",
+    "url": "data/ruas/3104502_faces_de_logradouros_2022_simplified.json",
+    "description": "Arinos"
+  },
+  {
+    "name": "Astolfo Dutra - Logradouros",
+    "url": "data/ruas/3104601_faces_de_logradouros_2022_simplified.json",
+    "description": "Astolfo Dutra"
+  },
+  {
+    "name": "Ataléia - Logradouros",
+    "url": "data/ruas/3104700_faces_de_logradouros_2022_simplified.json",
+    "description": "Ataléia"
+  },
+  {
+    "name": "Augusto de Lima - Logradouros",
+    "url": "data/ruas/3104809_faces_de_logradouros_2022_simplified.json",
+    "description": "Augusto de Lima"
+  },
+  {
+    "name": "Açucena - Logradouros",
+    "url": "data/ruas/3100500_faces_de_logradouros_2022_simplified.json",
+    "description": "Açucena"
+  },
+  {
+    "name": "Baependi - Logradouros",
+    "url": "data/ruas/3104908_faces_de_logradouros_2022_simplified.json",
+    "description": "Baependi"
+  },
+  {
+    "name": "Baldim - Logradouros",
+    "url": "data/ruas/3105004_faces_de_logradouros_2022_simplified.json",
+    "description": "Baldim"
+  },
+  {
+    "name": "Bambuí - Logradouros",
+    "url": "data/ruas/3105103_faces_de_logradouros_2022_simplified.json",
+    "description": "Bambuí"
+  },
+  {
+    "name": "Bandeira - Logradouros",
+    "url": "data/ruas/3105202_faces_de_logradouros_2022_simplified.json",
+    "description": "Bandeira"
+  },
+  {
+    "name": "Bandeira do Sul - Logradouros",
+    "url": "data/ruas/3105301_faces_de_logradouros_2022_simplified.json",
+    "description": "Bandeira do Sul"
+  },
+  {
+    "name": "Barbacena - Logradouros",
+    "url": "data/ruas/3105608_faces_de_logradouros_2022_simplified.json",
+    "description": "Barbacena"
+  },
+  {
+    "name": "Barra Longa - Logradouros",
+    "url": "data/ruas/3105707_faces_de_logradouros_2022_simplified.json",
+    "description": "Barra Longa"
+  },
+  {
+    "name": "Barroso - Logradouros",
+    "url": "data/ruas/3105905_faces_de_logradouros_2022_simplified.json",
+    "description": "Barroso"
+  },
+  {
+    "name": "Barão de Cocais - Logradouros",
+    "url": "data/ruas/3105400_faces_de_logradouros_2022_simplified.json",
+    "description": "Barão de Cocais"
+  },
+  {
+    "name": "Barão de Monte Alto - Logradouros",
+    "url": "data/ruas/3105509_faces_de_logradouros_2022_simplified.json",
+    "description": "Barão de Monte Alto"
+  },
+  {
+    "name": "Bela Vista de Minas - Logradouros",
+    "url": "data/ruas/3106002_faces_de_logradouros_2022_simplified.json",
+    "description": "Bela Vista de Minas"
+  },
+  {
+    "name": "Belmiro Braga - Logradouros",
+    "url": "data/ruas/3106101_faces_de_logradouros_2022_simplified.json",
+    "description": "Belmiro Braga"
+  },
+  {
+    "name": "Belo Horizonte - Logradouros",
+    "url": "data/ruas/3106200_faces_de_logradouros_2022_simplified.json",
+    "description": "Belo Horizonte"
+  },
+  {
+    "name": "Belo Oriente - Logradouros",
+    "url": "data/ruas/3106309_faces_de_logradouros_2022_simplified.json",
+    "description": "Belo Oriente"
+  },
+  {
+    "name": "Belo Vale - Logradouros",
+    "url": "data/ruas/3106408_faces_de_logradouros_2022_simplified.json",
+    "description": "Belo Vale"
+  },
+  {
+    "name": "Berilo - Logradouros",
+    "url": "data/ruas/3106507_faces_de_logradouros_2022_simplified.json",
+    "description": "Berilo"
+  },
+  {
+    "name": "Berizal - Logradouros",
+    "url": "data/ruas/3106655_faces_de_logradouros_2022_simplified.json",
+    "description": "Berizal"
+  },
+  {
+    "name": "Bertópolis - Logradouros",
+    "url": "data/ruas/3106606_faces_de_logradouros_2022_simplified.json",
+    "description": "Bertópolis"
+  },
+  {
+    "name": "Betim - Logradouros",
+    "url": "data/ruas/3106705_faces_de_logradouros_2022_simplified.json",
+    "description": "Betim"
+  },
+  {
+    "name": "Bias Fortes - Logradouros",
+    "url": "data/ruas/3106804_faces_de_logradouros_2022_simplified.json",
+    "description": "Bias Fortes"
+  },
+  {
+    "name": "Bicas - Logradouros",
+    "url": "data/ruas/3106903_faces_de_logradouros_2022_simplified.json",
+    "description": "Bicas"
+  },
+  {
+    "name": "Biquinhas - Logradouros",
+    "url": "data/ruas/3107000_faces_de_logradouros_2022_simplified.json",
+    "description": "Biquinhas"
+  },
+  {
+    "name": "Boa Esperança - Logradouros",
+    "url": "data/ruas/3107109_faces_de_logradouros_2022_simplified.json",
+    "description": "Boa Esperança"
+  },
+  {
+    "name": "Bocaina de Minas - Logradouros",
+    "url": "data/ruas/3107208_faces_de_logradouros_2022_simplified.json",
+    "description": "Bocaina de Minas"
+  },
+  {
+    "name": "Bocaiúva - Logradouros",
+    "url": "data/ruas/3107307_faces_de_logradouros_2022_simplified.json",
+    "description": "Bocaiúva"
+  },
+  {
+    "name": "Bom Despacho - Logradouros",
+    "url": "data/ruas/3107406_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Despacho"
+  },
+  {
+    "name": "Bom Jardim de Minas - Logradouros",
+    "url": "data/ruas/3107505_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Jardim de Minas"
+  },
+  {
+    "name": "Bom Jesus da Penha - Logradouros",
+    "url": "data/ruas/3107604_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Jesus da Penha"
+  },
+  {
+    "name": "Bom Jesus do Amparo - Logradouros",
+    "url": "data/ruas/3107703_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Jesus do Amparo"
+  },
+  {
+    "name": "Bom Jesus do Galho - Logradouros",
+    "url": "data/ruas/3107802_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Jesus do Galho"
+  },
+  {
+    "name": "Bom Repouso - Logradouros",
+    "url": "data/ruas/3107901_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Repouso"
+  },
+  {
+    "name": "Bom Sucesso - Logradouros",
+    "url": "data/ruas/3108008_faces_de_logradouros_2022_simplified.json",
+    "description": "Bom Sucesso"
+  },
+  {
+    "name": "Bonfim - Logradouros",
+    "url": "data/ruas/3108107_faces_de_logradouros_2022_simplified.json",
+    "description": "Bonfim"
+  },
+  {
+    "name": "Bonfinópolis de Minas - Logradouros",
+    "url": "data/ruas/3108206_faces_de_logradouros_2022_simplified.json",
+    "description": "Bonfinópolis de Minas"
+  },
+  {
+    "name": "Bonito de Minas - Logradouros",
+    "url": "data/ruas/3108255_faces_de_logradouros_2022_simplified.json",
+    "description": "Bonito de Minas"
+  },
+  {
+    "name": "Borda da Mata - Logradouros",
+    "url": "data/ruas/3108305_faces_de_logradouros_2022_simplified.json",
+    "description": "Borda da Mata"
+  },
+  {
+    "name": "Botelhos - Logradouros",
+    "url": "data/ruas/3108404_faces_de_logradouros_2022_simplified.json",
+    "description": "Botelhos"
+  },
+  {
+    "name": "Botumirim - Logradouros",
+    "url": "data/ruas/3108503_faces_de_logradouros_2022_simplified.json",
+    "description": "Botumirim"
+  },
+  {
+    "name": "Brasilândia de Minas - Logradouros",
+    "url": "data/ruas/3108552_faces_de_logradouros_2022_simplified.json",
+    "description": "Brasilândia de Minas"
+  },
+  {
+    "name": "Brasília de Minas - Logradouros",
+    "url": "data/ruas/3108602_faces_de_logradouros_2022_simplified.json",
+    "description": "Brasília de Minas"
+  },
+  {
+    "name": "Brazópolis - Logradouros",
+    "url": "data/ruas/3108909_faces_de_logradouros_2022_simplified.json",
+    "description": "Brazópolis"
+  },
+  {
+    "name": "Braúnas - Logradouros",
+    "url": "data/ruas/3108800_faces_de_logradouros_2022_simplified.json",
+    "description": "Braúnas"
+  },
+  {
+    "name": "Brumadinho - Logradouros",
+    "url": "data/ruas/3109006_faces_de_logradouros_2022_simplified.json",
+    "description": "Brumadinho"
+  },
+  {
+    "name": "Brás Pires - Logradouros",
+    "url": "data/ruas/3108701_faces_de_logradouros_2022_simplified.json",
+    "description": "Brás Pires"
+  },
+  {
+    "name": "Bueno Brandão - Logradouros",
+    "url": "data/ruas/3109105_faces_de_logradouros_2022_simplified.json",
+    "description": "Bueno Brandão"
+  },
+  {
+    "name": "Buenópolis - Logradouros",
+    "url": "data/ruas/3109204_faces_de_logradouros_2022_simplified.json",
+    "description": "Buenópolis"
+  },
+  {
+    "name": "Bugre - Logradouros",
+    "url": "data/ruas/3109253_faces_de_logradouros_2022_simplified.json",
+    "description": "Bugre"
+  },
+  {
+    "name": "Buritis - Logradouros",
+    "url": "data/ruas/3109303_faces_de_logradouros_2022_simplified.json",
+    "description": "Buritis"
+  },
+  {
+    "name": "Buritizeiro - Logradouros",
+    "url": "data/ruas/3109402_faces_de_logradouros_2022_simplified.json",
+    "description": "Buritizeiro"
+  },
+  {
+    "name": "Cabeceira Grande - Logradouros",
+    "url": "data/ruas/3109451_faces_de_logradouros_2022_simplified.json",
+    "description": "Cabeceira Grande"
+  },
+  {
+    "name": "Cabo Verde - Logradouros",
+    "url": "data/ruas/3109501_faces_de_logradouros_2022_simplified.json",
+    "description": "Cabo Verde"
+  },
+  {
+    "name": "Cachoeira Dourada - Logradouros",
+    "url": "data/ruas/3109808_faces_de_logradouros_2022_simplified.json",
+    "description": "Cachoeira Dourada"
+  },
+  {
+    "name": "Cachoeira da Prata - Logradouros",
+    "url": "data/ruas/3109600_faces_de_logradouros_2022_simplified.json",
+    "description": "Cachoeira da Prata"
+  },
+  {
+    "name": "Cachoeira de Minas - Logradouros",
+    "url": "data/ruas/3109709_faces_de_logradouros_2022_simplified.json",
+    "description": "Cachoeira de Minas"
+  },
+  {
+    "name": "Cachoeira de Pajeú - Logradouros",
+    "url": "data/ruas/3102704_faces_de_logradouros_2022_simplified.json",
+    "description": "Cachoeira de Pajeú"
+  },
+  {
+    "name": "Caetanópolis - Logradouros",
+    "url": "data/ruas/3109907_faces_de_logradouros_2022_simplified.json",
+    "description": "Caetanópolis"
+  },
+  {
+    "name": "Caeté - Logradouros",
+    "url": "data/ruas/3110004_faces_de_logradouros_2022_simplified.json",
+    "description": "Caeté"
+  },
+  {
+    "name": "Caiana - Logradouros",
+    "url": "data/ruas/3110103_faces_de_logradouros_2022_simplified.json",
+    "description": "Caiana"
+  },
+  {
+    "name": "Cajuri - Logradouros",
+    "url": "data/ruas/3110202_faces_de_logradouros_2022_simplified.json",
+    "description": "Cajuri"
+  },
+  {
+    "name": "Caldas - Logradouros",
+    "url": "data/ruas/3110301_faces_de_logradouros_2022_simplified.json",
+    "description": "Caldas"
+  },
+  {
+    "name": "Camacho - Logradouros",
+    "url": "data/ruas/3110400_faces_de_logradouros_2022_simplified.json",
+    "description": "Camacho"
+  },
+  {
+    "name": "Camanducaia - Logradouros",
+    "url": "data/ruas/3110509_faces_de_logradouros_2022_simplified.json",
+    "description": "Camanducaia"
+  },
+  {
+    "name": "Cambuquira - Logradouros",
+    "url": "data/ruas/3110707_faces_de_logradouros_2022_simplified.json",
+    "description": "Cambuquira"
+  },
+  {
+    "name": "Cambuí - Logradouros",
+    "url": "data/ruas/3110608_faces_de_logradouros_2022_simplified.json",
+    "description": "Cambuí"
+  },
+  {
+    "name": "Campanha - Logradouros",
+    "url": "data/ruas/3110905_faces_de_logradouros_2022_simplified.json",
+    "description": "Campanha"
+  },
+  {
+    "name": "Campanário - Logradouros",
+    "url": "data/ruas/3110806_faces_de_logradouros_2022_simplified.json",
+    "description": "Campanário"
+  },
+  {
+    "name": "Campestre - Logradouros",
+    "url": "data/ruas/3111002_faces_de_logradouros_2022_simplified.json",
+    "description": "Campestre"
+  },
+  {
+    "name": "Campina Verde - Logradouros",
+    "url": "data/ruas/3111101_faces_de_logradouros_2022_simplified.json",
+    "description": "Campina Verde"
+  },
+  {
+    "name": "Campo Azul - Logradouros",
+    "url": "data/ruas/3111150_faces_de_logradouros_2022_simplified.json",
+    "description": "Campo Azul"
+  },
+  {
+    "name": "Campo Belo - Logradouros",
+    "url": "data/ruas/3111200_faces_de_logradouros_2022_simplified.json",
+    "description": "Campo Belo"
+  },
+  {
+    "name": "Campo Florido - Logradouros",
+    "url": "data/ruas/3111408_faces_de_logradouros_2022_simplified.json",
+    "description": "Campo Florido"
+  },
+  {
+    "name": "Campo do Meio - Logradouros",
+    "url": "data/ruas/3111309_faces_de_logradouros_2022_simplified.json",
+    "description": "Campo do Meio"
+  },
+  {
+    "name": "Campos Altos - Logradouros",
+    "url": "data/ruas/3111507_faces_de_logradouros_2022_simplified.json",
+    "description": "Campos Altos"
+  },
+  {
+    "name": "Campos Gerais - Logradouros",
+    "url": "data/ruas/3111606_faces_de_logradouros_2022_simplified.json",
+    "description": "Campos Gerais"
+  },
+  {
+    "name": "Cana Verde - Logradouros",
+    "url": "data/ruas/3111903_faces_de_logradouros_2022_simplified.json",
+    "description": "Cana Verde"
+  },
+  {
+    "name": "Canaã - Logradouros",
+    "url": "data/ruas/3111705_faces_de_logradouros_2022_simplified.json",
+    "description": "Canaã"
+  },
+  {
+    "name": "Candeias - Logradouros",
+    "url": "data/ruas/3112000_faces_de_logradouros_2022_simplified.json",
+    "description": "Candeias"
+  },
+  {
+    "name": "Cantagalo - Logradouros",
+    "url": "data/ruas/3112059_faces_de_logradouros_2022_simplified.json",
+    "description": "Cantagalo"
+  },
+  {
+    "name": "Canápolis - Logradouros",
+    "url": "data/ruas/3111804_faces_de_logradouros_2022_simplified.json",
+    "description": "Canápolis"
+  },
+  {
+    "name": "Caparaó - Logradouros",
+    "url": "data/ruas/3112109_faces_de_logradouros_2022_simplified.json",
+    "description": "Caparaó"
+  },
+  {
+    "name": "Capela Nova - Logradouros",
+    "url": "data/ruas/3112208_faces_de_logradouros_2022_simplified.json",
+    "description": "Capela Nova"
+  },
+  {
+    "name": "Capelinha - Logradouros",
+    "url": "data/ruas/3112307_faces_de_logradouros_2022_simplified.json",
+    "description": "Capelinha"
+  },
+  {
+    "name": "Capetinga - Logradouros",
+    "url": "data/ruas/3112406_faces_de_logradouros_2022_simplified.json",
+    "description": "Capetinga"
+  },
+  {
+    "name": "Capim Branco - Logradouros",
+    "url": "data/ruas/3112505_faces_de_logradouros_2022_simplified.json",
+    "description": "Capim Branco"
+  },
+  {
+    "name": "Capinópolis - Logradouros",
+    "url": "data/ruas/3112604_faces_de_logradouros_2022_simplified.json",
+    "description": "Capinópolis"
+  },
+  {
+    "name": "Capitão Andrade - Logradouros",
+    "url": "data/ruas/3112653_faces_de_logradouros_2022_simplified.json",
+    "description": "Capitão Andrade"
+  },
+  {
+    "name": "Capitão Enéas - Logradouros",
+    "url": "data/ruas/3112703_faces_de_logradouros_2022_simplified.json",
+    "description": "Capitão Enéas"
+  },
+  {
+    "name": "Capitólio - Logradouros",
+    "url": "data/ruas/3112802_faces_de_logradouros_2022_simplified.json",
+    "description": "Capitólio"
+  },
+  {
+    "name": "Caputira - Logradouros",
+    "url": "data/ruas/3112901_faces_de_logradouros_2022_simplified.json",
+    "description": "Caputira"
+  },
+  {
+    "name": "Caranaíba - Logradouros",
+    "url": "data/ruas/3113107_faces_de_logradouros_2022_simplified.json",
+    "description": "Caranaíba"
+  },
+  {
+    "name": "Carandaí - Logradouros",
+    "url": "data/ruas/3113206_faces_de_logradouros_2022_simplified.json",
+    "description": "Carandaí"
+  },
+  {
+    "name": "Carangola - Logradouros",
+    "url": "data/ruas/3113305_faces_de_logradouros_2022_simplified.json",
+    "description": "Carangola"
+  },
+  {
+    "name": "Caratinga - Logradouros",
+    "url": "data/ruas/3113404_faces_de_logradouros_2022_simplified.json",
+    "description": "Caratinga"
+  },
+  {
+    "name": "Caraí - Logradouros",
+    "url": "data/ruas/3113008_faces_de_logradouros_2022_simplified.json",
+    "description": "Caraí"
+  },
+  {
+    "name": "Carbonita - Logradouros",
+    "url": "data/ruas/3113503_faces_de_logradouros_2022_simplified.json",
+    "description": "Carbonita"
+  },
+  {
+    "name": "Careaçu - Logradouros",
+    "url": "data/ruas/3113602_faces_de_logradouros_2022_simplified.json",
+    "description": "Careaçu"
+  },
+  {
+    "name": "Carlos Chagas - Logradouros",
+    "url": "data/ruas/3113701_faces_de_logradouros_2022_simplified.json",
+    "description": "Carlos Chagas"
+  },
+  {
+    "name": "Carmo da Cachoeira - Logradouros",
+    "url": "data/ruas/3113909_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo da Cachoeira"
+  },
+  {
+    "name": "Carmo da Mata - Logradouros",
+    "url": "data/ruas/3114006_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo da Mata"
+  },
+  {
+    "name": "Carmo de Minas - Logradouros",
+    "url": "data/ruas/3114105_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo de Minas"
+  },
+  {
+    "name": "Carmo do Cajuru - Logradouros",
+    "url": "data/ruas/3114204_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo do Cajuru"
+  },
+  {
+    "name": "Carmo do Paranaíba - Logradouros",
+    "url": "data/ruas/3114303_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo do Paranaíba"
+  },
+  {
+    "name": "Carmo do Rio Claro - Logradouros",
+    "url": "data/ruas/3114402_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmo do Rio Claro"
+  },
+  {
+    "name": "Carmésia - Logradouros",
+    "url": "data/ruas/3113800_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmésia"
+  },
+  {
+    "name": "Carmópolis de Minas - Logradouros",
+    "url": "data/ruas/3114501_faces_de_logradouros_2022_simplified.json",
+    "description": "Carmópolis de Minas"
+  },
+  {
+    "name": "Carneirinho - Logradouros",
+    "url": "data/ruas/3114550_faces_de_logradouros_2022_simplified.json",
+    "description": "Carneirinho"
+  },
+  {
+    "name": "Carrancas - Logradouros",
+    "url": "data/ruas/3114600_faces_de_logradouros_2022_simplified.json",
+    "description": "Carrancas"
+  },
+  {
+    "name": "Carvalhos - Logradouros",
+    "url": "data/ruas/3114808_faces_de_logradouros_2022_simplified.json",
+    "description": "Carvalhos"
+  },
+  {
+    "name": "Carvalhópolis - Logradouros",
+    "url": "data/ruas/3114709_faces_de_logradouros_2022_simplified.json",
+    "description": "Carvalhópolis"
+  },
+  {
+    "name": "Casa Grande - Logradouros",
+    "url": "data/ruas/3114907_faces_de_logradouros_2022_simplified.json",
+    "description": "Casa Grande"
+  },
+  {
+    "name": "Cascalho Rico - Logradouros",
+    "url": "data/ruas/3115003_faces_de_logradouros_2022_simplified.json",
+    "description": "Cascalho Rico"
+  },
+  {
+    "name": "Cataguases - Logradouros",
+    "url": "data/ruas/3115300_faces_de_logradouros_2022_simplified.json",
+    "description": "Cataguases"
+  },
+  {
+    "name": "Catas Altas - Logradouros",
+    "url": "data/ruas/3115359_faces_de_logradouros_2022_simplified.json",
+    "description": "Catas Altas"
+  },
+  {
+    "name": "Catas Altas da Noruega - Logradouros",
+    "url": "data/ruas/3115409_faces_de_logradouros_2022_simplified.json",
+    "description": "Catas Altas da Noruega"
+  },
+  {
+    "name": "Catuji - Logradouros",
+    "url": "data/ruas/3115458_faces_de_logradouros_2022_simplified.json",
+    "description": "Catuji"
+  },
+  {
+    "name": "Catuti - Logradouros",
+    "url": "data/ruas/3115474_faces_de_logradouros_2022_simplified.json",
+    "description": "Catuti"
+  },
+  {
+    "name": "Caxambu - Logradouros",
+    "url": "data/ruas/3115508_faces_de_logradouros_2022_simplified.json",
+    "description": "Caxambu"
+  },
+  {
+    "name": "Cedro do Abaeté - Logradouros",
+    "url": "data/ruas/3115607_faces_de_logradouros_2022_simplified.json",
+    "description": "Cedro do Abaeté"
+  },
+  {
+    "name": "Central de Minas - Logradouros",
+    "url": "data/ruas/3115706_faces_de_logradouros_2022_simplified.json",
+    "description": "Central de Minas"
+  },
+  {
+    "name": "Centralina - Logradouros",
+    "url": "data/ruas/3115805_faces_de_logradouros_2022_simplified.json",
+    "description": "Centralina"
+  },
+  {
+    "name": "Chalé - Logradouros",
+    "url": "data/ruas/3116001_faces_de_logradouros_2022_simplified.json",
+    "description": "Chalé"
+  },
+  {
+    "name": "Chapada Gaúcha - Logradouros",
+    "url": "data/ruas/3116159_faces_de_logradouros_2022_simplified.json",
+    "description": "Chapada Gaúcha"
+  },
+  {
+    "name": "Chapada do Norte - Logradouros",
+    "url": "data/ruas/3116100_faces_de_logradouros_2022_simplified.json",
+    "description": "Chapada do Norte"
+  },
+  {
+    "name": "Chiador - Logradouros",
+    "url": "data/ruas/3116209_faces_de_logradouros_2022_simplified.json",
+    "description": "Chiador"
+  },
+  {
+    "name": "Chácara - Logradouros",
+    "url": "data/ruas/3115904_faces_de_logradouros_2022_simplified.json",
+    "description": "Chácara"
+  },
+  {
+    "name": "Cipotânea - Logradouros",
+    "url": "data/ruas/3116308_faces_de_logradouros_2022_simplified.json",
+    "description": "Cipotânea"
+  },
+  {
+    "name": "Claraval - Logradouros",
+    "url": "data/ruas/3116407_faces_de_logradouros_2022_simplified.json",
+    "description": "Claraval"
+  },
+  {
+    "name": "Claro dos Poções - Logradouros",
+    "url": "data/ruas/3116506_faces_de_logradouros_2022_simplified.json",
+    "description": "Claro dos Poções"
+  },
+  {
+    "name": "Cláudio - Logradouros",
+    "url": "data/ruas/3116605_faces_de_logradouros_2022_simplified.json",
+    "description": "Cláudio"
+  },
+  {
+    "name": "Coimbra - Logradouros",
+    "url": "data/ruas/3116704_faces_de_logradouros_2022_simplified.json",
+    "description": "Coimbra"
+  },
+  {
+    "name": "Coluna - Logradouros",
+    "url": "data/ruas/3116803_faces_de_logradouros_2022_simplified.json",
+    "description": "Coluna"
+  },
+  {
+    "name": "Comendador Gomes - Logradouros",
+    "url": "data/ruas/3116902_faces_de_logradouros_2022_simplified.json",
+    "description": "Comendador Gomes"
+  },
+  {
+    "name": "Comercinho - Logradouros",
+    "url": "data/ruas/3117009_faces_de_logradouros_2022_simplified.json",
+    "description": "Comercinho"
+  },
+  {
+    "name": "Conceição da Aparecida - Logradouros",
+    "url": "data/ruas/3117108_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição da Aparecida"
+  },
+  {
+    "name": "Conceição da Barra de Minas - Logradouros",
+    "url": "data/ruas/3115201_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição da Barra de Minas"
+  },
+  {
+    "name": "Conceição das Alagoas - Logradouros",
+    "url": "data/ruas/3117306_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição das Alagoas"
+  },
+  {
+    "name": "Conceição das Pedras - Logradouros",
+    "url": "data/ruas/3117207_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição das Pedras"
+  },
+  {
+    "name": "Conceição de Ipanema - Logradouros",
+    "url": "data/ruas/3117405_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição de Ipanema"
+  },
+  {
+    "name": "Conceição do Mato Dentro - Logradouros",
+    "url": "data/ruas/3117504_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição do Mato Dentro"
+  },
+  {
+    "name": "Conceição do Pará - Logradouros",
+    "url": "data/ruas/3117603_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição do Pará"
+  },
+  {
+    "name": "Conceição do Rio Verde - Logradouros",
+    "url": "data/ruas/3117702_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição do Rio Verde"
+  },
+  {
+    "name": "Conceição dos Ouros - Logradouros",
+    "url": "data/ruas/3117801_faces_de_logradouros_2022_simplified.json",
+    "description": "Conceição dos Ouros"
+  },
+  {
+    "name": "Confins - Logradouros",
+    "url": "data/ruas/3117876_faces_de_logradouros_2022_simplified.json",
+    "description": "Confins"
+  },
+  {
+    "name": "Congonhal - Logradouros",
+    "url": "data/ruas/3117900_faces_de_logradouros_2022_simplified.json",
+    "description": "Congonhal"
+  },
+  {
+    "name": "Congonhas - Logradouros",
+    "url": "data/ruas/3118007_faces_de_logradouros_2022_simplified.json",
+    "description": "Congonhas"
+  },
+  {
+    "name": "Congonhas do Norte - Logradouros",
+    "url": "data/ruas/3118106_faces_de_logradouros_2022_simplified.json",
+    "description": "Congonhas do Norte"
+  },
+  {
+    "name": "Conquista - Logradouros",
+    "url": "data/ruas/3118205_faces_de_logradouros_2022_simplified.json",
+    "description": "Conquista"
+  },
+  {
+    "name": "Conselheiro Lafaiete - Logradouros",
+    "url": "data/ruas/3118304_faces_de_logradouros_2022_simplified.json",
+    "description": "Conselheiro Lafaiete"
+  },
+  {
+    "name": "Conselheiro Pena - Logradouros",
+    "url": "data/ruas/3118403_faces_de_logradouros_2022_simplified.json",
+    "description": "Conselheiro Pena"
+  },
+  {
+    "name": "Consolação - Logradouros",
+    "url": "data/ruas/3118502_faces_de_logradouros_2022_simplified.json",
+    "description": "Consolação"
+  },
+  {
+    "name": "Contagem - Logradouros",
+    "url": "data/ruas/3118601_faces_de_logradouros_2022_simplified.json",
+    "description": "Contagem"
+  },
+  {
+    "name": "Coqueiral - Logradouros",
+    "url": "data/ruas/3118700_faces_de_logradouros_2022_simplified.json",
+    "description": "Coqueiral"
+  },
+  {
+    "name": "Coração de Jesus - Logradouros",
+    "url": "data/ruas/3118809_faces_de_logradouros_2022_simplified.json",
+    "description": "Coração de Jesus"
+  },
+  {
+    "name": "Cordisburgo - Logradouros",
+    "url": "data/ruas/3118908_faces_de_logradouros_2022_simplified.json",
+    "description": "Cordisburgo"
+  },
+  {
+    "name": "Cordislândia - Logradouros",
+    "url": "data/ruas/3119005_faces_de_logradouros_2022_simplified.json",
+    "description": "Cordislândia"
+  },
+  {
+    "name": "Corinto - Logradouros",
+    "url": "data/ruas/3119104_faces_de_logradouros_2022_simplified.json",
+    "description": "Corinto"
+  },
+  {
+    "name": "Coroaci - Logradouros",
+    "url": "data/ruas/3119203_faces_de_logradouros_2022_simplified.json",
+    "description": "Coroaci"
+  },
+  {
+    "name": "Coromandel - Logradouros",
+    "url": "data/ruas/3119302_faces_de_logradouros_2022_simplified.json",
+    "description": "Coromandel"
+  },
+  {
+    "name": "Coronel Fabriciano - Logradouros",
+    "url": "data/ruas/3119401_faces_de_logradouros_2022_simplified.json",
+    "description": "Coronel Fabriciano"
+  },
+  {
+    "name": "Coronel Murta - Logradouros",
+    "url": "data/ruas/3119500_faces_de_logradouros_2022_simplified.json",
+    "description": "Coronel Murta"
+  },
+  {
+    "name": "Coronel Pacheco - Logradouros",
+    "url": "data/ruas/3119609_faces_de_logradouros_2022_simplified.json",
+    "description": "Coronel Pacheco"
+  },
+  {
+    "name": "Coronel Xavier Chaves - Logradouros",
+    "url": "data/ruas/3119708_faces_de_logradouros_2022_simplified.json",
+    "description": "Coronel Xavier Chaves"
+  },
+  {
+    "name": "Couto de Magalhães de Minas - Logradouros",
+    "url": "data/ruas/3120102_faces_de_logradouros_2022_simplified.json",
+    "description": "Couto de Magalhães de Minas"
+  },
+  {
+    "name": "Cristais - Logradouros",
+    "url": "data/ruas/3120201_faces_de_logradouros_2022_simplified.json",
+    "description": "Cristais"
+  },
+  {
+    "name": "Cristiano Otoni - Logradouros",
+    "url": "data/ruas/3120409_faces_de_logradouros_2022_simplified.json",
+    "description": "Cristiano Otoni"
+  },
+  {
+    "name": "Cristina - Logradouros",
+    "url": "data/ruas/3120508_faces_de_logradouros_2022_simplified.json",
+    "description": "Cristina"
+  },
+  {
+    "name": "Cristália - Logradouros",
+    "url": "data/ruas/3120300_faces_de_logradouros_2022_simplified.json",
+    "description": "Cristália"
+  },
+  {
+    "name": "Crisólita - Logradouros",
+    "url": "data/ruas/3120151_faces_de_logradouros_2022_simplified.json",
+    "description": "Crisólita"
+  },
+  {
+    "name": "Crucilândia - Logradouros",
+    "url": "data/ruas/3120607_faces_de_logradouros_2022_simplified.json",
+    "description": "Crucilândia"
+  },
+  {
+    "name": "Cruzeiro da Fortaleza - Logradouros",
+    "url": "data/ruas/3120706_faces_de_logradouros_2022_simplified.json",
+    "description": "Cruzeiro da Fortaleza"
+  },
+  {
+    "name": "Cruzília - Logradouros",
+    "url": "data/ruas/3120805_faces_de_logradouros_2022_simplified.json",
+    "description": "Cruzília"
+  },
+  {
+    "name": "Cuparaque - Logradouros",
+    "url": "data/ruas/3120839_faces_de_logradouros_2022_simplified.json",
+    "description": "Cuparaque"
+  },
+  {
+    "name": "Curral de Dentro - Logradouros",
+    "url": "data/ruas/3120870_faces_de_logradouros_2022_simplified.json",
+    "description": "Curral de Dentro"
+  },
+  {
+    "name": "Curvelo - Logradouros",
+    "url": "data/ruas/3120904_faces_de_logradouros_2022_simplified.json",
+    "description": "Curvelo"
+  },
+  {
+    "name": "Cássia - Logradouros",
+    "url": "data/ruas/3115102_faces_de_logradouros_2022_simplified.json",
+    "description": "Cássia"
+  },
+  {
+    "name": "Córrego Danta - Logradouros",
+    "url": "data/ruas/3119807_faces_de_logradouros_2022_simplified.json",
+    "description": "Córrego Danta"
+  },
+  {
+    "name": "Córrego Fundo - Logradouros",
+    "url": "data/ruas/3119955_faces_de_logradouros_2022_simplified.json",
+    "description": "Córrego Fundo"
+  },
+  {
+    "name": "Córrego Novo - Logradouros",
+    "url": "data/ruas/3120003_faces_de_logradouros_2022_simplified.json",
+    "description": "Córrego Novo"
+  },
+  {
+    "name": "Córrego do Bom Jesus - Logradouros",
+    "url": "data/ruas/3119906_faces_de_logradouros_2022_simplified.json",
+    "description": "Córrego do Bom Jesus"
+  },
+  {
+    "name": "Cônego Marinho - Logradouros",
+    "url": "data/ruas/3117836_faces_de_logradouros_2022_simplified.json",
+    "description": "Cônego Marinho"
+  },
+  {
+    "name": "Datas - Logradouros",
+    "url": "data/ruas/3121001_faces_de_logradouros_2022_simplified.json",
+    "description": "Datas"
+  },
+  {
+    "name": "Delfim Moreira - Logradouros",
+    "url": "data/ruas/3121100_faces_de_logradouros_2022_simplified.json",
+    "description": "Delfim Moreira"
+  },
+  {
+    "name": "Delfinópolis - Logradouros",
+    "url": "data/ruas/3121209_faces_de_logradouros_2022_simplified.json",
+    "description": "Delfinópolis"
+  },
+  {
+    "name": "Delta - Logradouros",
+    "url": "data/ruas/3121258_faces_de_logradouros_2022_simplified.json",
+    "description": "Delta"
+  },
+  {
+    "name": "Descoberto - Logradouros",
+    "url": "data/ruas/3121308_faces_de_logradouros_2022_simplified.json",
+    "description": "Descoberto"
+  },
+  {
+    "name": "Desterro de Entre Rios - Logradouros",
+    "url": "data/ruas/3121407_faces_de_logradouros_2022_simplified.json",
+    "description": "Desterro de Entre Rios"
+  },
+  {
+    "name": "Desterro do Melo - Logradouros",
+    "url": "data/ruas/3121506_faces_de_logradouros_2022_simplified.json",
+    "description": "Desterro do Melo"
+  },
+  {
+    "name": "Diamantina - Logradouros",
+    "url": "data/ruas/3121605_faces_de_logradouros_2022_simplified.json",
+    "description": "Diamantina"
+  },
+  {
+    "name": "Diogo de Vasconcelos - Logradouros",
+    "url": "data/ruas/3121704_faces_de_logradouros_2022_simplified.json",
+    "description": "Diogo de Vasconcelos"
+  },
+  {
+    "name": "Dionísio - Logradouros",
+    "url": "data/ruas/3121803_faces_de_logradouros_2022_simplified.json",
+    "description": "Dionísio"
+  },
+  {
+    "name": "Divino - Logradouros",
+    "url": "data/ruas/3122009_faces_de_logradouros_2022_simplified.json",
+    "description": "Divino"
+  },
+  {
+    "name": "Divino das Laranjeiras - Logradouros",
+    "url": "data/ruas/3122108_faces_de_logradouros_2022_simplified.json",
+    "description": "Divino das Laranjeiras"
+  },
+  {
+    "name": "Divinolândia de Minas - Logradouros",
+    "url": "data/ruas/3122207_faces_de_logradouros_2022_simplified.json",
+    "description": "Divinolândia de Minas"
+  },
+  {
+    "name": "Divinésia - Logradouros",
+    "url": "data/ruas/3121902_faces_de_logradouros_2022_simplified.json",
+    "description": "Divinésia"
+  },
+  {
+    "name": "Divinópolis - Logradouros",
+    "url": "data/ruas/3122306_faces_de_logradouros_2022_simplified.json",
+    "description": "Divinópolis"
+  },
+  {
+    "name": "Divisa Alegre - Logradouros",
+    "url": "data/ruas/3122355_faces_de_logradouros_2022_simplified.json",
+    "description": "Divisa Alegre"
+  },
+  {
+    "name": "Divisa Nova - Logradouros",
+    "url": "data/ruas/3122405_faces_de_logradouros_2022_simplified.json",
+    "description": "Divisa Nova"
+  },
+  {
+    "name": "Divisópolis - Logradouros",
+    "url": "data/ruas/3122454_faces_de_logradouros_2022_simplified.json",
+    "description": "Divisópolis"
+  },
+  {
+    "name": "Dom Bosco - Logradouros",
+    "url": "data/ruas/3122470_faces_de_logradouros_2022_simplified.json",
+    "description": "Dom Bosco"
+  },
+  {
+    "name": "Dom Cavati - Logradouros",
+    "url": "data/ruas/3122504_faces_de_logradouros_2022_simplified.json",
+    "description": "Dom Cavati"
+  },
+  {
+    "name": "Dom Joaquim - Logradouros",
+    "url": "data/ruas/3122603_faces_de_logradouros_2022_simplified.json",
+    "description": "Dom Joaquim"
+  },
+  {
+    "name": "Dom Silvério - Logradouros",
+    "url": "data/ruas/3122702_faces_de_logradouros_2022_simplified.json",
+    "description": "Dom Silvério"
+  },
+  {
+    "name": "Dom Viçoso - Logradouros",
+    "url": "data/ruas/3122801_faces_de_logradouros_2022_simplified.json",
+    "description": "Dom Viçoso"
+  },
+  {
+    "name": "Dona Eusébia - Logradouros",
+    "url": "data/ruas/3122900_faces_de_logradouros_2022_simplified.json",
+    "description": "Dona Eusébia"
+  },
+  {
+    "name": "Dores de Campos - Logradouros",
+    "url": "data/ruas/3123007_faces_de_logradouros_2022_simplified.json",
+    "description": "Dores de Campos"
+  },
+  {
+    "name": "Dores de Guanhães - Logradouros",
+    "url": "data/ruas/3123106_faces_de_logradouros_2022_simplified.json",
+    "description": "Dores de Guanhães"
+  },
+  {
+    "name": "Dores do Indaiá - Logradouros",
+    "url": "data/ruas/3123205_faces_de_logradouros_2022_simplified.json",
+    "description": "Dores do Indaiá"
+  },
+  {
+    "name": "Dores do Turvo - Logradouros",
+    "url": "data/ruas/3123304_faces_de_logradouros_2022_simplified.json",
+    "description": "Dores do Turvo"
+  },
+  {
+    "name": "Doresópolis - Logradouros",
+    "url": "data/ruas/3123403_faces_de_logradouros_2022_simplified.json",
+    "description": "Doresópolis"
+  },
+  {
+    "name": "Douradoquara - Logradouros",
+    "url": "data/ruas/3123502_faces_de_logradouros_2022_simplified.json",
+    "description": "Douradoquara"
+  },
+  {
+    "name": "Durandé - Logradouros",
+    "url": "data/ruas/3123528_faces_de_logradouros_2022_simplified.json",
+    "description": "Durandé"
+  },
+  {
+    "name": "Elói Mendes - Logradouros",
+    "url": "data/ruas/3123601_faces_de_logradouros_2022_simplified.json",
+    "description": "Elói Mendes"
+  },
+  {
+    "name": "Engenheiro Caldas - Logradouros",
+    "url": "data/ruas/3123700_faces_de_logradouros_2022_simplified.json",
+    "description": "Engenheiro Caldas"
+  },
+  {
+    "name": "Engenheiro Navarro - Logradouros",
+    "url": "data/ruas/3123809_faces_de_logradouros_2022_simplified.json",
+    "description": "Engenheiro Navarro"
+  },
+  {
+    "name": "Entre Folhas - Logradouros",
+    "url": "data/ruas/3123858_faces_de_logradouros_2022_simplified.json",
+    "description": "Entre Folhas"
+  },
+  {
+    "name": "Entre Rios de Minas - Logradouros",
+    "url": "data/ruas/3123908_faces_de_logradouros_2022_simplified.json",
+    "description": "Entre Rios de Minas"
+  },
+  {
+    "name": "Ervália - Logradouros",
+    "url": "data/ruas/3124005_faces_de_logradouros_2022_simplified.json",
+    "description": "Ervália"
+  },
+  {
+    "name": "Esmeraldas - Logradouros",
+    "url": "data/ruas/3124104_faces_de_logradouros_2022_simplified.json",
+    "description": "Esmeraldas"
+  },
+  {
+    "name": "Espera Feliz - Logradouros",
+    "url": "data/ruas/3124203_faces_de_logradouros_2022_simplified.json",
+    "description": "Espera Feliz"
+  },
+  {
+    "name": "Espinosa - Logradouros",
+    "url": "data/ruas/3124302_faces_de_logradouros_2022_simplified.json",
+    "description": "Espinosa"
+  },
+  {
+    "name": "Espírito Santo do Dourado - Logradouros",
+    "url": "data/ruas/3124401_faces_de_logradouros_2022_simplified.json",
+    "description": "Espírito Santo do Dourado"
+  },
+  {
+    "name": "Estiva - Logradouros",
+    "url": "data/ruas/3124500_faces_de_logradouros_2022_simplified.json",
+    "description": "Estiva"
+  },
+  {
+    "name": "Estrela Dalva - Logradouros",
+    "url": "data/ruas/3124609_faces_de_logradouros_2022_simplified.json",
+    "description": "Estrela Dalva"
+  },
+  {
+    "name": "Estrela do Indaiá - Logradouros",
+    "url": "data/ruas/3124708_faces_de_logradouros_2022_simplified.json",
+    "description": "Estrela do Indaiá"
+  },
+  {
+    "name": "Estrela do Sul - Logradouros",
+    "url": "data/ruas/3124807_faces_de_logradouros_2022_simplified.json",
+    "description": "Estrela do Sul"
+  },
+  {
+    "name": "Eugenópolis - Logradouros",
+    "url": "data/ruas/3124906_faces_de_logradouros_2022_simplified.json",
+    "description": "Eugenópolis"
+  },
+  {
+    "name": "Ewbank da Câmara - Logradouros",
+    "url": "data/ruas/3125002_faces_de_logradouros_2022_simplified.json",
+    "description": "Ewbank da Câmara"
+  },
+  {
+    "name": "Extrema - Logradouros",
+    "url": "data/ruas/3125101_faces_de_logradouros_2022_simplified.json",
+    "description": "Extrema"
+  },
+  {
+    "name": "Fama - Logradouros",
+    "url": "data/ruas/3125200_faces_de_logradouros_2022_simplified.json",
+    "description": "Fama"
+  },
+  {
+    "name": "Faria Lemos - Logradouros",
+    "url": "data/ruas/3125309_faces_de_logradouros_2022_simplified.json",
+    "description": "Faria Lemos"
+  },
+  {
+    "name": "Felisburgo - Logradouros",
+    "url": "data/ruas/3125606_faces_de_logradouros_2022_simplified.json",
+    "description": "Felisburgo"
+  },
+  {
+    "name": "Felixlândia - Logradouros",
+    "url": "data/ruas/3125705_faces_de_logradouros_2022_simplified.json",
+    "description": "Felixlândia"
+  },
+  {
+    "name": "Felício dos Santos - Logradouros",
+    "url": "data/ruas/3125408_faces_de_logradouros_2022_simplified.json",
+    "description": "Felício dos Santos"
+  },
+  {
+    "name": "Fernandes Tourinho - Logradouros",
+    "url": "data/ruas/3125804_faces_de_logradouros_2022_simplified.json",
+    "description": "Fernandes Tourinho"
+  },
+  {
+    "name": "Ferros - Logradouros",
+    "url": "data/ruas/3125903_faces_de_logradouros_2022_simplified.json",
+    "description": "Ferros"
+  },
+  {
+    "name": "Fervedouro - Logradouros",
+    "url": "data/ruas/3125952_faces_de_logradouros_2022_simplified.json",
+    "description": "Fervedouro"
+  },
+  {
+    "name": "Florestal - Logradouros",
+    "url": "data/ruas/3126000_faces_de_logradouros_2022_simplified.json",
+    "description": "Florestal"
+  },
+  {
+    "name": "Formiga - Logradouros",
+    "url": "data/ruas/3126109_faces_de_logradouros_2022_simplified.json",
+    "description": "Formiga"
+  },
+  {
+    "name": "Formoso - Logradouros",
+    "url": "data/ruas/3126208_faces_de_logradouros_2022_simplified.json",
+    "description": "Formoso"
+  },
+  {
+    "name": "Fortaleza de Minas - Logradouros",
+    "url": "data/ruas/3126307_faces_de_logradouros_2022_simplified.json",
+    "description": "Fortaleza de Minas"
+  },
+  {
+    "name": "Fortuna de Minas - Logradouros",
+    "url": "data/ruas/3126406_faces_de_logradouros_2022_simplified.json",
+    "description": "Fortuna de Minas"
+  },
+  {
+    "name": "Francisco Badaró - Logradouros",
+    "url": "data/ruas/3126505_faces_de_logradouros_2022_simplified.json",
+    "description": "Francisco Badaró"
+  },
+  {
+    "name": "Francisco Dumont - Logradouros",
+    "url": "data/ruas/3126604_faces_de_logradouros_2022_simplified.json",
+    "description": "Francisco Dumont"
+  },
+  {
+    "name": "Francisco Sá - Logradouros",
+    "url": "data/ruas/3126703_faces_de_logradouros_2022_simplified.json",
+    "description": "Francisco Sá"
+  },
+  {
+    "name": "Franciscópolis - Logradouros",
+    "url": "data/ruas/3126752_faces_de_logradouros_2022_simplified.json",
+    "description": "Franciscópolis"
+  },
+  {
+    "name": "Frei Gaspar - Logradouros",
+    "url": "data/ruas/3126802_faces_de_logradouros_2022_simplified.json",
+    "description": "Frei Gaspar"
+  },
+  {
+    "name": "Frei Inocêncio - Logradouros",
+    "url": "data/ruas/3126901_faces_de_logradouros_2022_simplified.json",
+    "description": "Frei Inocêncio"
+  },
+  {
+    "name": "Frei Lagonegro - Logradouros",
+    "url": "data/ruas/3126950_faces_de_logradouros_2022_simplified.json",
+    "description": "Frei Lagonegro"
+  },
+  {
+    "name": "Fronteira - Logradouros",
+    "url": "data/ruas/3127008_faces_de_logradouros_2022_simplified.json",
+    "description": "Fronteira"
+  },
+  {
+    "name": "Fronteira dos Vales - Logradouros",
+    "url": "data/ruas/3127057_faces_de_logradouros_2022_simplified.json",
+    "description": "Fronteira dos Vales"
+  },
+  {
+    "name": "Fruta de Leite - Logradouros",
+    "url": "data/ruas/3127073_faces_de_logradouros_2022_simplified.json",
+    "description": "Fruta de Leite"
+  },
+  {
+    "name": "Frutal - Logradouros",
+    "url": "data/ruas/3127107_faces_de_logradouros_2022_simplified.json",
+    "description": "Frutal"
+  },
+  {
+    "name": "Funilândia - Logradouros",
+    "url": "data/ruas/3127206_faces_de_logradouros_2022_simplified.json",
+    "description": "Funilândia"
+  },
+  {
+    "name": "Galiléia - Logradouros",
+    "url": "data/ruas/3127305_faces_de_logradouros_2022_simplified.json",
+    "description": "Galiléia"
+  },
+  {
+    "name": "Gameleiras - Logradouros",
+    "url": "data/ruas/3127339_faces_de_logradouros_2022_simplified.json",
+    "description": "Gameleiras"
+  },
+  {
+    "name": "Glaucilândia - Logradouros",
+    "url": "data/ruas/3127354_faces_de_logradouros_2022_simplified.json",
+    "description": "Glaucilândia"
+  },
+  {
+    "name": "Goiabeira - Logradouros",
+    "url": "data/ruas/3127370_faces_de_logradouros_2022_simplified.json",
+    "description": "Goiabeira"
+  },
+  {
+    "name": "Goianá - Logradouros",
+    "url": "data/ruas/3127388_faces_de_logradouros_2022_simplified.json",
+    "description": "Goianá"
+  },
+  {
+    "name": "Gonzaga - Logradouros",
+    "url": "data/ruas/3127503_faces_de_logradouros_2022_simplified.json",
+    "description": "Gonzaga"
+  },
+  {
+    "name": "Gonçalves - Logradouros",
+    "url": "data/ruas/3127404_faces_de_logradouros_2022_simplified.json",
+    "description": "Gonçalves"
+  },
+  {
+    "name": "Gouveia - Logradouros",
+    "url": "data/ruas/3127602_faces_de_logradouros_2022_simplified.json",
+    "description": "Gouveia"
+  },
+  {
+    "name": "Governador Valadares - Logradouros",
+    "url": "data/ruas/3127701_faces_de_logradouros_2022_simplified.json",
+    "description": "Governador Valadares"
+  },
+  {
+    "name": "Grupiara - Logradouros",
+    "url": "data/ruas/3127909_faces_de_logradouros_2022_simplified.json",
+    "description": "Grupiara"
+  },
+  {
+    "name": "Grão Mogol - Logradouros",
+    "url": "data/ruas/3127800_faces_de_logradouros_2022_simplified.json",
+    "description": "Grão Mogol"
+  },
+  {
+    "name": "Guanhães - Logradouros",
+    "url": "data/ruas/3128006_faces_de_logradouros_2022_simplified.json",
+    "description": "Guanhães"
+  },
+  {
+    "name": "Guapé - Logradouros",
+    "url": "data/ruas/3128105_faces_de_logradouros_2022_simplified.json",
+    "description": "Guapé"
+  },
+  {
+    "name": "Guaraciaba - Logradouros",
+    "url": "data/ruas/3128204_faces_de_logradouros_2022_simplified.json",
+    "description": "Guaraciaba"
+  },
+  {
+    "name": "Guaraciama - Logradouros",
+    "url": "data/ruas/3128253_faces_de_logradouros_2022_simplified.json",
+    "description": "Guaraciama"
+  },
+  {
+    "name": "Guarani - Logradouros",
+    "url": "data/ruas/3128402_faces_de_logradouros_2022_simplified.json",
+    "description": "Guarani"
+  },
+  {
+    "name": "Guaranésia - Logradouros",
+    "url": "data/ruas/3128303_faces_de_logradouros_2022_simplified.json",
+    "description": "Guaranésia"
+  },
+  {
+    "name": "Guarará - Logradouros",
+    "url": "data/ruas/3128501_faces_de_logradouros_2022_simplified.json",
+    "description": "Guarará"
+  },
+  {
+    "name": "Guarda-Mor - Logradouros",
+    "url": "data/ruas/3128600_faces_de_logradouros_2022_simplified.json",
+    "description": "Guarda-Mor"
+  },
+  {
+    "name": "Guaxupé - Logradouros",
+    "url": "data/ruas/3128709_faces_de_logradouros_2022_simplified.json",
+    "description": "Guaxupé"
+  },
+  {
+    "name": "Guidoval - Logradouros",
+    "url": "data/ruas/3128808_faces_de_logradouros_2022_simplified.json",
+    "description": "Guidoval"
+  },
+  {
+    "name": "Guimarânia - Logradouros",
+    "url": "data/ruas/3128907_faces_de_logradouros_2022_simplified.json",
+    "description": "Guimarânia"
+  },
+  {
+    "name": "Guiricema - Logradouros",
+    "url": "data/ruas/3129004_faces_de_logradouros_2022_simplified.json",
+    "description": "Guiricema"
+  },
+  {
+    "name": "Gurinhatã - Logradouros",
+    "url": "data/ruas/3129103_faces_de_logradouros_2022_simplified.json",
+    "description": "Gurinhatã"
+  },
+  {
+    "name": "Heliodora - Logradouros",
+    "url": "data/ruas/3129202_faces_de_logradouros_2022_simplified.json",
+    "description": "Heliodora"
+  },
+  {
+    "name": "Iapu - Logradouros",
+    "url": "data/ruas/3129301_faces_de_logradouros_2022_simplified.json",
+    "description": "Iapu"
+  },
+  {
+    "name": "Ibertioga - Logradouros",
+    "url": "data/ruas/3129400_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibertioga"
+  },
+  {
+    "name": "Ibiaí - Logradouros",
+    "url": "data/ruas/3129608_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibiaí"
+  },
+  {
+    "name": "Ibiracatu - Logradouros",
+    "url": "data/ruas/3129657_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibiracatu"
+  },
+  {
+    "name": "Ibiraci - Logradouros",
+    "url": "data/ruas/3129707_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibiraci"
+  },
+  {
+    "name": "Ibirité - Logradouros",
+    "url": "data/ruas/3129806_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibirité"
+  },
+  {
+    "name": "Ibitiúra de Minas - Logradouros",
+    "url": "data/ruas/3129905_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibitiúra de Minas"
+  },
+  {
+    "name": "Ibituruna - Logradouros",
+    "url": "data/ruas/3130002_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibituruna"
+  },
+  {
+    "name": "Ibiá - Logradouros",
+    "url": "data/ruas/3129509_faces_de_logradouros_2022_simplified.json",
+    "description": "Ibiá"
+  },
+  {
+    "name": "Icaraí de Minas - Logradouros",
+    "url": "data/ruas/3130051_faces_de_logradouros_2022_simplified.json",
+    "description": "Icaraí de Minas"
+  },
+  {
+    "name": "Igarapé - Logradouros",
+    "url": "data/ruas/3130101_faces_de_logradouros_2022_simplified.json",
+    "description": "Igarapé"
+  },
+  {
+    "name": "Igaratinga - Logradouros",
+    "url": "data/ruas/3130200_faces_de_logradouros_2022_simplified.json",
+    "description": "Igaratinga"
+  },
+  {
+    "name": "Iguatama - Logradouros",
+    "url": "data/ruas/3130309_faces_de_logradouros_2022_simplified.json",
+    "description": "Iguatama"
+  },
+  {
+    "name": "Ijaci - Logradouros",
+    "url": "data/ruas/3130408_faces_de_logradouros_2022_simplified.json",
+    "description": "Ijaci"
+  },
+  {
+    "name": "Ilicínea - Logradouros",
+    "url": "data/ruas/3130507_faces_de_logradouros_2022_simplified.json",
+    "description": "Ilicínea"
+  },
+  {
+    "name": "Imbé de Minas - Logradouros",
+    "url": "data/ruas/3130556_faces_de_logradouros_2022_simplified.json",
+    "description": "Imbé de Minas"
+  },
+  {
+    "name": "Inconfidentes - Logradouros",
+    "url": "data/ruas/3130606_faces_de_logradouros_2022_simplified.json",
+    "description": "Inconfidentes"
+  },
+  {
+    "name": "Indaiabira - Logradouros",
+    "url": "data/ruas/3130655_faces_de_logradouros_2022_simplified.json",
+    "description": "Indaiabira"
+  },
+  {
+    "name": "Indianópolis - Logradouros",
+    "url": "data/ruas/3130705_faces_de_logradouros_2022_simplified.json",
+    "description": "Indianópolis"
+  },
+  {
+    "name": "Ingaí - Logradouros",
+    "url": "data/ruas/3130804_faces_de_logradouros_2022_simplified.json",
+    "description": "Ingaí"
+  },
+  {
+    "name": "Inhapim - Logradouros",
+    "url": "data/ruas/3130903_faces_de_logradouros_2022_simplified.json",
+    "description": "Inhapim"
+  },
+  {
+    "name": "Inhaúma - Logradouros",
+    "url": "data/ruas/3131000_faces_de_logradouros_2022_simplified.json",
+    "description": "Inhaúma"
+  },
+  {
+    "name": "Inimutaba - Logradouros",
+    "url": "data/ruas/3131109_faces_de_logradouros_2022_simplified.json",
+    "description": "Inimutaba"
+  },
+  {
+    "name": "Ipaba - Logradouros",
+    "url": "data/ruas/3131158_faces_de_logradouros_2022_simplified.json",
+    "description": "Ipaba"
+  },
+  {
+    "name": "Ipanema - Logradouros",
+    "url": "data/ruas/3131208_faces_de_logradouros_2022_simplified.json",
+    "description": "Ipanema"
+  },
+  {
+    "name": "Ipatinga - Logradouros",
+    "url": "data/ruas/3131307_faces_de_logradouros_2022_simplified.json",
+    "description": "Ipatinga"
+  },
+  {
+    "name": "Ipiaçu - Logradouros",
+    "url": "data/ruas/3131406_faces_de_logradouros_2022_simplified.json",
+    "description": "Ipiaçu"
+  },
+  {
+    "name": "Ipuiúna - Logradouros",
+    "url": "data/ruas/3131505_faces_de_logradouros_2022_simplified.json",
+    "description": "Ipuiúna"
+  },
+  {
+    "name": "Iraí de Minas - Logradouros",
+    "url": "data/ruas/3131604_faces_de_logradouros_2022_simplified.json",
+    "description": "Iraí de Minas"
+  },
+  {
+    "name": "Itabira - Logradouros",
+    "url": "data/ruas/3131703_faces_de_logradouros_2022_simplified.json",
+    "description": "Itabira"
+  },
+  {
+    "name": "Itabirinha - Logradouros",
+    "url": "data/ruas/3131802_faces_de_logradouros_2022_simplified.json",
+    "description": "Itabirinha"
+  },
+  {
+    "name": "Itabirito - Logradouros",
+    "url": "data/ruas/3131901_faces_de_logradouros_2022_simplified.json",
+    "description": "Itabirito"
+  },
+  {
+    "name": "Itacambira - Logradouros",
+    "url": "data/ruas/3132008_faces_de_logradouros_2022_simplified.json",
+    "description": "Itacambira"
+  },
+  {
+    "name": "Itacarambi - Logradouros",
+    "url": "data/ruas/3132107_faces_de_logradouros_2022_simplified.json",
+    "description": "Itacarambi"
+  },
+  {
+    "name": "Itaguara - Logradouros",
+    "url": "data/ruas/3132206_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaguara"
+  },
+  {
+    "name": "Itaipé - Logradouros",
+    "url": "data/ruas/3132305_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaipé"
+  },
+  {
+    "name": "Itajubá - Logradouros",
+    "url": "data/ruas/3132404_faces_de_logradouros_2022_simplified.json",
+    "description": "Itajubá"
+  },
+  {
+    "name": "Itamarandiba - Logradouros",
+    "url": "data/ruas/3132503_faces_de_logradouros_2022_simplified.json",
+    "description": "Itamarandiba"
+  },
+  {
+    "name": "Itamarati de Minas - Logradouros",
+    "url": "data/ruas/3132602_faces_de_logradouros_2022_simplified.json",
+    "description": "Itamarati de Minas"
+  },
+  {
+    "name": "Itambacuri - Logradouros",
+    "url": "data/ruas/3132701_faces_de_logradouros_2022_simplified.json",
+    "description": "Itambacuri"
+  },
+  {
+    "name": "Itambé do Mato Dentro - Logradouros",
+    "url": "data/ruas/3132800_faces_de_logradouros_2022_simplified.json",
+    "description": "Itambé do Mato Dentro"
+  },
+  {
+    "name": "Itamogi - Logradouros",
+    "url": "data/ruas/3132909_faces_de_logradouros_2022_simplified.json",
+    "description": "Itamogi"
+  },
+  {
+    "name": "Itamonte - Logradouros",
+    "url": "data/ruas/3133006_faces_de_logradouros_2022_simplified.json",
+    "description": "Itamonte"
+  },
+  {
+    "name": "Itanhandu - Logradouros",
+    "url": "data/ruas/3133105_faces_de_logradouros_2022_simplified.json",
+    "description": "Itanhandu"
+  },
+  {
+    "name": "Itanhomi - Logradouros",
+    "url": "data/ruas/3133204_faces_de_logradouros_2022_simplified.json",
+    "description": "Itanhomi"
+  },
+  {
+    "name": "Itaobim - Logradouros",
+    "url": "data/ruas/3133303_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaobim"
+  },
+  {
+    "name": "Itapagipe - Logradouros",
+    "url": "data/ruas/3133402_faces_de_logradouros_2022_simplified.json",
+    "description": "Itapagipe"
+  },
+  {
+    "name": "Itapecerica - Logradouros",
+    "url": "data/ruas/3133501_faces_de_logradouros_2022_simplified.json",
+    "description": "Itapecerica"
+  },
+  {
+    "name": "Itapeva - Logradouros",
+    "url": "data/ruas/3133600_faces_de_logradouros_2022_simplified.json",
+    "description": "Itapeva"
+  },
+  {
+    "name": "Itatiaiuçu - Logradouros",
+    "url": "data/ruas/3133709_faces_de_logradouros_2022_simplified.json",
+    "description": "Itatiaiuçu"
+  },
+  {
+    "name": "Itaverava - Logradouros",
+    "url": "data/ruas/3133907_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaverava"
+  },
+  {
+    "name": "Itaú de Minas - Logradouros",
+    "url": "data/ruas/3133758_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaú de Minas"
+  },
+  {
+    "name": "Itaúna - Logradouros",
+    "url": "data/ruas/3133808_faces_de_logradouros_2022_simplified.json",
+    "description": "Itaúna"
+  },
+  {
+    "name": "Itinga - Logradouros",
+    "url": "data/ruas/3134004_faces_de_logradouros_2022_simplified.json",
+    "description": "Itinga"
+  },
+  {
+    "name": "Itueta - Logradouros",
+    "url": "data/ruas/3134103_faces_de_logradouros_2022_simplified.json",
+    "description": "Itueta"
+  },
+  {
+    "name": "Ituiutaba - Logradouros",
+    "url": "data/ruas/3134202_faces_de_logradouros_2022_simplified.json",
+    "description": "Ituiutaba"
+  },
+  {
+    "name": "Itumirim - Logradouros",
+    "url": "data/ruas/3134301_faces_de_logradouros_2022_simplified.json",
+    "description": "Itumirim"
+  },
+  {
+    "name": "Iturama - Logradouros",
+    "url": "data/ruas/3134400_faces_de_logradouros_2022_simplified.json",
+    "description": "Iturama"
+  },
+  {
+    "name": "Itutinga - Logradouros",
+    "url": "data/ruas/3134509_faces_de_logradouros_2022_simplified.json",
+    "description": "Itutinga"
+  },
+  {
+    "name": "Jaboticatubas - Logradouros",
+    "url": "data/ruas/3134608_faces_de_logradouros_2022_simplified.json",
+    "description": "Jaboticatubas"
+  },
+  {
+    "name": "Jacinto - Logradouros",
+    "url": "data/ruas/3134707_faces_de_logradouros_2022_simplified.json",
+    "description": "Jacinto"
+  },
+  {
+    "name": "Jacutinga - Logradouros",
+    "url": "data/ruas/3134905_faces_de_logradouros_2022_simplified.json",
+    "description": "Jacutinga"
+  },
+  {
+    "name": "Jacuí - Logradouros",
+    "url": "data/ruas/3134806_faces_de_logradouros_2022_simplified.json",
+    "description": "Jacuí"
+  },
+  {
+    "name": "Jaguaraçu - Logradouros",
+    "url": "data/ruas/3135001_faces_de_logradouros_2022_simplified.json",
+    "description": "Jaguaraçu"
+  },
+  {
+    "name": "Jampruca - Logradouros",
+    "url": "data/ruas/3135076_faces_de_logradouros_2022_simplified.json",
+    "description": "Jampruca"
+  },
+  {
+    "name": "Janaúba - Logradouros",
+    "url": "data/ruas/3135100_faces_de_logradouros_2022_simplified.json",
+    "description": "Janaúba"
+  },
+  {
+    "name": "Januária - Logradouros",
+    "url": "data/ruas/3135209_faces_de_logradouros_2022_simplified.json",
+    "description": "Januária"
+  },
+  {
+    "name": "Japaraíba - Logradouros",
+    "url": "data/ruas/3135308_faces_de_logradouros_2022_simplified.json",
+    "description": "Japaraíba"
+  },
+  {
+    "name": "Japonvar - Logradouros",
+    "url": "data/ruas/3135357_faces_de_logradouros_2022_simplified.json",
+    "description": "Japonvar"
+  },
+  {
+    "name": "Jaíba - Logradouros",
+    "url": "data/ruas/3135050_faces_de_logradouros_2022_simplified.json",
+    "description": "Jaíba"
+  },
+  {
+    "name": "Jeceaba - Logradouros",
+    "url": "data/ruas/3135407_faces_de_logradouros_2022_simplified.json",
+    "description": "Jeceaba"
+  },
+  {
+    "name": "Jenipapo de Minas - Logradouros",
+    "url": "data/ruas/3135456_faces_de_logradouros_2022_simplified.json",
+    "description": "Jenipapo de Minas"
+  },
+  {
+    "name": "Jequeri - Logradouros",
+    "url": "data/ruas/3135506_faces_de_logradouros_2022_simplified.json",
+    "description": "Jequeri"
+  },
+  {
+    "name": "Jequitaí - Logradouros",
+    "url": "data/ruas/3135605_faces_de_logradouros_2022_simplified.json",
+    "description": "Jequitaí"
+  },
+  {
+    "name": "Jequitibá - Logradouros",
+    "url": "data/ruas/3135704_faces_de_logradouros_2022_simplified.json",
+    "description": "Jequitibá"
+  },
+  {
+    "name": "Jequitinhonha - Logradouros",
+    "url": "data/ruas/3135803_faces_de_logradouros_2022_simplified.json",
+    "description": "Jequitinhonha"
+  },
+  {
+    "name": "Jesuânia - Logradouros",
+    "url": "data/ruas/3135902_faces_de_logradouros_2022_simplified.json",
+    "description": "Jesuânia"
+  },
+  {
+    "name": "Joanésia - Logradouros",
+    "url": "data/ruas/3136108_faces_de_logradouros_2022_simplified.json",
+    "description": "Joanésia"
+  },
+  {
+    "name": "Joaquim Felício - Logradouros",
+    "url": "data/ruas/3136405_faces_de_logradouros_2022_simplified.json",
+    "description": "Joaquim Felício"
+  },
+  {
+    "name": "Joaíma - Logradouros",
+    "url": "data/ruas/3136009_faces_de_logradouros_2022_simplified.json",
+    "description": "Joaíma"
+  },
+  {
+    "name": "Jordânia - Logradouros",
+    "url": "data/ruas/3136504_faces_de_logradouros_2022_simplified.json",
+    "description": "Jordânia"
+  },
+  {
+    "name": "Josenópolis - Logradouros",
+    "url": "data/ruas/3136579_faces_de_logradouros_2022_simplified.json",
+    "description": "Josenópolis"
+  },
+  {
+    "name": "José Gonçalves de Minas - Logradouros",
+    "url": "data/ruas/3136520_faces_de_logradouros_2022_simplified.json",
+    "description": "José Gonçalves de Minas"
+  },
+  {
+    "name": "José Raydan - Logradouros",
+    "url": "data/ruas/3136553_faces_de_logradouros_2022_simplified.json",
+    "description": "José Raydan"
+  },
+  {
+    "name": "João Monlevade - Logradouros",
+    "url": "data/ruas/3136207_faces_de_logradouros_2022_simplified.json",
+    "description": "João Monlevade"
+  },
+  {
+    "name": "João Pinheiro - Logradouros",
+    "url": "data/ruas/3136306_faces_de_logradouros_2022_simplified.json",
+    "description": "João Pinheiro"
+  },
+  {
+    "name": "Juatuba - Logradouros",
+    "url": "data/ruas/3136652_faces_de_logradouros_2022_simplified.json",
+    "description": "Juatuba"
+  },
+  {
+    "name": "Juiz de Fora - Logradouros",
+    "url": "data/ruas/3136702_faces_de_logradouros_2022_simplified.json",
+    "description": "Juiz de Fora"
+  },
+  {
+    "name": "Juramento - Logradouros",
+    "url": "data/ruas/3136801_faces_de_logradouros_2022_simplified.json",
+    "description": "Juramento"
+  },
+  {
+    "name": "Juruaia - Logradouros",
+    "url": "data/ruas/3136900_faces_de_logradouros_2022_simplified.json",
+    "description": "Juruaia"
+  },
+  {
+    "name": "Juvenília - Logradouros",
+    "url": "data/ruas/3136959_faces_de_logradouros_2022_simplified.json",
+    "description": "Juvenília"
+  },
+  {
+    "name": "Ladainha - Logradouros",
+    "url": "data/ruas/3137007_faces_de_logradouros_2022_simplified.json",
+    "description": "Ladainha"
+  },
+  {
+    "name": "Lagamar - Logradouros",
+    "url": "data/ruas/3137106_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagamar"
+  },
+  {
+    "name": "Lagoa Dourada - Logradouros",
+    "url": "data/ruas/3137403_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa Dourada"
+  },
+  {
+    "name": "Lagoa Formosa - Logradouros",
+    "url": "data/ruas/3137502_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa Formosa"
+  },
+  {
+    "name": "Lagoa Grande - Logradouros",
+    "url": "data/ruas/3137536_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa Grande"
+  },
+  {
+    "name": "Lagoa Santa - Logradouros",
+    "url": "data/ruas/3137601_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa Santa"
+  },
+  {
+    "name": "Lagoa da Prata - Logradouros",
+    "url": "data/ruas/3137205_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa da Prata"
+  },
+  {
+    "name": "Lagoa dos Patos - Logradouros",
+    "url": "data/ruas/3137304_faces_de_logradouros_2022_simplified.json",
+    "description": "Lagoa dos Patos"
+  },
+  {
+    "name": "Lajinha - Logradouros",
+    "url": "data/ruas/3137700_faces_de_logradouros_2022_simplified.json",
+    "description": "Lajinha"
+  },
+  {
+    "name": "Lambari - Logradouros",
+    "url": "data/ruas/3137809_faces_de_logradouros_2022_simplified.json",
+    "description": "Lambari"
+  },
+  {
+    "name": "Lamim - Logradouros",
+    "url": "data/ruas/3137908_faces_de_logradouros_2022_simplified.json",
+    "description": "Lamim"
+  },
+  {
+    "name": "Laranjal - Logradouros",
+    "url": "data/ruas/3138005_faces_de_logradouros_2022_simplified.json",
+    "description": "Laranjal"
+  },
+  {
+    "name": "Lassance - Logradouros",
+    "url": "data/ruas/3138104_faces_de_logradouros_2022_simplified.json",
+    "description": "Lassance"
+  },
+  {
+    "name": "Lavras - Logradouros",
+    "url": "data/ruas/3138203_faces_de_logradouros_2022_simplified.json",
+    "description": "Lavras"
+  },
+  {
+    "name": "Leandro Ferreira - Logradouros",
+    "url": "data/ruas/3138302_faces_de_logradouros_2022_simplified.json",
+    "description": "Leandro Ferreira"
+  },
+  {
+    "name": "Leme do Prado - Logradouros",
+    "url": "data/ruas/3138351_faces_de_logradouros_2022_simplified.json",
+    "description": "Leme do Prado"
+  },
+  {
+    "name": "Leopoldina - Logradouros",
+    "url": "data/ruas/3138401_faces_de_logradouros_2022_simplified.json",
+    "description": "Leopoldina"
+  },
+  {
+    "name": "Liberdade - Logradouros",
+    "url": "data/ruas/3138500_faces_de_logradouros_2022_simplified.json",
+    "description": "Liberdade"
+  },
+  {
+    "name": "Lima Duarte - Logradouros",
+    "url": "data/ruas/3138609_faces_de_logradouros_2022_simplified.json",
+    "description": "Lima Duarte"
+  },
+  {
+    "name": "Limeira do Oeste - Logradouros",
+    "url": "data/ruas/3138625_faces_de_logradouros_2022_simplified.json",
+    "description": "Limeira do Oeste"
+  },
+  {
+    "name": "Lontra - Logradouros",
+    "url": "data/ruas/3138658_faces_de_logradouros_2022_simplified.json",
+    "description": "Lontra"
+  },
+  {
+    "name": "Luisburgo - Logradouros",
+    "url": "data/ruas/3138674_faces_de_logradouros_2022_simplified.json",
+    "description": "Luisburgo"
+  },
+  {
+    "name": "Luislândia - Logradouros",
+    "url": "data/ruas/3138682_faces_de_logradouros_2022_simplified.json",
+    "description": "Luislândia"
+  },
+  {
+    "name": "Luminárias - Logradouros",
+    "url": "data/ruas/3138708_faces_de_logradouros_2022_simplified.json",
+    "description": "Luminárias"
+  },
+  {
+    "name": "Luz - Logradouros",
+    "url": "data/ruas/3138807_faces_de_logradouros_2022_simplified.json",
+    "description": "Luz"
+  },
+  {
+    "name": "Machacalis - Logradouros",
+    "url": "data/ruas/3138906_faces_de_logradouros_2022_simplified.json",
+    "description": "Machacalis"
+  },
+  {
+    "name": "Machado - Logradouros",
+    "url": "data/ruas/3139003_faces_de_logradouros_2022_simplified.json",
+    "description": "Machado"
+  },
+  {
+    "name": "Madre de Deus de Minas - Logradouros",
+    "url": "data/ruas/3139102_faces_de_logradouros_2022_simplified.json",
+    "description": "Madre de Deus de Minas"
+  },
+  {
+    "name": "Malacacheta - Logradouros",
+    "url": "data/ruas/3139201_faces_de_logradouros_2022_simplified.json",
+    "description": "Malacacheta"
+  },
+  {
+    "name": "Mamonas - Logradouros",
+    "url": "data/ruas/3139250_faces_de_logradouros_2022_simplified.json",
+    "description": "Mamonas"
+  },
+  {
+    "name": "Manga - Logradouros",
+    "url": "data/ruas/3139300_faces_de_logradouros_2022_simplified.json",
+    "description": "Manga"
+  },
+  {
+    "name": "Manhuaçu - Logradouros",
+    "url": "data/ruas/3139409_faces_de_logradouros_2022_simplified.json",
+    "description": "Manhuaçu"
+  },
+  {
+    "name": "Manhumirim - Logradouros",
+    "url": "data/ruas/3139508_faces_de_logradouros_2022_simplified.json",
+    "description": "Manhumirim"
+  },
+  {
+    "name": "Mantena - Logradouros",
+    "url": "data/ruas/3139607_faces_de_logradouros_2022_simplified.json",
+    "description": "Mantena"
+  },
+  {
+    "name": "Mar de Espanha - Logradouros",
+    "url": "data/ruas/3139805_faces_de_logradouros_2022_simplified.json",
+    "description": "Mar de Espanha"
+  },
+  {
+    "name": "Maravilhas - Logradouros",
+    "url": "data/ruas/3139706_faces_de_logradouros_2022_simplified.json",
+    "description": "Maravilhas"
+  },
+  {
+    "name": "Maria da Fé - Logradouros",
+    "url": "data/ruas/3139904_faces_de_logradouros_2022_simplified.json",
+    "description": "Maria da Fé"
+  },
+  {
+    "name": "Mariana - Logradouros",
+    "url": "data/ruas/3140001_faces_de_logradouros_2022_simplified.json",
+    "description": "Mariana"
+  },
+  {
+    "name": "Marilac - Logradouros",
+    "url": "data/ruas/3140100_faces_de_logradouros_2022_simplified.json",
+    "description": "Marilac"
+  },
+  {
+    "name": "Maripá de Minas - Logradouros",
+    "url": "data/ruas/3140209_faces_de_logradouros_2022_simplified.json",
+    "description": "Maripá de Minas"
+  },
+  {
+    "name": "Marliéria - Logradouros",
+    "url": "data/ruas/3140308_faces_de_logradouros_2022_simplified.json",
+    "description": "Marliéria"
+  },
+  {
+    "name": "Marmelópolis - Logradouros",
+    "url": "data/ruas/3140407_faces_de_logradouros_2022_simplified.json",
+    "description": "Marmelópolis"
+  },
+  {
+    "name": "Martinho Campos - Logradouros",
+    "url": "data/ruas/3140506_faces_de_logradouros_2022_simplified.json",
+    "description": "Martinho Campos"
+  },
+  {
+    "name": "Martins Soares - Logradouros",
+    "url": "data/ruas/3140530_faces_de_logradouros_2022_simplified.json",
+    "description": "Martins Soares"
+  },
+  {
+    "name": "Mata Verde - Logradouros",
+    "url": "data/ruas/3140555_faces_de_logradouros_2022_simplified.json",
+    "description": "Mata Verde"
+  },
+  {
+    "name": "Materlândia - Logradouros",
+    "url": "data/ruas/3140605_faces_de_logradouros_2022_simplified.json",
+    "description": "Materlândia"
+  },
+  {
+    "name": "Mateus Leme - Logradouros",
+    "url": "data/ruas/3140704_faces_de_logradouros_2022_simplified.json",
+    "description": "Mateus Leme"
+  },
+  {
+    "name": "Mathias Lobato - Logradouros",
+    "url": "data/ruas/3171501_faces_de_logradouros_2022_simplified.json",
+    "description": "Mathias Lobato"
+  },
+  {
+    "name": "Matias Barbosa - Logradouros",
+    "url": "data/ruas/3140803_faces_de_logradouros_2022_simplified.json",
+    "description": "Matias Barbosa"
+  },
+  {
+    "name": "Matias Cardoso - Logradouros",
+    "url": "data/ruas/3140852_faces_de_logradouros_2022_simplified.json",
+    "description": "Matias Cardoso"
+  },
+  {
+    "name": "Matipó - Logradouros",
+    "url": "data/ruas/3140902_faces_de_logradouros_2022_simplified.json",
+    "description": "Matipó"
+  },
+  {
+    "name": "Mato Verde - Logradouros",
+    "url": "data/ruas/3141009_faces_de_logradouros_2022_simplified.json",
+    "description": "Mato Verde"
+  },
+  {
+    "name": "Matozinhos - Logradouros",
+    "url": "data/ruas/3141108_faces_de_logradouros_2022_simplified.json",
+    "description": "Matozinhos"
+  },
+  {
+    "name": "Matutina - Logradouros",
+    "url": "data/ruas/3141207_faces_de_logradouros_2022_simplified.json",
+    "description": "Matutina"
+  },
+  {
+    "name": "Medeiros - Logradouros",
+    "url": "data/ruas/3141306_faces_de_logradouros_2022_simplified.json",
+    "description": "Medeiros"
+  },
+  {
+    "name": "Medina - Logradouros",
+    "url": "data/ruas/3141405_faces_de_logradouros_2022_simplified.json",
+    "description": "Medina"
+  },
+  {
+    "name": "Mendes Pimentel - Logradouros",
+    "url": "data/ruas/3141504_faces_de_logradouros_2022_simplified.json",
+    "description": "Mendes Pimentel"
+  },
+  {
+    "name": "Mercês - Logradouros",
+    "url": "data/ruas/3141603_faces_de_logradouros_2022_simplified.json",
+    "description": "Mercês"
+  },
+  {
+    "name": "Mesquita - Logradouros",
+    "url": "data/ruas/3141702_faces_de_logradouros_2022_simplified.json",
+    "description": "Mesquita"
+  },
+  {
+    "name": "Minas Novas - Logradouros",
+    "url": "data/ruas/3141801_faces_de_logradouros_2022_simplified.json",
+    "description": "Minas Novas"
+  },
+  {
+    "name": "Minduri - Logradouros",
+    "url": "data/ruas/3141900_faces_de_logradouros_2022_simplified.json",
+    "description": "Minduri"
+  },
+  {
+    "name": "Mirabela - Logradouros",
+    "url": "data/ruas/3142007_faces_de_logradouros_2022_simplified.json",
+    "description": "Mirabela"
+  },
+  {
+    "name": "Miradouro - Logradouros",
+    "url": "data/ruas/3142106_faces_de_logradouros_2022_simplified.json",
+    "description": "Miradouro"
+  },
+  {
+    "name": "Miravânia - Logradouros",
+    "url": "data/ruas/3142254_faces_de_logradouros_2022_simplified.json",
+    "description": "Miravânia"
+  },
+  {
+    "name": "Miraí - Logradouros",
+    "url": "data/ruas/3142205_faces_de_logradouros_2022_simplified.json",
+    "description": "Miraí"
+  },
+  {
+    "name": "Moeda - Logradouros",
+    "url": "data/ruas/3142304_faces_de_logradouros_2022_simplified.json",
+    "description": "Moeda"
+  },
+  {
+    "name": "Moema - Logradouros",
+    "url": "data/ruas/3142403_faces_de_logradouros_2022_simplified.json",
+    "description": "Moema"
+  },
+  {
+    "name": "Monjolos - Logradouros",
+    "url": "data/ruas/3142502_faces_de_logradouros_2022_simplified.json",
+    "description": "Monjolos"
+  },
+  {
+    "name": "Monsenhor Paulo - Logradouros",
+    "url": "data/ruas/3142601_faces_de_logradouros_2022_simplified.json",
+    "description": "Monsenhor Paulo"
+  },
+  {
+    "name": "Montalvânia - Logradouros",
+    "url": "data/ruas/3142700_faces_de_logradouros_2022_simplified.json",
+    "description": "Montalvânia"
+  },
+  {
+    "name": "Monte Alegre de Minas - Logradouros",
+    "url": "data/ruas/3142809_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Alegre de Minas"
+  },
+  {
+    "name": "Monte Azul - Logradouros",
+    "url": "data/ruas/3142908_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Azul"
+  },
+  {
+    "name": "Monte Belo - Logradouros",
+    "url": "data/ruas/3143005_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Belo"
+  },
+  {
+    "name": "Monte Carmelo - Logradouros",
+    "url": "data/ruas/3143104_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Carmelo"
+  },
+  {
+    "name": "Monte Formoso - Logradouros",
+    "url": "data/ruas/3143153_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Formoso"
+  },
+  {
+    "name": "Monte Santo de Minas - Logradouros",
+    "url": "data/ruas/3143203_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Santo de Minas"
+  },
+  {
+    "name": "Monte Sião - Logradouros",
+    "url": "data/ruas/3143401_faces_de_logradouros_2022_simplified.json",
+    "description": "Monte Sião"
+  },
+  {
+    "name": "Montes Claros - Logradouros",
+    "url": "data/ruas/3143302_faces_de_logradouros_2022_simplified.json",
+    "description": "Montes Claros"
+  },
+  {
+    "name": "Montezuma - Logradouros",
+    "url": "data/ruas/3143450_faces_de_logradouros_2022_simplified.json",
+    "description": "Montezuma"
+  },
+  {
+    "name": "Morada Nova de Minas - Logradouros",
+    "url": "data/ruas/3143500_faces_de_logradouros_2022_simplified.json",
+    "description": "Morada Nova de Minas"
+  },
+  {
+    "name": "Morro da Garça - Logradouros",
+    "url": "data/ruas/3143609_faces_de_logradouros_2022_simplified.json",
+    "description": "Morro da Garça"
+  },
+  {
+    "name": "Morro do Pilar - Logradouros",
+    "url": "data/ruas/3143708_faces_de_logradouros_2022_simplified.json",
+    "description": "Morro do Pilar"
+  },
+  {
+    "name": "Munhoz - Logradouros",
+    "url": "data/ruas/3143807_faces_de_logradouros_2022_simplified.json",
+    "description": "Munhoz"
+  },
+  {
+    "name": "Muriaé - Logradouros",
+    "url": "data/ruas/3143906_faces_de_logradouros_2022_simplified.json",
+    "description": "Muriaé"
+  },
+  {
+    "name": "Mutum - Logradouros",
+    "url": "data/ruas/3144003_faces_de_logradouros_2022_simplified.json",
+    "description": "Mutum"
+  },
+  {
+    "name": "Muzambinho - Logradouros",
+    "url": "data/ruas/3144102_faces_de_logradouros_2022_simplified.json",
+    "description": "Muzambinho"
+  },
+  {
+    "name": "Mário Campos - Logradouros",
+    "url": "data/ruas/3140159_faces_de_logradouros_2022_simplified.json",
+    "description": "Mário Campos"
+  },
+  {
+    "name": "Nacip Raydan - Logradouros",
+    "url": "data/ruas/3144201_faces_de_logradouros_2022_simplified.json",
+    "description": "Nacip Raydan"
+  },
+  {
+    "name": "Nanuque - Logradouros",
+    "url": "data/ruas/3144300_faces_de_logradouros_2022_simplified.json",
+    "description": "Nanuque"
+  },
+  {
+    "name": "Naque - Logradouros",
+    "url": "data/ruas/3144359_faces_de_logradouros_2022_simplified.json",
+    "description": "Naque"
+  },
+  {
+    "name": "Natalândia - Logradouros",
+    "url": "data/ruas/3144375_faces_de_logradouros_2022_simplified.json",
+    "description": "Natalândia"
+  },
+  {
+    "name": "Natércia - Logradouros",
+    "url": "data/ruas/3144409_faces_de_logradouros_2022_simplified.json",
+    "description": "Natércia"
+  },
+  {
+    "name": "Nazareno - Logradouros",
+    "url": "data/ruas/3144508_faces_de_logradouros_2022_simplified.json",
+    "description": "Nazareno"
+  },
+  {
+    "name": "Nepomuceno - Logradouros",
+    "url": "data/ruas/3144607_faces_de_logradouros_2022_simplified.json",
+    "description": "Nepomuceno"
+  },
+  {
+    "name": "Ninheira - Logradouros",
+    "url": "data/ruas/3144656_faces_de_logradouros_2022_simplified.json",
+    "description": "Ninheira"
+  },
+  {
+    "name": "Nova Belém - Logradouros",
+    "url": "data/ruas/3144672_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Belém"
+  },
+  {
+    "name": "Nova Era - Logradouros",
+    "url": "data/ruas/3144706_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Era"
+  },
+  {
+    "name": "Nova Lima - Logradouros",
+    "url": "data/ruas/3144805_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Lima"
+  },
+  {
+    "name": "Nova Módica - Logradouros",
+    "url": "data/ruas/3144904_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Módica"
+  },
+  {
+    "name": "Nova Ponte - Logradouros",
+    "url": "data/ruas/3145000_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Ponte"
+  },
+  {
+    "name": "Nova Porteirinha - Logradouros",
+    "url": "data/ruas/3145059_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Porteirinha"
+  },
+  {
+    "name": "Nova Resende - Logradouros",
+    "url": "data/ruas/3145109_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Resende"
+  },
+  {
+    "name": "Nova Serrana - Logradouros",
+    "url": "data/ruas/3145208_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova Serrana"
+  },
+  {
+    "name": "Nova União - Logradouros",
+    "url": "data/ruas/3136603_faces_de_logradouros_2022_simplified.json",
+    "description": "Nova União"
+  },
+  {
+    "name": "Novo Cruzeiro - Logradouros",
+    "url": "data/ruas/3145307_faces_de_logradouros_2022_simplified.json",
+    "description": "Novo Cruzeiro"
+  },
+  {
+    "name": "Novo Oriente de Minas - Logradouros",
+    "url": "data/ruas/3145356_faces_de_logradouros_2022_simplified.json",
+    "description": "Novo Oriente de Minas"
+  },
+  {
+    "name": "Novorizonte - Logradouros",
+    "url": "data/ruas/3145372_faces_de_logradouros_2022_simplified.json",
+    "description": "Novorizonte"
+  },
+  {
+    "name": "Olaria - Logradouros",
+    "url": "data/ruas/3145406_faces_de_logradouros_2022_simplified.json",
+    "description": "Olaria"
+  },
+  {
+    "name": "Olhos d'Água - Logradouros",
+    "url": "data/ruas/3145455_faces_de_logradouros_2022_simplified.json",
+    "description": "Olhos d'Água"
+  },
+  {
+    "name": "Oliveira - Logradouros",
+    "url": "data/ruas/3145604_faces_de_logradouros_2022_simplified.json",
+    "description": "Oliveira"
+  },
+  {
+    "name": "Oliveira Fortes - Logradouros",
+    "url": "data/ruas/3145703_faces_de_logradouros_2022_simplified.json",
+    "description": "Oliveira Fortes"
+  },
+  {
+    "name": "Olímpio Noronha - Logradouros",
+    "url": "data/ruas/3145505_faces_de_logradouros_2022_simplified.json",
+    "description": "Olímpio Noronha"
+  },
+  {
+    "name": "Onça de Pitangui - Logradouros",
+    "url": "data/ruas/3145802_faces_de_logradouros_2022_simplified.json",
+    "description": "Onça de Pitangui"
+  },
+  {
+    "name": "Oratórios - Logradouros",
+    "url": "data/ruas/3145851_faces_de_logradouros_2022_simplified.json",
+    "description": "Oratórios"
+  },
+  {
+    "name": "Orizânia - Logradouros",
+    "url": "data/ruas/3145877_faces_de_logradouros_2022_simplified.json",
+    "description": "Orizânia"
+  },
+  {
+    "name": "Ouro Branco - Logradouros",
+    "url": "data/ruas/3145901_faces_de_logradouros_2022_simplified.json",
+    "description": "Ouro Branco"
+  },
+  {
+    "name": "Ouro Fino - Logradouros",
+    "url": "data/ruas/3146008_faces_de_logradouros_2022_simplified.json",
+    "description": "Ouro Fino"
+  },
+  {
+    "name": "Ouro Preto - Logradouros",
+    "url": "data/ruas/3146107_faces_de_logradouros_2022_simplified.json",
+    "description": "Ouro Preto"
+  },
+  {
+    "name": "Ouro Verde de Minas - Logradouros",
+    "url": "data/ruas/3146206_faces_de_logradouros_2022_simplified.json",
+    "description": "Ouro Verde de Minas"
+  },
+  {
+    "name": "Padre Carvalho - Logradouros",
+    "url": "data/ruas/3146255_faces_de_logradouros_2022_simplified.json",
+    "description": "Padre Carvalho"
+  },
+  {
+    "name": "Padre Paraíso - Logradouros",
+    "url": "data/ruas/3146305_faces_de_logradouros_2022_simplified.json",
+    "description": "Padre Paraíso"
+  },
+  {
+    "name": "Pai Pedro - Logradouros",
+    "url": "data/ruas/3146552_faces_de_logradouros_2022_simplified.json",
+    "description": "Pai Pedro"
+  },
+  {
+    "name": "Paineiras - Logradouros",
+    "url": "data/ruas/3146404_faces_de_logradouros_2022_simplified.json",
+    "description": "Paineiras"
+  },
+  {
+    "name": "Pains - Logradouros",
+    "url": "data/ruas/3146503_faces_de_logradouros_2022_simplified.json",
+    "description": "Pains"
+  },
+  {
+    "name": "Paiva - Logradouros",
+    "url": "data/ruas/3146602_faces_de_logradouros_2022_simplified.json",
+    "description": "Paiva"
+  },
+  {
+    "name": "Palma - Logradouros",
+    "url": "data/ruas/3146701_faces_de_logradouros_2022_simplified.json",
+    "description": "Palma"
+  },
+  {
+    "name": "Palmópolis - Logradouros",
+    "url": "data/ruas/3146750_faces_de_logradouros_2022_simplified.json",
+    "description": "Palmópolis"
+  },
+  {
+    "name": "Papagaios - Logradouros",
+    "url": "data/ruas/3146909_faces_de_logradouros_2022_simplified.json",
+    "description": "Papagaios"
+  },
+  {
+    "name": "Paracatu - Logradouros",
+    "url": "data/ruas/3147006_faces_de_logradouros_2022_simplified.json",
+    "description": "Paracatu"
+  },
+  {
+    "name": "Paraguaçu - Logradouros",
+    "url": "data/ruas/3147204_faces_de_logradouros_2022_simplified.json",
+    "description": "Paraguaçu"
+  },
+  {
+    "name": "Paraisópolis - Logradouros",
+    "url": "data/ruas/3147303_faces_de_logradouros_2022_simplified.json",
+    "description": "Paraisópolis"
+  },
+  {
+    "name": "Paraopeba - Logradouros",
+    "url": "data/ruas/3147402_faces_de_logradouros_2022_simplified.json",
+    "description": "Paraopeba"
+  },
+  {
+    "name": "Pará de Minas - Logradouros",
+    "url": "data/ruas/3147105_faces_de_logradouros_2022_simplified.json",
+    "description": "Pará de Minas"
+  },
+  {
+    "name": "Passa Quatro - Logradouros",
+    "url": "data/ruas/3147600_faces_de_logradouros_2022_simplified.json",
+    "description": "Passa Quatro"
+  },
+  {
+    "name": "Passa Tempo - Logradouros",
+    "url": "data/ruas/3147709_faces_de_logradouros_2022_simplified.json",
+    "description": "Passa Tempo"
+  },
+  {
+    "name": "Passa-Vinte - Logradouros",
+    "url": "data/ruas/3147808_faces_de_logradouros_2022_simplified.json",
+    "description": "Passa-Vinte"
+  },
+  {
+    "name": "Passabém - Logradouros",
+    "url": "data/ruas/3147501_faces_de_logradouros_2022_simplified.json",
+    "description": "Passabém"
+  },
+  {
+    "name": "Passos - Logradouros",
+    "url": "data/ruas/3147907_faces_de_logradouros_2022_simplified.json",
+    "description": "Passos"
+  },
+  {
+    "name": "Patis - Logradouros",
+    "url": "data/ruas/3147956_faces_de_logradouros_2022_simplified.json",
+    "description": "Patis"
+  },
+  {
+    "name": "Patos de Minas - Logradouros",
+    "url": "data/ruas/3148004_faces_de_logradouros_2022_simplified.json",
+    "description": "Patos de Minas"
+  },
+  {
+    "name": "Patrocínio - Logradouros",
+    "url": "data/ruas/3148103_faces_de_logradouros_2022_simplified.json",
+    "description": "Patrocínio"
+  },
+  {
+    "name": "Patrocínio do Muriaé - Logradouros",
+    "url": "data/ruas/3148202_faces_de_logradouros_2022_simplified.json",
+    "description": "Patrocínio do Muriaé"
+  },
+  {
+    "name": "Paula Cândido - Logradouros",
+    "url": "data/ruas/3148301_faces_de_logradouros_2022_simplified.json",
+    "description": "Paula Cândido"
+  },
+  {
+    "name": "Paulistas - Logradouros",
+    "url": "data/ruas/3148400_faces_de_logradouros_2022_simplified.json",
+    "description": "Paulistas"
+  },
+  {
+    "name": "Pavão - Logradouros",
+    "url": "data/ruas/3148509_faces_de_logradouros_2022_simplified.json",
+    "description": "Pavão"
+  },
+  {
+    "name": "Pedra Azul - Logradouros",
+    "url": "data/ruas/3148707_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedra Azul"
+  },
+  {
+    "name": "Pedra Bonita - Logradouros",
+    "url": "data/ruas/3148756_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedra Bonita"
+  },
+  {
+    "name": "Pedra Dourada - Logradouros",
+    "url": "data/ruas/3149002_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedra Dourada"
+  },
+  {
+    "name": "Pedra do Anta - Logradouros",
+    "url": "data/ruas/3148806_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedra do Anta"
+  },
+  {
+    "name": "Pedra do Indaiá - Logradouros",
+    "url": "data/ruas/3148905_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedra do Indaiá"
+  },
+  {
+    "name": "Pedralva - Logradouros",
+    "url": "data/ruas/3149101_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedralva"
+  },
+  {
+    "name": "Pedras de Maria da Cruz - Logradouros",
+    "url": "data/ruas/3149150_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedras de Maria da Cruz"
+  },
+  {
+    "name": "Pedrinópolis - Logradouros",
+    "url": "data/ruas/3149200_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedrinópolis"
+  },
+  {
+    "name": "Pedro Leopoldo - Logradouros",
+    "url": "data/ruas/3149309_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedro Leopoldo"
+  },
+  {
+    "name": "Pedro Teixeira - Logradouros",
+    "url": "data/ruas/3149408_faces_de_logradouros_2022_simplified.json",
+    "description": "Pedro Teixeira"
+  },
+  {
+    "name": "Pequeri - Logradouros",
+    "url": "data/ruas/3149507_faces_de_logradouros_2022_simplified.json",
+    "description": "Pequeri"
+  },
+  {
+    "name": "Pequi - Logradouros",
+    "url": "data/ruas/3149606_faces_de_logradouros_2022_simplified.json",
+    "description": "Pequi"
+  },
+  {
+    "name": "Perdigão - Logradouros",
+    "url": "data/ruas/3149705_faces_de_logradouros_2022_simplified.json",
+    "description": "Perdigão"
+  },
+  {
+    "name": "Perdizes - Logradouros",
+    "url": "data/ruas/3149804_faces_de_logradouros_2022_simplified.json",
+    "description": "Perdizes"
+  },
+  {
+    "name": "Perdões - Logradouros",
+    "url": "data/ruas/3149903_faces_de_logradouros_2022_simplified.json",
+    "description": "Perdões"
+  },
+  {
+    "name": "Periquito - Logradouros",
+    "url": "data/ruas/3149952_faces_de_logradouros_2022_simplified.json",
+    "description": "Periquito"
+  },
+  {
+    "name": "Pescador - Logradouros",
+    "url": "data/ruas/3150000_faces_de_logradouros_2022_simplified.json",
+    "description": "Pescador"
+  },
+  {
+    "name": "Peçanha - Logradouros",
+    "url": "data/ruas/3148608_faces_de_logradouros_2022_simplified.json",
+    "description": "Peçanha"
+  },
+  {
+    "name": "Piau - Logradouros",
+    "url": "data/ruas/3150109_faces_de_logradouros_2022_simplified.json",
+    "description": "Piau"
+  },
+  {
+    "name": "Piedade de Caratinga - Logradouros",
+    "url": "data/ruas/3150158_faces_de_logradouros_2022_simplified.json",
+    "description": "Piedade de Caratinga"
+  },
+  {
+    "name": "Piedade de Ponte Nova - Logradouros",
+    "url": "data/ruas/3150208_faces_de_logradouros_2022_simplified.json",
+    "description": "Piedade de Ponte Nova"
+  },
+  {
+    "name": "Piedade do Rio Grande - Logradouros",
+    "url": "data/ruas/3150307_faces_de_logradouros_2022_simplified.json",
+    "description": "Piedade do Rio Grande"
+  },
+  {
+    "name": "Piedade dos Gerais - Logradouros",
+    "url": "data/ruas/3150406_faces_de_logradouros_2022_simplified.json",
+    "description": "Piedade dos Gerais"
+  },
+  {
+    "name": "Pimenta - Logradouros",
+    "url": "data/ruas/3150505_faces_de_logradouros_2022_simplified.json",
+    "description": "Pimenta"
+  },
+  {
+    "name": "Pingo-d'Água - Logradouros",
+    "url": "data/ruas/3150539_faces_de_logradouros_2022_simplified.json",
+    "description": "Pingo-d'Água"
+  },
+  {
+    "name": "Pintópolis - Logradouros",
+    "url": "data/ruas/3150570_faces_de_logradouros_2022_simplified.json",
+    "description": "Pintópolis"
+  },
+  {
+    "name": "Piracema - Logradouros",
+    "url": "data/ruas/3150604_faces_de_logradouros_2022_simplified.json",
+    "description": "Piracema"
+  },
+  {
+    "name": "Pirajuba - Logradouros",
+    "url": "data/ruas/3150703_faces_de_logradouros_2022_simplified.json",
+    "description": "Pirajuba"
+  },
+  {
+    "name": "Piranga - Logradouros",
+    "url": "data/ruas/3150802_faces_de_logradouros_2022_simplified.json",
+    "description": "Piranga"
+  },
+  {
+    "name": "Piranguinho - Logradouros",
+    "url": "data/ruas/3151008_faces_de_logradouros_2022_simplified.json",
+    "description": "Piranguinho"
+  },
+  {
+    "name": "Piranguçu - Logradouros",
+    "url": "data/ruas/3150901_faces_de_logradouros_2022_simplified.json",
+    "description": "Piranguçu"
+  },
+  {
+    "name": "Pirapetinga - Logradouros",
+    "url": "data/ruas/3151107_faces_de_logradouros_2022_simplified.json",
+    "description": "Pirapetinga"
+  },
+  {
+    "name": "Pirapora - Logradouros",
+    "url": "data/ruas/3151206_faces_de_logradouros_2022_simplified.json",
+    "description": "Pirapora"
+  },
+  {
+    "name": "Piraúba - Logradouros",
+    "url": "data/ruas/3151305_faces_de_logradouros_2022_simplified.json",
+    "description": "Piraúba"
+  },
+  {
+    "name": "Pitangui - Logradouros",
+    "url": "data/ruas/3151404_faces_de_logradouros_2022_simplified.json",
+    "description": "Pitangui"
+  },
+  {
+    "name": "Piumhi - Logradouros",
+    "url": "data/ruas/3151503_faces_de_logradouros_2022_simplified.json",
+    "description": "Piumhi"
+  },
+  {
+    "name": "Planura - Logradouros",
+    "url": "data/ruas/3151602_faces_de_logradouros_2022_simplified.json",
+    "description": "Planura"
+  },
+  {
+    "name": "Pocrane - Logradouros",
+    "url": "data/ruas/3151909_faces_de_logradouros_2022_simplified.json",
+    "description": "Pocrane"
+  },
+  {
+    "name": "Pompéu - Logradouros",
+    "url": "data/ruas/3152006_faces_de_logradouros_2022_simplified.json",
+    "description": "Pompéu"
+  },
+  {
+    "name": "Ponte Nova - Logradouros",
+    "url": "data/ruas/3152105_faces_de_logradouros_2022_simplified.json",
+    "description": "Ponte Nova"
+  },
+  {
+    "name": "Ponto Chique - Logradouros",
+    "url": "data/ruas/3152131_faces_de_logradouros_2022_simplified.json",
+    "description": "Ponto Chique"
+  },
+  {
+    "name": "Ponto dos Volantes - Logradouros",
+    "url": "data/ruas/3152170_faces_de_logradouros_2022_simplified.json",
+    "description": "Ponto dos Volantes"
+  },
+  {
+    "name": "Porteirinha - Logradouros",
+    "url": "data/ruas/3152204_faces_de_logradouros_2022_simplified.json",
+    "description": "Porteirinha"
+  },
+  {
+    "name": "Porto Firme - Logradouros",
+    "url": "data/ruas/3152303_faces_de_logradouros_2022_simplified.json",
+    "description": "Porto Firme"
+  },
+  {
+    "name": "Poté - Logradouros",
+    "url": "data/ruas/3152402_faces_de_logradouros_2022_simplified.json",
+    "description": "Poté"
+  },
+  {
+    "name": "Pouso Alegre - Logradouros",
+    "url": "data/ruas/3152501_faces_de_logradouros_2022_simplified.json",
+    "description": "Pouso Alegre"
+  },
+  {
+    "name": "Pouso Alto - Logradouros",
+    "url": "data/ruas/3152600_faces_de_logradouros_2022_simplified.json",
+    "description": "Pouso Alto"
+  },
+  {
+    "name": "Poço Fundo - Logradouros",
+    "url": "data/ruas/3151701_faces_de_logradouros_2022_simplified.json",
+    "description": "Poço Fundo"
+  },
+  {
+    "name": "Poços de Caldas - Logradouros",
+    "url": "data/ruas/3151800_faces_de_logradouros_2022_simplified.json",
+    "description": "Poços de Caldas"
+  },
+  {
+    "name": "Prados - Logradouros",
+    "url": "data/ruas/3152709_faces_de_logradouros_2022_simplified.json",
+    "description": "Prados"
+  },
+  {
+    "name": "Prata - Logradouros",
+    "url": "data/ruas/3152808_faces_de_logradouros_2022_simplified.json",
+    "description": "Prata"
+  },
+  {
+    "name": "Pratinha - Logradouros",
+    "url": "data/ruas/3153004_faces_de_logradouros_2022_simplified.json",
+    "description": "Pratinha"
+  },
+  {
+    "name": "Pratápolis - Logradouros",
+    "url": "data/ruas/3152907_faces_de_logradouros_2022_simplified.json",
+    "description": "Pratápolis"
+  },
+  {
+    "name": "Presidente Bernardes - Logradouros",
+    "url": "data/ruas/3153103_faces_de_logradouros_2022_simplified.json",
+    "description": "Presidente Bernardes"
+  },
+  {
+    "name": "Presidente Juscelino - Logradouros",
+    "url": "data/ruas/3153202_faces_de_logradouros_2022_simplified.json",
+    "description": "Presidente Juscelino"
+  },
+  {
+    "name": "Presidente Kubitschek - Logradouros",
+    "url": "data/ruas/3153301_faces_de_logradouros_2022_simplified.json",
+    "description": "Presidente Kubitschek"
+  },
+  {
+    "name": "Presidente Olegário - Logradouros",
+    "url": "data/ruas/3153400_faces_de_logradouros_2022_simplified.json",
+    "description": "Presidente Olegário"
+  },
+  {
+    "name": "Prudente de Morais - Logradouros",
+    "url": "data/ruas/3153608_faces_de_logradouros_2022_simplified.json",
+    "description": "Prudente de Morais"
+  },
+  {
+    "name": "Quartel Geral - Logradouros",
+    "url": "data/ruas/3153707_faces_de_logradouros_2022_simplified.json",
+    "description": "Quartel Geral"
+  },
+  {
+    "name": "Queluzito - Logradouros",
+    "url": "data/ruas/3153806_faces_de_logradouros_2022_simplified.json",
+    "description": "Queluzito"
+  },
+  {
+    "name": "Raposos - Logradouros",
+    "url": "data/ruas/3153905_faces_de_logradouros_2022_simplified.json",
+    "description": "Raposos"
+  },
+  {
+    "name": "Raul Soares - Logradouros",
+    "url": "data/ruas/3154002_faces_de_logradouros_2022_simplified.json",
+    "description": "Raul Soares"
+  },
+  {
+    "name": "Recreio - Logradouros",
+    "url": "data/ruas/3154101_faces_de_logradouros_2022_simplified.json",
+    "description": "Recreio"
+  },
+  {
+    "name": "Reduto - Logradouros",
+    "url": "data/ruas/3154150_faces_de_logradouros_2022_simplified.json",
+    "description": "Reduto"
+  },
+  {
+    "name": "Resende Costa - Logradouros",
+    "url": "data/ruas/3154200_faces_de_logradouros_2022_simplified.json",
+    "description": "Resende Costa"
+  },
+  {
+    "name": "Resplendor - Logradouros",
+    "url": "data/ruas/3154309_faces_de_logradouros_2022_simplified.json",
+    "description": "Resplendor"
+  },
+  {
+    "name": "Ressaquinha - Logradouros",
+    "url": "data/ruas/3154408_faces_de_logradouros_2022_simplified.json",
+    "description": "Ressaquinha"
+  },
+  {
+    "name": "Riachinho - Logradouros",
+    "url": "data/ruas/3154457_faces_de_logradouros_2022_simplified.json",
+    "description": "Riachinho"
+  },
+  {
+    "name": "Riacho dos Machados - Logradouros",
+    "url": "data/ruas/3154507_faces_de_logradouros_2022_simplified.json",
+    "description": "Riacho dos Machados"
+  },
+  {
+    "name": "Ribeirão Vermelho - Logradouros",
+    "url": "data/ruas/3154705_faces_de_logradouros_2022_simplified.json",
+    "description": "Ribeirão Vermelho"
+  },
+  {
+    "name": "Ribeirão das Neves - Logradouros",
+    "url": "data/ruas/3154606_faces_de_logradouros_2022_simplified.json",
+    "description": "Ribeirão das Neves"
+  },
+  {
+    "name": "Rio Acima - Logradouros",
+    "url": "data/ruas/3154804_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Acima"
+  },
+  {
+    "name": "Rio Casca - Logradouros",
+    "url": "data/ruas/3154903_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Casca"
+  },
+  {
+    "name": "Rio Doce - Logradouros",
+    "url": "data/ruas/3155009_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Doce"
+  },
+  {
+    "name": "Rio Espera - Logradouros",
+    "url": "data/ruas/3155207_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Espera"
+  },
+  {
+    "name": "Rio Manso - Logradouros",
+    "url": "data/ruas/3155306_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Manso"
+  },
+  {
+    "name": "Rio Novo - Logradouros",
+    "url": "data/ruas/3155405_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Novo"
+  },
+  {
+    "name": "Rio Paranaíba - Logradouros",
+    "url": "data/ruas/3155504_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Paranaíba"
+  },
+  {
+    "name": "Rio Pardo de Minas - Logradouros",
+    "url": "data/ruas/3155603_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Pardo de Minas"
+  },
+  {
+    "name": "Rio Piracicaba - Logradouros",
+    "url": "data/ruas/3155702_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Piracicaba"
+  },
+  {
+    "name": "Rio Pomba - Logradouros",
+    "url": "data/ruas/3155801_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Pomba"
+  },
+  {
+    "name": "Rio Preto - Logradouros",
+    "url": "data/ruas/3155900_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Preto"
+  },
+  {
+    "name": "Rio Vermelho - Logradouros",
+    "url": "data/ruas/3156007_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio Vermelho"
+  },
+  {
+    "name": "Rio do Prado - Logradouros",
+    "url": "data/ruas/3155108_faces_de_logradouros_2022_simplified.json",
+    "description": "Rio do Prado"
+  },
+  {
+    "name": "Ritápolis - Logradouros",
+    "url": "data/ruas/3156106_faces_de_logradouros_2022_simplified.json",
+    "description": "Ritápolis"
+  },
+  {
+    "name": "Rochedo de Minas - Logradouros",
+    "url": "data/ruas/3156205_faces_de_logradouros_2022_simplified.json",
+    "description": "Rochedo de Minas"
+  },
+  {
+    "name": "Rodeiro - Logradouros",
+    "url": "data/ruas/3156304_faces_de_logradouros_2022_simplified.json",
+    "description": "Rodeiro"
+  },
+  {
+    "name": "Romaria - Logradouros",
+    "url": "data/ruas/3156403_faces_de_logradouros_2022_simplified.json",
+    "description": "Romaria"
+  },
+  {
+    "name": "Rosário da Limeira - Logradouros",
+    "url": "data/ruas/3156452_faces_de_logradouros_2022_simplified.json",
+    "description": "Rosário da Limeira"
+  },
+  {
+    "name": "Rubelita - Logradouros",
+    "url": "data/ruas/3156502_faces_de_logradouros_2022_simplified.json",
+    "description": "Rubelita"
+  },
+  {
+    "name": "Rubim - Logradouros",
+    "url": "data/ruas/3156601_faces_de_logradouros_2022_simplified.json",
+    "description": "Rubim"
+  },
+  {
+    "name": "Sabará - Logradouros",
+    "url": "data/ruas/3156700_faces_de_logradouros_2022_simplified.json",
+    "description": "Sabará"
+  },
+  {
+    "name": "Sabinópolis - Logradouros",
+    "url": "data/ruas/3156809_faces_de_logradouros_2022_simplified.json",
+    "description": "Sabinópolis"
+  },
+  {
+    "name": "Sacramento - Logradouros",
+    "url": "data/ruas/3156908_faces_de_logradouros_2022_simplified.json",
+    "description": "Sacramento"
+  },
+  {
+    "name": "Salinas - Logradouros",
+    "url": "data/ruas/3157005_faces_de_logradouros_2022_simplified.json",
+    "description": "Salinas"
+  },
+  {
+    "name": "Salto da Divisa - Logradouros",
+    "url": "data/ruas/3157104_faces_de_logradouros_2022_simplified.json",
+    "description": "Salto da Divisa"
+  },
+  {
+    "name": "Santa Bárbara - Logradouros",
+    "url": "data/ruas/3157203_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Bárbara"
+  },
+  {
+    "name": "Santa Bárbara do Leste - Logradouros",
+    "url": "data/ruas/3157252_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Bárbara do Leste"
+  },
+  {
+    "name": "Santa Bárbara do Monte Verde - Logradouros",
+    "url": "data/ruas/3157278_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Bárbara do Monte Verde"
+  },
+  {
+    "name": "Santa Bárbara do Tugúrio - Logradouros",
+    "url": "data/ruas/3157302_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Bárbara do Tugúrio"
+  },
+  {
+    "name": "Santa Cruz de Minas - Logradouros",
+    "url": "data/ruas/3157336_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Cruz de Minas"
+  },
+  {
+    "name": "Santa Cruz de Salinas - Logradouros",
+    "url": "data/ruas/3157377_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Cruz de Salinas"
+  },
+  {
+    "name": "Santa Cruz do Escalvado - Logradouros",
+    "url": "data/ruas/3157401_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Cruz do Escalvado"
+  },
+  {
+    "name": "Santa Efigênia de Minas - Logradouros",
+    "url": "data/ruas/3157500_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Efigênia de Minas"
+  },
+  {
+    "name": "Santa Fé de Minas - Logradouros",
+    "url": "data/ruas/3157609_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Fé de Minas"
+  },
+  {
+    "name": "Santa Helena de Minas - Logradouros",
+    "url": "data/ruas/3157658_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Helena de Minas"
+  },
+  {
+    "name": "Santa Juliana - Logradouros",
+    "url": "data/ruas/3157708_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Juliana"
+  },
+  {
+    "name": "Santa Luzia - Logradouros",
+    "url": "data/ruas/3157807_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Luzia"
+  },
+  {
+    "name": "Santa Margarida - Logradouros",
+    "url": "data/ruas/3157906_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Margarida"
+  },
+  {
+    "name": "Santa Maria de Itabira - Logradouros",
+    "url": "data/ruas/3158003_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Maria de Itabira"
+  },
+  {
+    "name": "Santa Maria do Salto - Logradouros",
+    "url": "data/ruas/3158102_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Maria do Salto"
+  },
+  {
+    "name": "Santa Maria do Suaçuí - Logradouros",
+    "url": "data/ruas/3158201_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Maria do Suaçuí"
+  },
+  {
+    "name": "Santa Rita de Caldas - Logradouros",
+    "url": "data/ruas/3159209_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita de Caldas"
+  },
+  {
+    "name": "Santa Rita de Ibitipoca - Logradouros",
+    "url": "data/ruas/3159407_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita de Ibitipoca"
+  },
+  {
+    "name": "Santa Rita de Jacutinga - Logradouros",
+    "url": "data/ruas/3159308_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita de Jacutinga"
+  },
+  {
+    "name": "Santa Rita de Minas - Logradouros",
+    "url": "data/ruas/3159357_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita de Minas"
+  },
+  {
+    "name": "Santa Rita do Itueto - Logradouros",
+    "url": "data/ruas/3159506_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita do Itueto"
+  },
+  {
+    "name": "Santa Rita do Sapucaí - Logradouros",
+    "url": "data/ruas/3159605_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rita do Sapucaí"
+  },
+  {
+    "name": "Santa Rosa da Serra - Logradouros",
+    "url": "data/ruas/3159704_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Rosa da Serra"
+  },
+  {
+    "name": "Santa Vitória - Logradouros",
+    "url": "data/ruas/3159803_faces_de_logradouros_2022_simplified.json",
+    "description": "Santa Vitória"
+  },
+  {
+    "name": "Santana da Vargem - Logradouros",
+    "url": "data/ruas/3158300_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana da Vargem"
+  },
+  {
+    "name": "Santana de Cataguases - Logradouros",
+    "url": "data/ruas/3158409_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana de Cataguases"
+  },
+  {
+    "name": "Santana de Pirapama - Logradouros",
+    "url": "data/ruas/3158508_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana de Pirapama"
+  },
+  {
+    "name": "Santana do Deserto - Logradouros",
+    "url": "data/ruas/3158607_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Deserto"
+  },
+  {
+    "name": "Santana do Garambéu - Logradouros",
+    "url": "data/ruas/3158706_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Garambéu"
+  },
+  {
+    "name": "Santana do Jacaré - Logradouros",
+    "url": "data/ruas/3158805_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Jacaré"
+  },
+  {
+    "name": "Santana do Manhuaçu - Logradouros",
+    "url": "data/ruas/3158904_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Manhuaçu"
+  },
+  {
+    "name": "Santana do Paraíso - Logradouros",
+    "url": "data/ruas/3158953_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Paraíso"
+  },
+  {
+    "name": "Santana do Riacho - Logradouros",
+    "url": "data/ruas/3159001_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana do Riacho"
+  },
+  {
+    "name": "Santana dos Montes - Logradouros",
+    "url": "data/ruas/3159100_faces_de_logradouros_2022_simplified.json",
+    "description": "Santana dos Montes"
+  },
+  {
+    "name": "Santo Antônio do Amparo - Logradouros",
+    "url": "data/ruas/3159902_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Amparo"
+  },
+  {
+    "name": "Santo Antônio do Aventureiro - Logradouros",
+    "url": "data/ruas/3160009_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Aventureiro"
+  },
+  {
+    "name": "Santo Antônio do Grama - Logradouros",
+    "url": "data/ruas/3160108_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Grama"
+  },
+  {
+    "name": "Santo Antônio do Itambé - Logradouros",
+    "url": "data/ruas/3160207_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Itambé"
+  },
+  {
+    "name": "Santo Antônio do Jacinto - Logradouros",
+    "url": "data/ruas/3160306_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Jacinto"
+  },
+  {
+    "name": "Santo Antônio do Monte - Logradouros",
+    "url": "data/ruas/3160405_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Monte"
+  },
+  {
+    "name": "Santo Antônio do Retiro - Logradouros",
+    "url": "data/ruas/3160454_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Retiro"
+  },
+  {
+    "name": "Santo Antônio do Rio Abaixo - Logradouros",
+    "url": "data/ruas/3160504_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Antônio do Rio Abaixo"
+  },
+  {
+    "name": "Santo Hipólito - Logradouros",
+    "url": "data/ruas/3160603_faces_de_logradouros_2022_simplified.json",
+    "description": "Santo Hipólito"
+  },
+  {
+    "name": "Santos Dumont - Logradouros",
+    "url": "data/ruas/3160702_faces_de_logradouros_2022_simplified.json",
+    "description": "Santos Dumont"
+  },
+  {
+    "name": "Sapucaí-Mirim - Logradouros",
+    "url": "data/ruas/3165404_faces_de_logradouros_2022_simplified.json",
+    "description": "Sapucaí-Mirim"
+  },
+  {
+    "name": "Sardoá - Logradouros",
+    "url": "data/ruas/3165503_faces_de_logradouros_2022_simplified.json",
+    "description": "Sardoá"
+  },
+  {
+    "name": "Sarzedo - Logradouros",
+    "url": "data/ruas/3165537_faces_de_logradouros_2022_simplified.json",
+    "description": "Sarzedo"
+  },
+  {
+    "name": "Sem-Peixe - Logradouros",
+    "url": "data/ruas/3165560_faces_de_logradouros_2022_simplified.json",
+    "description": "Sem-Peixe"
+  },
+  {
+    "name": "Senador Amaral - Logradouros",
+    "url": "data/ruas/3165578_faces_de_logradouros_2022_simplified.json",
+    "description": "Senador Amaral"
+  },
+  {
+    "name": "Senador Cortes - Logradouros",
+    "url": "data/ruas/3165602_faces_de_logradouros_2022_simplified.json",
+    "description": "Senador Cortes"
+  },
+  {
+    "name": "Senador Firmino - Logradouros",
+    "url": "data/ruas/3165701_faces_de_logradouros_2022_simplified.json",
+    "description": "Senador Firmino"
+  },
+  {
+    "name": "Senador José Bento - Logradouros",
+    "url": "data/ruas/3165800_faces_de_logradouros_2022_simplified.json",
+    "description": "Senador José Bento"
+  },
+  {
+    "name": "Senador Modestino Gonçalves - Logradouros",
+    "url": "data/ruas/3165909_faces_de_logradouros_2022_simplified.json",
+    "description": "Senador Modestino Gonçalves"
+  },
+  {
+    "name": "Senhora de Oliveira - Logradouros",
+    "url": "data/ruas/3166006_faces_de_logradouros_2022_simplified.json",
+    "description": "Senhora de Oliveira"
+  },
+  {
+    "name": "Senhora do Porto - Logradouros",
+    "url": "data/ruas/3166105_faces_de_logradouros_2022_simplified.json",
+    "description": "Senhora do Porto"
+  },
+  {
+    "name": "Senhora dos Remédios - Logradouros",
+    "url": "data/ruas/3166204_faces_de_logradouros_2022_simplified.json",
+    "description": "Senhora dos Remédios"
+  },
+  {
+    "name": "Sericita - Logradouros",
+    "url": "data/ruas/3166303_faces_de_logradouros_2022_simplified.json",
+    "description": "Sericita"
+  },
+  {
+    "name": "Seritinga - Logradouros",
+    "url": "data/ruas/3166402_faces_de_logradouros_2022_simplified.json",
+    "description": "Seritinga"
+  },
+  {
+    "name": "Serra Azul de Minas - Logradouros",
+    "url": "data/ruas/3166501_faces_de_logradouros_2022_simplified.json",
+    "description": "Serra Azul de Minas"
+  },
+  {
+    "name": "Serra da Saudade - Logradouros",
+    "url": "data/ruas/3166600_faces_de_logradouros_2022_simplified.json",
+    "description": "Serra da Saudade"
+  },
+  {
+    "name": "Serra do Salitre - Logradouros",
+    "url": "data/ruas/3166808_faces_de_logradouros_2022_simplified.json",
+    "description": "Serra do Salitre"
+  },
+  {
+    "name": "Serra dos Aimorés - Logradouros",
+    "url": "data/ruas/3166709_faces_de_logradouros_2022_simplified.json",
+    "description": "Serra dos Aimorés"
+  },
+  {
+    "name": "Serrania - Logradouros",
+    "url": "data/ruas/3166907_faces_de_logradouros_2022_simplified.json",
+    "description": "Serrania"
+  },
+  {
+    "name": "Serranos - Logradouros",
+    "url": "data/ruas/3167004_faces_de_logradouros_2022_simplified.json",
+    "description": "Serranos"
+  },
+  {
+    "name": "Serranópolis de Minas - Logradouros",
+    "url": "data/ruas/3166956_faces_de_logradouros_2022_simplified.json",
+    "description": "Serranópolis de Minas"
+  },
+  {
+    "name": "Serro - Logradouros",
+    "url": "data/ruas/3167103_faces_de_logradouros_2022_simplified.json",
+    "description": "Serro"
+  },
+  {
+    "name": "Sete Lagoas - Logradouros",
+    "url": "data/ruas/3167202_faces_de_logradouros_2022_simplified.json",
+    "description": "Sete Lagoas"
+  },
+  {
+    "name": "Setubinha - Logradouros",
+    "url": "data/ruas/3165552_faces_de_logradouros_2022_simplified.json",
+    "description": "Setubinha"
+  },
+  {
+    "name": "Silveirânia - Logradouros",
+    "url": "data/ruas/3167301_faces_de_logradouros_2022_simplified.json",
+    "description": "Silveirânia"
+  },
+  {
+    "name": "Silvianópolis - Logradouros",
+    "url": "data/ruas/3167400_faces_de_logradouros_2022_simplified.json",
+    "description": "Silvianópolis"
+  },
+  {
+    "name": "Simonésia - Logradouros",
+    "url": "data/ruas/3167608_faces_de_logradouros_2022_simplified.json",
+    "description": "Simonésia"
+  },
+  {
+    "name": "Simão Pereira - Logradouros",
+    "url": "data/ruas/3167509_faces_de_logradouros_2022_simplified.json",
+    "description": "Simão Pereira"
+  },
+  {
+    "name": "Sobrália - Logradouros",
+    "url": "data/ruas/3167707_faces_de_logradouros_2022_simplified.json",
+    "description": "Sobrália"
+  },
+  {
+    "name": "Soledade de Minas - Logradouros",
+    "url": "data/ruas/3167806_faces_de_logradouros_2022_simplified.json",
+    "description": "Soledade de Minas"
+  },
+  {
+    "name": "São Bento Abade - Logradouros",
+    "url": "data/ruas/3160801_faces_de_logradouros_2022_simplified.json",
+    "description": "São Bento Abade"
+  },
+  {
+    "name": "São Brás do Suaçuí - Logradouros",
+    "url": "data/ruas/3160900_faces_de_logradouros_2022_simplified.json",
+    "description": "São Brás do Suaçuí"
+  },
+  {
+    "name": "São Domingos das Dores - Logradouros",
+    "url": "data/ruas/3160959_faces_de_logradouros_2022_simplified.json",
+    "description": "São Domingos das Dores"
+  },
+  {
+    "name": "São Domingos do Prata - Logradouros",
+    "url": "data/ruas/3161007_faces_de_logradouros_2022_simplified.json",
+    "description": "São Domingos do Prata"
+  },
+  {
+    "name": "São Francisco - Logradouros",
+    "url": "data/ruas/3161106_faces_de_logradouros_2022_simplified.json",
+    "description": "São Francisco"
+  },
+  {
+    "name": "São Francisco de Paula - Logradouros",
+    "url": "data/ruas/3161205_faces_de_logradouros_2022_simplified.json",
+    "description": "São Francisco de Paula"
+  },
+  {
+    "name": "São Francisco de Sales - Logradouros",
+    "url": "data/ruas/3161304_faces_de_logradouros_2022_simplified.json",
+    "description": "São Francisco de Sales"
+  },
+  {
+    "name": "São Francisco do Glória - Logradouros",
+    "url": "data/ruas/3161403_faces_de_logradouros_2022_simplified.json",
+    "description": "São Francisco do Glória"
+  },
+  {
+    "name": "São Félix de Minas - Logradouros",
+    "url": "data/ruas/3161056_faces_de_logradouros_2022_simplified.json",
+    "description": "São Félix de Minas"
+  },
+  {
+    "name": "São Geraldo - Logradouros",
+    "url": "data/ruas/3161502_faces_de_logradouros_2022_simplified.json",
+    "description": "São Geraldo"
+  },
+  {
+    "name": "São Geraldo da Piedade - Logradouros",
+    "url": "data/ruas/3161601_faces_de_logradouros_2022_simplified.json",
+    "description": "São Geraldo da Piedade"
+  },
+  {
+    "name": "São Geraldo do Baixio - Logradouros",
+    "url": "data/ruas/3161650_faces_de_logradouros_2022_simplified.json",
+    "description": "São Geraldo do Baixio"
+  },
+  {
+    "name": "São Gonçalo do Abaeté - Logradouros",
+    "url": "data/ruas/3161700_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gonçalo do Abaeté"
+  },
+  {
+    "name": "São Gonçalo do Pará - Logradouros",
+    "url": "data/ruas/3161809_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gonçalo do Pará"
+  },
+  {
+    "name": "São Gonçalo do Rio Abaixo - Logradouros",
+    "url": "data/ruas/3161908_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gonçalo do Rio Abaixo"
+  },
+  {
+    "name": "São Gonçalo do Rio Preto - Logradouros",
+    "url": "data/ruas/3125507_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gonçalo do Rio Preto"
+  },
+  {
+    "name": "São Gonçalo do Sapucaí - Logradouros",
+    "url": "data/ruas/3162005_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gonçalo do Sapucaí"
+  },
+  {
+    "name": "São Gotardo - Logradouros",
+    "url": "data/ruas/3162104_faces_de_logradouros_2022_simplified.json",
+    "description": "São Gotardo"
+  },
+  {
+    "name": "São Joaquim de Bicas - Logradouros",
+    "url": "data/ruas/3162922_faces_de_logradouros_2022_simplified.json",
+    "description": "São Joaquim de Bicas"
+  },
+  {
+    "name": "São José da Barra - Logradouros",
+    "url": "data/ruas/3162948_faces_de_logradouros_2022_simplified.json",
+    "description": "São José da Barra"
+  },
+  {
+    "name": "São José da Lapa - Logradouros",
+    "url": "data/ruas/3162955_faces_de_logradouros_2022_simplified.json",
+    "description": "São José da Lapa"
+  },
+  {
+    "name": "São José da Safira - Logradouros",
+    "url": "data/ruas/3163003_faces_de_logradouros_2022_simplified.json",
+    "description": "São José da Safira"
+  },
+  {
+    "name": "São José da Varginha - Logradouros",
+    "url": "data/ruas/3163102_faces_de_logradouros_2022_simplified.json",
+    "description": "São José da Varginha"
+  },
+  {
+    "name": "São José do Alegre - Logradouros",
+    "url": "data/ruas/3163201_faces_de_logradouros_2022_simplified.json",
+    "description": "São José do Alegre"
+  },
+  {
+    "name": "São José do Divino - Logradouros",
+    "url": "data/ruas/3163300_faces_de_logradouros_2022_simplified.json",
+    "description": "São José do Divino"
+  },
+  {
+    "name": "São José do Goiabal - Logradouros",
+    "url": "data/ruas/3163409_faces_de_logradouros_2022_simplified.json",
+    "description": "São José do Goiabal"
+  },
+  {
+    "name": "São José do Jacuri - Logradouros",
+    "url": "data/ruas/3163508_faces_de_logradouros_2022_simplified.json",
+    "description": "São José do Jacuri"
+  },
+  {
+    "name": "São José do Mantimento - Logradouros",
+    "url": "data/ruas/3163607_faces_de_logradouros_2022_simplified.json",
+    "description": "São José do Mantimento"
+  },
+  {
+    "name": "São João Batista do Glória - Logradouros",
+    "url": "data/ruas/3162203_faces_de_logradouros_2022_simplified.json",
+    "description": "São João Batista do Glória"
+  },
+  {
+    "name": "São João Evangelista - Logradouros",
+    "url": "data/ruas/3162807_faces_de_logradouros_2022_simplified.json",
+    "description": "São João Evangelista"
+  },
+  {
+    "name": "São João Nepomuceno - Logradouros",
+    "url": "data/ruas/3162906_faces_de_logradouros_2022_simplified.json",
+    "description": "São João Nepomuceno"
+  },
+  {
+    "name": "São João da Lagoa - Logradouros",
+    "url": "data/ruas/3162252_faces_de_logradouros_2022_simplified.json",
+    "description": "São João da Lagoa"
+  },
+  {
+    "name": "São João da Mata - Logradouros",
+    "url": "data/ruas/3162302_faces_de_logradouros_2022_simplified.json",
+    "description": "São João da Mata"
+  },
+  {
+    "name": "São João da Ponte - Logradouros",
+    "url": "data/ruas/3162401_faces_de_logradouros_2022_simplified.json",
+    "description": "São João da Ponte"
+  },
+  {
+    "name": "São João das Missões - Logradouros",
+    "url": "data/ruas/3162450_faces_de_logradouros_2022_simplified.json",
+    "description": "São João das Missões"
+  },
+  {
+    "name": "São João del Rei - Logradouros",
+    "url": "data/ruas/3162500_faces_de_logradouros_2022_simplified.json",
+    "description": "São João del Rei"
+  },
+  {
+    "name": "São João do Manhuaçu - Logradouros",
+    "url": "data/ruas/3162559_faces_de_logradouros_2022_simplified.json",
+    "description": "São João do Manhuaçu"
+  },
+  {
+    "name": "São João do Manteninha - Logradouros",
+    "url": "data/ruas/3162575_faces_de_logradouros_2022_simplified.json",
+    "description": "São João do Manteninha"
+  },
+  {
+    "name": "São João do Oriente - Logradouros",
+    "url": "data/ruas/3162609_faces_de_logradouros_2022_simplified.json",
+    "description": "São João do Oriente"
+  },
+  {
+    "name": "São João do Pacuí - Logradouros",
+    "url": "data/ruas/3162658_faces_de_logradouros_2022_simplified.json",
+    "description": "São João do Pacuí"
+  },
+  {
+    "name": "São João do Paraíso - Logradouros",
+    "url": "data/ruas/3162708_faces_de_logradouros_2022_simplified.json",
+    "description": "São João do Paraíso"
+  },
+  {
+    "name": "São Lourenço - Logradouros",
+    "url": "data/ruas/3163706_faces_de_logradouros_2022_simplified.json",
+    "description": "São Lourenço"
+  },
+  {
+    "name": "São Miguel do Anta - Logradouros",
+    "url": "data/ruas/3163805_faces_de_logradouros_2022_simplified.json",
+    "description": "São Miguel do Anta"
+  },
+  {
+    "name": "São Pedro da União - Logradouros",
+    "url": "data/ruas/3163904_faces_de_logradouros_2022_simplified.json",
+    "description": "São Pedro da União"
+  },
+  {
+    "name": "São Pedro do Suaçuí - Logradouros",
+    "url": "data/ruas/3164100_faces_de_logradouros_2022_simplified.json",
+    "description": "São Pedro do Suaçuí"
+  },
+  {
+    "name": "São Pedro dos Ferros - Logradouros",
+    "url": "data/ruas/3164001_faces_de_logradouros_2022_simplified.json",
+    "description": "São Pedro dos Ferros"
+  },
+  {
+    "name": "São Romão - Logradouros",
+    "url": "data/ruas/3164209_faces_de_logradouros_2022_simplified.json",
+    "description": "São Romão"
+  },
+  {
+    "name": "São Roque de Minas - Logradouros",
+    "url": "data/ruas/3164308_faces_de_logradouros_2022_simplified.json",
+    "description": "São Roque de Minas"
+  },
+  {
+    "name": "São Sebastião da Bela Vista - Logradouros",
+    "url": "data/ruas/3164407_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião da Bela Vista"
+  },
+  {
+    "name": "São Sebastião da Vargem Alegre - Logradouros",
+    "url": "data/ruas/3164431_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião da Vargem Alegre"
+  },
+  {
+    "name": "São Sebastião do Anta - Logradouros",
+    "url": "data/ruas/3164472_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Anta"
+  },
+  {
+    "name": "São Sebastião do Maranhão - Logradouros",
+    "url": "data/ruas/3164506_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Maranhão"
+  },
+  {
+    "name": "São Sebastião do Oeste - Logradouros",
+    "url": "data/ruas/3164605_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Oeste"
+  },
+  {
+    "name": "São Sebastião do Paraíso - Logradouros",
+    "url": "data/ruas/3164704_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Paraíso"
+  },
+  {
+    "name": "São Sebastião do Rio Preto - Logradouros",
+    "url": "data/ruas/3164803_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Rio Preto"
+  },
+  {
+    "name": "São Sebastião do Rio Verde - Logradouros",
+    "url": "data/ruas/3164902_faces_de_logradouros_2022_simplified.json",
+    "description": "São Sebastião do Rio Verde"
+  },
+  {
+    "name": "São Thomé das Letras - Logradouros",
+    "url": "data/ruas/3165206_faces_de_logradouros_2022_simplified.json",
+    "description": "São Thomé das Letras"
+  },
+  {
+    "name": "São Tiago - Logradouros",
+    "url": "data/ruas/3165008_faces_de_logradouros_2022_simplified.json",
+    "description": "São Tiago"
+  },
+  {
+    "name": "São Tomás de Aquino - Logradouros",
+    "url": "data/ruas/3165107_faces_de_logradouros_2022_simplified.json",
+    "description": "São Tomás de Aquino"
+  },
+  {
+    "name": "São Vicente de Minas - Logradouros",
+    "url": "data/ruas/3165305_faces_de_logradouros_2022_simplified.json",
+    "description": "São Vicente de Minas"
+  },
+  {
+    "name": "Tabuleiro - Logradouros",
+    "url": "data/ruas/3167905_faces_de_logradouros_2022_simplified.json",
+    "description": "Tabuleiro"
+  },
+  {
+    "name": "Taiobeiras - Logradouros",
+    "url": "data/ruas/3168002_faces_de_logradouros_2022_simplified.json",
+    "description": "Taiobeiras"
+  },
+  {
+    "name": "Taparuba - Logradouros",
+    "url": "data/ruas/3168051_faces_de_logradouros_2022_simplified.json",
+    "description": "Taparuba"
+  },
+  {
+    "name": "Tapira - Logradouros",
+    "url": "data/ruas/3168101_faces_de_logradouros_2022_simplified.json",
+    "description": "Tapira"
+  },
+  {
+    "name": "Tapiraí - Logradouros",
+    "url": "data/ruas/3168200_faces_de_logradouros_2022_simplified.json",
+    "description": "Tapiraí"
+  },
+  {
+    "name": "Taquaraçu de Minas - Logradouros",
+    "url": "data/ruas/3168309_faces_de_logradouros_2022_simplified.json",
+    "description": "Taquaraçu de Minas"
+  },
+  {
+    "name": "Tarumirim - Logradouros",
+    "url": "data/ruas/3168408_faces_de_logradouros_2022_simplified.json",
+    "description": "Tarumirim"
+  },
+  {
+    "name": "Teixeiras - Logradouros",
+    "url": "data/ruas/3168507_faces_de_logradouros_2022_simplified.json",
+    "description": "Teixeiras"
+  },
+  {
+    "name": "Teófilo Otoni - Logradouros",
+    "url": "data/ruas/3168606_faces_de_logradouros_2022_simplified.json",
+    "description": "Teófilo Otoni"
+  },
+  {
+    "name": "Timóteo - Logradouros",
+    "url": "data/ruas/3168705_faces_de_logradouros_2022_simplified.json",
+    "description": "Timóteo"
+  },
+  {
+    "name": "Tiradentes - Logradouros",
+    "url": "data/ruas/3168804_faces_de_logradouros_2022_simplified.json",
+    "description": "Tiradentes"
+  },
+  {
+    "name": "Tiros - Logradouros",
+    "url": "data/ruas/3168903_faces_de_logradouros_2022_simplified.json",
+    "description": "Tiros"
+  },
+  {
+    "name": "Tocantins - Logradouros",
+    "url": "data/ruas/3169000_faces_de_logradouros_2022_simplified.json",
+    "description": "Tocantins"
+  },
+  {
+    "name": "Tocos do Moji - Logradouros",
+    "url": "data/ruas/3169059_faces_de_logradouros_2022_simplified.json",
+    "description": "Tocos do Moji"
+  },
+  {
+    "name": "Toledo - Logradouros",
+    "url": "data/ruas/3169109_faces_de_logradouros_2022_simplified.json",
+    "description": "Toledo"
+  },
+  {
+    "name": "Tombos - Logradouros",
+    "url": "data/ruas/3169208_faces_de_logradouros_2022_simplified.json",
+    "description": "Tombos"
+  },
+  {
+    "name": "Três Corações - Logradouros",
+    "url": "data/ruas/3169307_faces_de_logradouros_2022_simplified.json",
+    "description": "Três Corações"
+  },
+  {
+    "name": "Três Marias - Logradouros",
+    "url": "data/ruas/3169356_faces_de_logradouros_2022_simplified.json",
+    "description": "Três Marias"
+  },
+  {
+    "name": "Três Pontas - Logradouros",
+    "url": "data/ruas/3169406_faces_de_logradouros_2022_simplified.json",
+    "description": "Três Pontas"
+  },
+  {
+    "name": "Tumiritinga - Logradouros",
+    "url": "data/ruas/3169505_faces_de_logradouros_2022_simplified.json",
+    "description": "Tumiritinga"
+  },
+  {
+    "name": "Tupaciguara - Logradouros",
+    "url": "data/ruas/3169604_faces_de_logradouros_2022_simplified.json",
+    "description": "Tupaciguara"
+  },
+  {
+    "name": "Turmalina - Logradouros",
+    "url": "data/ruas/3169703_faces_de_logradouros_2022_simplified.json",
+    "description": "Turmalina"
+  },
+  {
+    "name": "Turvolândia - Logradouros",
+    "url": "data/ruas/3169802_faces_de_logradouros_2022_simplified.json",
+    "description": "Turvolândia"
+  },
+  {
+    "name": "Ubaporanga - Logradouros",
+    "url": "data/ruas/3170057_faces_de_logradouros_2022_simplified.json",
+    "description": "Ubaporanga"
+  },
+  {
+    "name": "Ubaí - Logradouros",
+    "url": "data/ruas/3170008_faces_de_logradouros_2022_simplified.json",
+    "description": "Ubaí"
+  },
+  {
+    "name": "Uberaba - Logradouros",
+    "url": "data/ruas/3170107_faces_de_logradouros_2022_simplified.json",
+    "description": "Uberaba"
+  },
+  {
+    "name": "Uberlândia - Logradouros",
+    "url": "data/ruas/3170206_faces_de_logradouros_2022_simplified.json",
+    "description": "Uberlândia"
+  },
+  {
+    "name": "Ubá - Logradouros",
+    "url": "data/ruas/3169901_faces_de_logradouros_2022_simplified.json",
+    "description": "Ubá"
+  },
+  {
+    "name": "Umburatiba - Logradouros",
+    "url": "data/ruas/3170305_faces_de_logradouros_2022_simplified.json",
+    "description": "Umburatiba"
+  },
+  {
+    "name": "Unaí - Logradouros",
+    "url": "data/ruas/3170404_faces_de_logradouros_2022_simplified.json",
+    "description": "Unaí"
+  },
+  {
+    "name": "União de Minas - Logradouros",
+    "url": "data/ruas/3170438_faces_de_logradouros_2022_simplified.json",
+    "description": "União de Minas"
+  },
+  {
+    "name": "Uruana de Minas - Logradouros",
+    "url": "data/ruas/3170479_faces_de_logradouros_2022_simplified.json",
+    "description": "Uruana de Minas"
+  },
+  {
+    "name": "Urucuia - Logradouros",
+    "url": "data/ruas/3170529_faces_de_logradouros_2022_simplified.json",
+    "description": "Urucuia"
+  },
+  {
+    "name": "Urucânia - Logradouros",
+    "url": "data/ruas/3170503_faces_de_logradouros_2022_simplified.json",
+    "description": "Urucânia"
+  },
+  {
+    "name": "Vargem Alegre - Logradouros",
+    "url": "data/ruas/3170578_faces_de_logradouros_2022_simplified.json",
+    "description": "Vargem Alegre"
+  },
+  {
+    "name": "Vargem Bonita - Logradouros",
+    "url": "data/ruas/3170602_faces_de_logradouros_2022_simplified.json",
+    "description": "Vargem Bonita"
+  },
+  {
+    "name": "Vargem Grande do Rio Pardo - Logradouros",
+    "url": "data/ruas/3170651_faces_de_logradouros_2022_simplified.json",
+    "description": "Vargem Grande do Rio Pardo"
+  },
+  {
+    "name": "Varginha - Logradouros",
+    "url": "data/ruas/3170701_faces_de_logradouros_2022_simplified.json",
+    "description": "Varginha"
+  },
+  {
+    "name": "Varjão de Minas - Logradouros",
+    "url": "data/ruas/3170750_faces_de_logradouros_2022_simplified.json",
+    "description": "Varjão de Minas"
+  },
+  {
+    "name": "Varzelândia - Logradouros",
+    "url": "data/ruas/3170909_faces_de_logradouros_2022_simplified.json",
+    "description": "Varzelândia"
+  },
+  {
+    "name": "Vazante - Logradouros",
+    "url": "data/ruas/3171006_faces_de_logradouros_2022_simplified.json",
+    "description": "Vazante"
+  },
+  {
+    "name": "Verdelândia - Logradouros",
+    "url": "data/ruas/3171030_faces_de_logradouros_2022_simplified.json",
+    "description": "Verdelândia"
+  },
+  {
+    "name": "Veredinha - Logradouros",
+    "url": "data/ruas/3171071_faces_de_logradouros_2022_simplified.json",
+    "description": "Veredinha"
+  },
+  {
+    "name": "Vermelho Novo - Logradouros",
+    "url": "data/ruas/3171154_faces_de_logradouros_2022_simplified.json",
+    "description": "Vermelho Novo"
+  },
+  {
+    "name": "Veríssimo - Logradouros",
+    "url": "data/ruas/3171105_faces_de_logradouros_2022_simplified.json",
+    "description": "Veríssimo"
+  },
+  {
+    "name": "Vespasiano - Logradouros",
+    "url": "data/ruas/3171204_faces_de_logradouros_2022_simplified.json",
+    "description": "Vespasiano"
+  },
+  {
+    "name": "Vieiras - Logradouros",
+    "url": "data/ruas/3171402_faces_de_logradouros_2022_simplified.json",
+    "description": "Vieiras"
+  },
+  {
+    "name": "Virgem da Lapa - Logradouros",
+    "url": "data/ruas/3171600_faces_de_logradouros_2022_simplified.json",
+    "description": "Virgem da Lapa"
+  },
+  {
+    "name": "Virginópolis - Logradouros",
+    "url": "data/ruas/3171808_faces_de_logradouros_2022_simplified.json",
+    "description": "Virginópolis"
+  },
+  {
+    "name": "Virgolândia - Logradouros",
+    "url": "data/ruas/3171907_faces_de_logradouros_2022_simplified.json",
+    "description": "Virgolândia"
+  },
+  {
+    "name": "Virgínia - Logradouros",
+    "url": "data/ruas/3171709_faces_de_logradouros_2022_simplified.json",
+    "description": "Virgínia"
+  },
+  {
+    "name": "Visconde do Rio Branco - Logradouros",
+    "url": "data/ruas/3172004_faces_de_logradouros_2022_simplified.json",
+    "description": "Visconde do Rio Branco"
+  },
+  {
+    "name": "Viçosa - Logradouros",
+    "url": "data/ruas/3171303_faces_de_logradouros_2022_simplified.json",
+    "description": "Viçosa"
+  },
+  {
+    "name": "Volta Grande - Logradouros",
+    "url": "data/ruas/3172103_faces_de_logradouros_2022_simplified.json",
+    "description": "Volta Grande"
+  },
+  {
+    "name": "Várzea da Palma - Logradouros",
+    "url": "data/ruas/3170800_faces_de_logradouros_2022_simplified.json",
+    "description": "Várzea da Palma"
+  },
+  {
+    "name": "Wenceslau Braz - Logradouros",
+    "url": "data/ruas/3172202_faces_de_logradouros_2022_simplified.json",
+    "description": "Wenceslau Braz"
+  },
+  {
+    "name": "Água Boa - Logradouros",
+    "url": "data/ruas/3100609_faces_de_logradouros_2022_simplified.json",
+    "description": "Água Boa"
+  },
+  {
+    "name": "Água Comprida - Logradouros",
+    "url": "data/ruas/3100708_faces_de_logradouros_2022_simplified.json",
+    "description": "Água Comprida"
+  },
+  {
+    "name": "Águas Formosas - Logradouros",
+    "url": "data/ruas/3100906_faces_de_logradouros_2022_simplified.json",
+    "description": "Águas Formosas"
+  },
+  {
+    "name": "Águas Vermelhas - Logradouros",
+    "url": "data/ruas/3101003_faces_de_logradouros_2022_simplified.json",
+    "description": "Águas Vermelhas"
+  }
 ]
