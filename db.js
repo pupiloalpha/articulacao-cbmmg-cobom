@@ -1,29 +1,14 @@
-// db.js - Gerenciamento do IndexedDB usando Dexie.js
+// db.js - Gerenciamento do IndexedDB usando Dexie.js (versão limpa - sem addresses/routes)
 
-// Inicializa o banco de dados
 const db = new Dexie('GisPwaDB');
 
-// Schema versão 1 (legado)
-db.version(1).stores({
-    layers: '++id, name, type, created, updated',
-    addresses: '++id, query, lat, lng, address, timestamp',
-    tiles: 'key, blob, timestamp',
-    routes: '[originLat+originLng+destLat+destLng], distance, duration, timestamp'
-});
-
-// Schema versão 2: adiciona campo "order" para reordenação de camadas
-db.version(2).stores({
+// Schema versão 3: apenas layers + tiles
+db.version(3).stores({
     layers: '++id, name, type, order, created, updated',
-    addresses: '++id, query, lat, lng, address, timestamp',
-    tiles: 'key, blob, timestamp',
-    routes: '[originLat+originLng+destLat+destLng], distance, duration, timestamp'
+    tiles: 'key, blob, timestamp'
 }).upgrade(tx => {
-    // Migração: preenche order para camadas existentes
-    return tx.table('layers').toCollection().modify(layer => {
-        if (typeof layer.order === 'undefined' || layer.order === null) {
-            layer.order = layer.id || Date.now();
-        }
-    });
+    // Migração silenciosa de versões anteriores (remove stores antigas se existirem)
+    return Promise.resolve();
 });
 
 // Funções para Camadas
@@ -38,7 +23,6 @@ async function saveLayer(layerData) {
 }
 
 async function getLayers() {
-    // Retorna sempre ordenado por "order" ascendente
     return await db.layers.orderBy('order').toArray();
 }
 
@@ -55,7 +39,6 @@ async function deleteLayer(id) {
     return await db.layers.delete(id);
 }
 
-/** Troca a ordem de duas camadas (usado pelas setas ↑↓) */
 async function swapLayerOrder(idA, idB) {
     const layerA = await db.layers.get(idA);
     const layerB = await db.layers.get(idB);
@@ -66,128 +49,62 @@ async function swapLayerOrder(idA, idB) {
     return true;
 }
 
-// Funções para Endereços (busca offline)
-async function addAddress(addressRecord) {
-    addressRecord.timestamp = new Date();
-    return await db.addresses.add(addressRecord);
-}
-
-async function searchAddresses(query) {
-    const all = await db.addresses.toArray();
-    const lowerQuery = query.toLowerCase();
-    return all.filter(addr => 
-        (addr.query && addr.query.toLowerCase().includes(lowerQuery)) || 
-        (addr.address && addr.address.toLowerCase().includes(lowerQuery))
-    );
-}
-
 // Funções para Tiles (cache offline)
 async function getTile(key) {
     const record = await db.tiles.get(key);
-    if (record && record.blob) {
-        return record.blob;
-    }
-    return null;
+    return record && record.blob ? record.blob : null;
 }
 
 async function saveTile(key, blob) {
-    const record = { key, blob, timestamp: new Date() };
-    await db.tiles.put(record);
+    await db.tiles.put({ key, blob, timestamp: new Date() });
 }
 
 async function clearTiles() {
     await db.tiles.clear();
 }
 
-// Funções para rotas (cache)
-async function getRouteFromCache(originLat, originLng, destLat, destLng) {
-    return await db.routes.get({ originLat, originLng, destLat, destLng });
-}
-
-async function saveRouteToCache(originLat, originLng, destLat, destLng, distance, duration) {
-    const record = {
-        originLat,
-        originLng,
-        destLat,
-        destLng,
-        distance,
-        duration,
-        timestamp: new Date()
-    };
-    await db.routes.put(record);
-}
-
-async function clearRoutesCache() {
-    await db.routes.clear();
-}
-
-// Exportação e Importação de Backup
+// Exportação / Importação de Backup (somente layers)
 async function exportBackup() {
     const layers = await db.layers.toArray();
-    const addresses = await db.addresses.toArray();
-    
     const allFeatures = [];
     layers.forEach(layer => {
-        const geojson = layer.geojson;
-        if (geojson && geojson.features) {
-            geojson.features.forEach(feature => {
-                feature.properties = feature.properties || {};
-                feature.properties._layerId = layer.id;
-                feature.properties._layerName = layer.name;
-                allFeatures.push(feature);
+        if (layer.geojson && layer.geojson.features) {
+            layer.geojson.features.forEach(feature => {
+                const f = JSON.parse(JSON.stringify(feature));
+                f.properties = f.properties || {};
+                f.properties._layerId = layer.id;
+                f.properties._layerName = layer.name;
+                allFeatures.push(f);
             });
         }
     });
-    
-    const backup = {
-        version: '1.1',
+    return JSON.stringify({
+        version: '1.2',
         exportedAt: new Date().toISOString(),
-        featureCollection: {
-            type: 'FeatureCollection',
-            features: allFeatures
-        },
-        addresses: addresses
-    };
-    
-    return JSON.stringify(backup, null, 2);
+        featureCollection: { type: 'FeatureCollection', features: allFeatures }
+    }, null, 2);
 }
 
 async function importBackup(jsonString) {
     try {
         const backup = JSON.parse(jsonString);
         await db.layers.clear();
-        await db.addresses.clear();
-        
-        if (backup.addresses && Array.isArray(backup.addresses)) {
-            for (const addr of backup.addresses) {
-                await addAddress(addr);
-            }
-        }
-        
         if (backup.featureCollection && backup.featureCollection.features) {
             const grouped = {};
             backup.featureCollection.features.forEach(feature => {
                 const layerName = feature.properties?._layerName || 'Backup Layer';
                 if (!grouped[layerName]) {
-                    grouped[layerName] = {
-                        type: 'FeatureCollection',
-                        features: []
-                    };
+                    grouped[layerName] = { type: 'FeatureCollection', features: [] };
                 }
-                const cleanFeature = { ...feature };
-                if (cleanFeature.properties) {
-                    delete cleanFeature.properties._layerId;
-                    delete cleanFeature.properties._layerName;
+                const clean = { ...feature };
+                if (clean.properties) {
+                    delete clean.properties._layerId;
+                    delete clean.properties._layerName;
                 }
-                grouped[layerName].features.push(cleanFeature);
+                grouped[layerName].features.push(clean);
             });
-            
             for (const [name, geojson] of Object.entries(grouped)) {
-                await saveLayer({
-                    name: name,
-                    type: 'geojson',
-                    geojson: geojson
-                });
+                await saveLayer({ name, type: 'geojson', geojson });
             }
         }
         return true;
@@ -197,7 +114,6 @@ async function importBackup(jsonString) {
     }
 }
 
-// Exporta funções globalmente
 window.DB = {
     saveLayer,
     getLayers,
@@ -205,14 +121,9 @@ window.DB = {
     updateLayer,
     deleteLayer,
     swapLayerOrder,
-    addAddress,
-    searchAddresses,
     getTile,
     saveTile,
     clearTiles,
     exportBackup,
-    importBackup,
-    getRouteFromCache,
-    saveRouteToCache,
-    clearRoutesCache
+    importBackup
 };

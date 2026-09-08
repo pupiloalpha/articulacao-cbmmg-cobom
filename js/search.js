@@ -1,23 +1,15 @@
-// js/search.js - Algoritmo aprimorado de busca de endereços (Online/Offline)
-// com indexação em memória, agregação de segmentos e coordenadas de alta precisão
+// js/search.js - Busca de endereços (Online/Offline) sem cache de resultados
 
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
 
-// Invalida o índice em memória quando camadas forem adicionadas/atualizadas
 function invalidateStreetIndex() {
     cachedStreetIndex = null;
 }
 
-// Constrói ou recupera o índice em memória de todos os logradouros das camadas locais
 async function getOrBuildStreetIndex() {
-    if (cachedStreetIndex && cachedStreetIndex.length > 0) {
-        return cachedStreetIndex;
-    }
-
-    if (isIndexingStreets) {
-        return [];
-    }
+    if (cachedStreetIndex && cachedStreetIndex.length > 0) return cachedStreetIndex;
+    if (isIndexingStreets) return [];
 
     isIndexingStreets = true;
     try {
@@ -25,7 +17,7 @@ async function getOrBuildStreetIndex() {
         const streetMap = new Map();
 
         for (const layerData of layers) {
-            if (!layerData || !layerData.geojson || !Array.isArray(layerData.geojson.features)) continue;
+            if (!layerData?.geojson?.features) continue;
 
             for (const feature of layerData.geojson.features) {
                 const props = feature.properties;
@@ -33,9 +25,8 @@ async function getOrBuildStreetIndex() {
                 if (!props || !geom) continue;
 
                 const streetInfo = getFeatureStreetInfo(props);
-                if (!streetInfo || !streetInfo.fullName) continue;
+                if (!streetInfo?.fullName) continue;
 
-                // Chave única de agrupamento: nome normalizado + código do município
                 const munCode = streetInfo.cdSetor ? streetInfo.cdSetor.slice(0, 7) : '';
                 const streetKey = `${normalizeStr(streetInfo.fullName)}__${munCode}`;
 
@@ -66,7 +57,6 @@ async function getOrBuildStreetIndex() {
                 entry.totalRes += streetInfo.totalRes;
                 entry.totalGeral += streetInfo.totalGeral;
 
-                // Atualiza a bounding box para obter o centro geométrico exato da rua
                 extractCoordinatesFromGeom(geom, (lng, lat) => {
                     if (lat < entry.minLat) entry.minLat = lat;
                     if (lat > entry.maxLat) entry.maxLat = lat;
@@ -76,7 +66,6 @@ async function getOrBuildStreetIndex() {
             }
         }
 
-        // Calcula coordenadas centrais e monta lista final
         const indexList = [];
         for (const entry of streetMap.values()) {
             if (entry.minLat !== Infinity && entry.minLng !== Infinity) {
@@ -97,10 +86,8 @@ async function getOrBuildStreetIndex() {
     }
 }
 
-// Extrai recursivamente coordenadas [lng, lat] de qualquer tipo de geometria GeoJSON
 function extractCoordinatesFromGeom(geom, callback) {
     if (!geom || !geom.coordinates) return;
-
     if (geom.type === 'Point') {
         callback(geom.coordinates[0], geom.coordinates[1]);
     } else if (geom.type === 'LineString' || geom.type === 'MultiPoint') {
@@ -120,7 +107,6 @@ function extractCoordinatesFromGeom(geom, callback) {
     }
 }
 
-// Pesquisa de Endereços (Online/Offline) com ranqueamento por relevância
 async function searchAddress(query) {
     const resultsDiv = document.getElementById('searchResults');
     if (!resultsDiv) return;
@@ -133,27 +119,23 @@ async function searchAddress(query) {
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
 
-    // ===== LAZY LOAD das ruas (só na primeira busca) =====
+    // Lazy load das ruas
     try {
         const existingLayers = await DB.getLayers();
         const hasStreetLayer = existingLayers.some(l =>
             l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros') || l.name.includes('Street'))
         );
-
         if (!hasStreetLayer) {
             resultsDiv.innerHTML = '<div class="search-status-msg">📥 Carregando base de logradouros (primeira vez)... Isso pode levar alguns segundos.</div>';
-            await loadStreetDataFromGitHub();   // função já existente em layers.js
-            // Garante que o índice seja reconstruído após o carregamento
+            await loadStreetDataFromGitHub();
             invalidateStreetIndex();
         }
     } catch (e) {
         console.warn('Falha ao carregar base de ruas sob demanda:', e);
     }
-    // ===== FIM LAZY LOAD =====
 
     const expandedQuery = expandSearchQuery(rawQuery);
     const queryTokens = expandedQuery.split(/\s+/).filter(Boolean);
-
     if (queryTokens.length === 0) {
         resultsDiv.innerHTML = '<div class="search-status-msg">Digite um termo válido para busca.</div>';
         return;
@@ -162,28 +144,20 @@ async function searchAddress(query) {
     const matchedResults = [];
     const seenAddresses = new Set();
 
-    // 1. Busca no Índice Estruturado de Logradouros (Base Offline de Ruas)
+    // 1. Índice de ruas offline
     const streetIndex = await getOrBuildStreetIndex();
-
     for (const street of streetIndex) {
-        // Verifica se todos os tokens da consulta combinam com o logradouro ou município
-        const matches = queryTokens.every(token => 
-            street.normalizedWithMun.includes(token) || 
-            street.normalizedStreetOnly.includes(token)
+        const matches = queryTokens.every(token =>
+            street.normalizedWithMun.includes(token) || street.normalizedStreetOnly.includes(token)
         );
-
         if (matches) {
             let score = 0;
             const fullNorm = street.normalizedFull;
-            const expandedNorm = expandedQuery;
-
-            // Pontuações de relevância
-            if (fullNorm === expandedNorm) score += 100;
-            else if (fullNorm.startsWith(expandedNorm)) score += 60;
-            else if (street.normalizedStreetOnly.startsWith(expandedNorm)) score += 50;
-            else if (fullNorm.includes(expandedNorm)) score += 40;
+            if (fullNorm === expandedQuery) score += 100;
+            else if (fullNorm.startsWith(expandedQuery)) score += 60;
+            else if (street.normalizedStreetOnly.startsWith(expandedQuery)) score += 50;
+            else if (fullNorm.includes(expandedQuery)) score += 40;
             else score += 20;
-
             if (street.totalRes > 0) score += Math.min(15, street.totalRes);
 
             const resultKey = `${street.fullName}__${street.munName}`;
@@ -193,33 +167,30 @@ async function searchAddress(query) {
                     title: street.fullName,
                     munBadge: street.munName,
                     address: street.displayAddress,
-                    subtitle: street.totalRes > 0 
-                        ? `${street.segmentsCount} trecho(s) • ~${street.totalRes} domicílios cadastrados`
+                    subtitle: street.totalRes > 0
+                        ? `${street.segmentsCount} trecho(s) • ~${street.totalRes} domicílios`
                         : `${street.segmentsCount} trecho(s) de via`,
                     lat: street.lat,
                     lng: street.lng,
                     source: 'offline_ruas',
-                    score: score
+                    score
                 });
             }
         }
     }
 
-    // 2. Busca em outras camadas GeoJSON carregadas no IndexedDB (POIs, feições avulsas)
+    // 2. Outras camadas (POIs, unidades etc.)
     try {
         const layers = await DB.getLayers();
         for (const layer of layers) {
-            if (!layer || !layer.geojson || !Array.isArray(layer.geojson.features)) continue;
-            // Pula bases de ruas já indexadas
+            if (!layer?.geojson?.features) continue;
             if (layer.name && (layer.name.includes('Ruas') || layer.name.includes('RMBH') || layer.name.includes('Logradouros'))) continue;
 
             for (const feature of layer.geojson.features) {
                 const name = feature.properties?.name;
                 if (!name) continue;
-
                 const normName = normalizeStr(name);
                 const matches = queryTokens.every(token => normName.includes(token));
-
                 if (matches) {
                     const coords = getFeatureCoords(feature);
                     if (coords) {
@@ -245,30 +216,6 @@ async function searchAddress(query) {
         console.warn('Erro ao buscar em camadas extras:', e);
     }
 
-    // 3. Busca em histórico de endereços cacheados anteriormente
-    try {
-        const cachedAddrs = await DB.searchAddresses(rawQuery);
-        cachedAddrs.forEach(addr => {
-            const key = addr.address;
-            if (!seenAddresses.has(key)) {
-                seenAddresses.add(key);
-                matchedResults.push({
-                    title: addr.address,
-                    munBadge: 'Histórico Offline',
-                    address: addr.address,
-                    subtitle: 'Endereço salvo localmente',
-                    lat: addr.lat,
-                    lng: addr.lng,
-                    source: 'offline_cache',
-                    score: 35
-                });
-            }
-        });
-    } catch (e) {
-        console.warn('Erro ao buscar endereços cacheados:', e);
-    }
-
-    // Ordena por relevância e exibe os resultados
     matchedResults.sort((a, b) => b.score - a.score);
     const topResults = matchedResults.slice(0, 15);
 
@@ -277,36 +224,26 @@ async function searchAddress(query) {
         return;
     }
 
-    // 4. Fallback: Se estiver online e não encontrou na base local, busca no Nominatim (OSM)
+    // 3. Fallback online (Nominatim) – sem gravação
     if (navigator.onLine) {
         try {
             resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
-            const viewbox = '-52,-15,-40,-24'; // Bounding box de Minas Gerais
+            const viewbox = '-52,-15,-40,-24';
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(rawQuery)}&limit=8&countrycodes=BR&viewbox=${viewbox}&bounded=1&accept-language=pt`;
             const response = await fetch(url);
             const data = await response.json();
 
             if (data.length > 0) {
-                const onlineResults = data.map(item => {
-                    const record = {
-                        query: rawQuery,
-                        lat: parseFloat(item.lat),
-                        lng: parseFloat(item.lon),
-                        address: item.display_name
-                    };
-                    DB.addAddress(record).catch(e => console.warn('Erro ao salvar no cache:', e));
-
-                    return {
-                        title: item.display_name.split(',')[0],
-                        munBadge: 'Online (OSM)',
-                        address: item.display_name,
-                        subtitle: item.display_name,
-                        lat: parseFloat(item.lat),
-                        lng: parseFloat(item.lon),
-                        source: 'online_osm',
-                        score: 50
-                    };
-                });
+                const onlineResults = data.map(item => ({
+                    title: item.display_name.split(',')[0],
+                    munBadge: 'Online (OSM)',
+                    address: item.display_name,
+                    subtitle: item.display_name,
+                    lat: parseFloat(item.lat),
+                    lng: parseFloat(item.lon),
+                    source: 'online_osm',
+                    score: 50
+                }));
                 displaySearchResults(onlineResults);
             } else {
                 resultsDiv.innerHTML = '<div class="search-status-msg">❌ Nenhum endereço encontrado com os termos informados.</div>';
@@ -320,7 +257,6 @@ async function searchAddress(query) {
     }
 }
 
-// Exibe os resultados da busca no painel lateral em formato de cards ricos
 function displaySearchResults(results) {
     const resultsDiv = document.getElementById('searchResults');
     if (!resultsDiv) return;
@@ -329,7 +265,6 @@ function displaySearchResults(results) {
     results.forEach(result => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
-
         item.innerHTML = `
             <div class="search-result-header">
                 <span class="search-result-title">📍 ${escapeHtml(result.title)}</span>
@@ -337,18 +272,13 @@ function displaySearchResults(results) {
             </div>
             <div class="search-result-sub">${escapeHtml(result.subtitle || result.address)}</div>
         `;
-
         item.addEventListener('click', () => {
-            // Posiciona o marcador de origem exatamente no centro geométrico da rua
             setOrigin(result.lat, result.lng, result.address);
-            if (map) {
-                map.setView([result.lat, result.lng], 16);
-            }
+            if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
             calculateDistancesToAllFeatures(result.lat, result.lng);
             showToast(`Origem definida: ${result.title}`, 'success');
         });
-
         resultsDiv.appendChild(item);
     });
 }
