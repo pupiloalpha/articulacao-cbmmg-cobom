@@ -1,4 +1,4 @@
-// js/search.js - Busca de endereços (Online/Offline) sem cache de resultados
+// js/search.js - Busca de endereços (Online/Offline) com suporte a número + interpolação
 
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
@@ -24,11 +24,11 @@ async function getOrBuildStreetIndex() {
                 const geom = feature.geometry;
                 if (!props || !geom) continue;
 
-                const streetInfo = getFeatureStreetInfo(props);
+                const streetInfo = getFeatureStreetInfo(props, layerData.name);
                 if (!streetInfo?.fullName) continue;
 
                 const munCode = streetInfo.cdSetor ? streetInfo.cdSetor.slice(0, 7) : '';
-                const streetKey = `${normalizeStr(streetInfo.fullName)}__${munCode}`;
+                const streetKey = `${normalizeStr(streetInfo.fullName)}__${munCode || normalizeStr(streetInfo.munName)}`;
 
                 if (!streetMap.has(streetKey)) {
                     streetMap.set(streetKey, {
@@ -36,7 +36,7 @@ async function getOrBuildStreetIndex() {
                         streetOnly: streetInfo.streetOnly,
                         tipLog: streetInfo.tipLog,
                         titLog: streetInfo.titLog,
-                        munName: streetInfo.munName || 'RMBH',
+                        munName: streetInfo.munName || 'MG',
                         cdSetor: streetInfo.cdSetor,
                         totalRes: 0,
                         totalGeral: 0,
@@ -48,7 +48,8 @@ async function getOrBuildStreetIndex() {
                         layerName: layerData.name,
                         normalizedFull: normalizeStr(streetInfo.fullName),
                         normalizedWithMun: normalizeStr(`${streetInfo.fullName} ${streetInfo.munName || ''}`),
-                        normalizedStreetOnly: normalizeStr(streetInfo.streetOnly)
+                        normalizedStreetOnly: normalizeStr(streetInfo.streetOnly),
+                        streetKey
                     });
                 }
 
@@ -119,24 +120,22 @@ async function searchAddress(query) {
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
 
-    // Lazy load das ruas
+    // Carregamento progressivo de logradouros
     try {
-        const existingLayers = await DB.getLayers();
-        const hasStreetLayer = existingLayers.some(l =>
-            l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros') || l.name.includes('Street'))
-        );
-        if (!hasStreetLayer) {
-            resultsDiv.innerHTML = '<div class="search-status-msg">📥 Carregando base de logradouros (primeira vez)... Isso pode levar alguns segundos.</div>';
-            await loadStreetDataFromGitHub();
-            invalidateStreetIndex();
-        }
+        resultsDiv.innerHTML = '<div class="search-status-msg">📥 Verificando base de logradouros...</div>';
+        await loadStreetDataFromGitHub(rawQuery);
+        invalidateStreetIndex();
     } catch (e) {
         console.warn('Falha ao carregar base de ruas sob demanda:', e);
     }
 
-    const expandedQuery = expandSearchQuery(rawQuery);
-    const queryTokens = expandedQuery.split(/\s+/).filter(Boolean);
-    if (queryTokens.length === 0) {
+    // ---- Parse do número ----
+    const parsed = parseAddressQuery(rawQuery);
+    const searchTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (searchTokens.length === 0) {
         resultsDiv.innerHTML = '<div class="search-status-msg">Digite um termo válido para busca.</div>';
         return;
     }
@@ -146,40 +145,84 @@ async function searchAddress(query) {
 
     // 1. Índice de ruas offline
     const streetIndex = await getOrBuildStreetIndex();
-    for (const street of streetIndex) {
-        const matches = queryTokens.every(token =>
-            street.normalizedWithMun.includes(token) || street.normalizedStreetOnly.includes(token)
-        );
-        if (matches) {
-            let score = 0;
-            const fullNorm = street.normalizedFull;
-            if (fullNorm === expandedQuery) score += 100;
-            else if (fullNorm.startsWith(expandedQuery)) score += 60;
-            else if (street.normalizedStreetOnly.startsWith(expandedQuery)) score += 50;
-            else if (fullNorm.includes(expandedQuery)) score += 40;
-            else score += 20;
-            if (street.totalRes > 0) score += Math.min(15, street.totalRes);
 
-            const resultKey = `${street.fullName}__${street.munName}`;
-            if (!seenAddresses.has(resultKey)) {
-                seenAddresses.add(resultKey);
-                matchedResults.push({
-                    title: street.fullName,
-                    munBadge: street.munName,
-                    address: street.displayAddress,
-                    subtitle: street.totalRes > 0
-                        ? `${street.segmentsCount} trecho(s) • ~${street.totalRes} domicílios`
-                        : `${street.segmentsCount} trecho(s) de via`,
-                    lat: street.lat,
-                    lng: street.lng,
-                    source: 'offline_ruas',
-                    score
-                });
+    for (const street of streetIndex) {
+        const matches = searchTokens.every(token =>
+            street.normalizedWithMun.includes(token) ||
+            street.normalizedStreetOnly.includes(token) ||
+            street.normalizedFull.includes(token)
+        );
+
+        if (!matches) continue;
+
+        let score = 0;
+        const fullNorm = street.normalizedFull;
+        const queryNorm = parsed.streetPart || expandSearchQuery(rawQuery);
+
+        if (fullNorm === queryNorm) score += 100;
+        else if (fullNorm.startsWith(queryNorm)) score += 60;
+        else if (street.normalizedStreetOnly.startsWith(queryNorm)) score += 50;
+        else if (fullNorm.includes(queryNorm)) score += 40;
+        else score += 20;
+
+        if (street.totalRes > 0) score += Math.min(15, street.totalRes);
+
+        // Bônus se o usuário digitou número (prioriza ruas com mais domicílios)
+        if (parsed.hasNumber) score += 5;
+
+        const resultKey = `${street.fullName}__${street.munName}`;
+        if (seenAddresses.has(resultKey)) continue;
+        seenAddresses.add(resultKey);
+
+        let finalLat = street.lat;
+        let finalLng = street.lng;
+        let subtitle = street.totalRes > 0
+            ? `${street.segmentsCount} trecho(s) • ~${street.totalRes} domicílios`
+            : `${street.segmentsCount} trecho(s) de via`;
+        let usedInterpolation = false;
+        let interpolationFailed = false;
+
+        // ---- Interpolação quando há número ----
+        if (parsed.hasNumber) {
+            try {
+                const features = await getStreetFeaturesByKey(street.fullName, street.munName);
+                const point = interpolatePointOnStreet(features, parsed.number, street.totalRes);
+
+                if (point) {
+                    finalLat = point.lat;
+                    finalLng = point.lng;
+                    usedInterpolation = true;
+                    subtitle = `Nº ${parsed.number} (posição aproximada) • ${subtitle}`;
+                } else {
+                    interpolationFailed = true;
+                    subtitle = `Nº ${parsed.number} fora da faixa estimada → centro da via • ${subtitle}`;
+                }
+            } catch (err) {
+                console.warn('Erro na interpolação:', err);
+                interpolationFailed = true;
             }
         }
+
+        matchedResults.push({
+            title: parsed.hasNumber
+                ? `${street.fullName}, ${parsed.number}`
+                : street.fullName,
+            munBadge: street.munName,
+            address: parsed.hasNumber
+                ? `${street.fullName}, ${parsed.number} - ${street.munName}, MG`
+                : street.displayAddress,
+            subtitle,
+            lat: finalLat,
+            lng: finalLng,
+            source: 'offline_ruas',
+            score,
+            usedInterpolation,
+            interpolationFailed,
+            originalNumber: parsed.number
+        });
     }
 
-    // 2. Outras camadas (POIs, unidades etc.)
+    // 2. Outras camadas (POIs, unidades etc.) – sem alteração de lógica
     try {
         const layers = await DB.getLayers();
         for (const layer of layers) {
@@ -190,7 +233,7 @@ async function searchAddress(query) {
                 const name = feature.properties?.name;
                 if (!name) continue;
                 const normName = normalizeStr(name);
-                const matches = queryTokens.every(token => normName.includes(token));
+                const matches = searchTokens.every(token => normName.includes(token));
                 if (matches) {
                     const coords = getFeatureCoords(feature);
                     if (coords) {
@@ -205,7 +248,7 @@ async function searchAddress(query) {
                                 lat: coords.lat,
                                 lng: coords.lng,
                                 source: 'offline_layer',
-                                score: normName === expandedQuery ? 90 : 30
+                                score: normName === (parsed.streetPart || '') ? 90 : 30
                             });
                         }
                     }
@@ -224,7 +267,7 @@ async function searchAddress(query) {
         return;
     }
 
-    // 3. Fallback online (Nominatim) – sem gravação
+    // 3. Fallback online (Nominatim) – inalterado
     if (navigator.onLine) {
         try {
             resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
@@ -265,20 +308,48 @@ function displaySearchResults(results) {
     results.forEach(result => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
+
+        let extraBadge = '';
+        if (result.usedInterpolation) {
+            extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">≈ Nº aproximado</span>`;
+        } else if (result.interpolationFailed) {
+            extraBadge = `<span class="search-result-mun-badge" style="background:#fdebd0;color:#b9770e;">Nº fora da faixa</span>`;
+        }
+
         item.innerHTML = `
             <div class="search-result-header">
                 <span class="search-result-title">📍 ${escapeHtml(result.title)}</span>
                 ${result.munBadge ? `<span class="search-result-mun-badge">${escapeHtml(result.munBadge)}</span>` : ''}
+                ${extraBadge}
             </div>
             <div class="search-result-sub">${escapeHtml(result.subtitle || result.address)}</div>
         `;
+
         item.addEventListener('click', () => {
             setOrigin(result.lat, result.lng, result.address);
             if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
             calculateDistancesToAllFeatures(result.lat, result.lng);
-            showToast(`Origem definida: ${result.title}`, 'success');
+
+            if (result.interpolationFailed) {
+                showToast(`Número ${result.originalNumber} fora da faixa estimada da via. Usando centro do logradouro.`, 'warning', 4500);
+            } else if (result.usedInterpolation) {
+                showToast(`Origem aproximada no nº ${result.originalNumber}: ${result.title}`, 'success');
+            } else {
+                showToast(`Origem definida: ${result.title}`, 'success');
+            }
         });
+
         resultsDiv.appendChild(item);
     });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }

@@ -369,6 +369,65 @@ let currentEditingContext = null;
 let isJsonEditMode = false;
 let isCreateMode = false;
 
+// ==========================================================================
+// Schemas de campos por classificação de feição
+// ==========================================================================
+const FEATURE_FIELD_SCHEMAS = {
+    UNIDADE_BM: [
+        { key: 'name', label: 'Nome da Fração / Unidade BM / POI:', type: 'text' },
+        { key: 'UEOP', label: 'Batalhão / UEOP de Vinculação:', type: 'text' },
+        { key: 'COB', label: 'Comando Operacional (COB):', type: 'text' },
+        { key: 'FRAÇÃO', label: 'Fração / Destacamento:', type: 'text' },
+        { key: 'Tempo-resposta', label: 'Tempo-Resposta:', type: 'text' },
+        { key: 'Zona de Quente', label: 'Zona de Risco / Quente:', type: 'text' }
+    ],
+    HOSPITAL: [
+        { key: 'Nome do Hospital', label: 'Nome do Hospital:', type: 'text' },
+        { key: 'Município', label: 'Município:', type: 'text' },
+        { key: 'Macrorregião de Saúde', label: 'Macrorregião de Saúde:', type: 'text' }
+    ],
+    MICRORREGIAO: [
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde', label: 'Microrregião de Saúde:', type: 'text' },
+        { key: 'NM_RGI', label: 'Nome da Microrregião (NM_RGI):', type: 'text' },
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde', label: 'Macrorregião de Saúde:', type: 'text' },
+        { key: 'NM_MUN', label: 'Município sede:', type: 'text' },
+        { key: 'AREA_KM2', label: 'Área (km²):', type: 'text' },
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)', label: 'População 2022:', type: 'text' },
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)', label: 'População 2025 (est.):', type: 'text' },
+        { key: 'Hospitais de Referência', label: 'Hospitais de Referência (um por linha):', type: 'textarea' }
+    ],
+    MACRORREGIAO: [
+        { key: 'Macrorregiao_Saude', label: 'Macrorregião de Saúde:', type: 'text' },
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde', label: 'Macrorregião (campo longo):', type: 'text' },
+        { key: 'Hospitais_de_Referencia_Macrorregiao', label: 'Hospitais de Referência da Macro (um por linha):', type: 'textarea' },
+        { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo):', type: 'textarea' }
+    ],
+    POLYGON: [
+        { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text' },
+        { key: 'NM_MUN', label: 'Município Sede / Referência:', type: 'text' },
+        { key: 'CD_MUN', label: 'Código IBGE do Município:', type: 'text' },
+        { key: 'AREA_KM2', label: 'Área Territorial Coberta (km²):', type: 'text' },
+        { key: 'Field8', label: 'Tipo da Fração (BBM, CIA, PEL, PA, etc.):', type: 'text' },
+        { key: 'Field10', label: 'Denominação Completa da Fração:', type: 'text' },
+        { key: 'Field7', label: 'Comando Operacional / Batalhão:', type: 'text' },
+        { key: 'Field5', label: 'Situação / Status:', type: 'text' },
+        { key: 'Field11', label: 'Data de Instalação (AAAA/MM/DD):', type: 'text' },
+        { key: 'fill', label: 'Cor de Preenchimento (Hex):', type: 'text' },
+        { key: 'stroke', label: 'Cor da Borda (Hex):', type: 'text' },
+        { key: 'fill-opacity', label: 'Opacidade do Preenchimento (0-1):', type: 'text' },
+        { key: 'stroke-width', label: 'Espessura da Borda:', type: 'text' }
+    ]
+};
+
+// Chaves de sistema que nunca devem aparecer no formulário de edição
+const SYSTEM_PROP_KEYS = new Set([
+    '_layerId', '_layerName', '_layerDbId', '_featureIndex',
+    'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
+    'auxiliary_storage_labeling_positionx', 'auxiliary_storage_labeling_positiony',
+    'SIGLA_UF', 'Field1', 'Field3', 'Field4', 'Field9',
+    'Latitude', 'Longitude', 'LATITUDE', 'LONGITUDE' // coordenadas têm inputs próprios
+]);
+
 window.openEditFeatureModal = async function (layerId, featureIndex) {
     if (!window.isAdmin) {
         showToast('Você não tem permissão para editar esta feição.', 'error');
@@ -453,7 +512,9 @@ function prepareModalForEditOrCreate() {
         if (layerSelector) layerSelector.classList.remove('hidden');
         if (newLayerGroup) newLayerGroup.classList.remove('hidden');
     } else {
-        const name = currentEditingContext.feature.properties?.name || 'Feição sem nome';
+        const name = currentEditingContext.feature.properties?.name ||
+                     currentEditingContext.feature.properties?.['Nome do Hospital'] ||
+                     'Feição sem nome';
         const classification = typeof getFeatureClassification === 'function'
             ? getFeatureClassification(currentEditingContext.feature)
             : currentEditingContext.feature.geometry?.type;
@@ -506,6 +567,10 @@ function toggleNewLayerNameVisibility() {
     }
 }
 
+/**
+ * Renderiza o formulário de edição/criação de forma adaptativa
+ * conforme a classificação da feição (ou genérico para camadas customizadas).
+ */
 function renderEditFeatureForm(feature) {
     const container = document.getElementById('editFeatureFieldsContainer');
     if (!container) return;
@@ -513,62 +578,73 @@ function renderEditFeatureForm(feature) {
 
     const props = feature.properties || {};
     const geom = feature.geometry || {};
+    const classification = typeof getFeatureClassification === 'function'
+        ? getFeatureClassification(feature)
+        : 'OTHER';
 
+    // ---- Coordenadas (apenas pontos) ----
     if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
         const coordsRow = document.createElement('div');
         coordsRow.className = 'form-row-coords';
         coordsRow.innerHTML = `
             <div class="form-group-edit">
                 <label>Latitude:</label>
-                <input type="number" step="any" id="editProp_coordLat" value="${geom.coordinates[1] !== undefined ? geom.coordinates[1] : ''}" required>
+                <input type="number" step="any" id="editProp_coordLat"
+                       value="${geom.coordinates[1] !== undefined ? geom.coordinates[1] : ''}" required>
             </div>
             <div class="form-group-edit">
                 <label>Longitude:</label>
-                <input type="number" step="any" id="editProp_coordLng" value="${geom.coordinates[0] !== undefined ? geom.coordinates[0] : ''}" required>
+                <input type="number" step="any" id="editProp_coordLng"
+                       value="${geom.coordinates[0] !== undefined ? geom.coordinates[0] : ''}" required>
             </div>
         `;
         container.appendChild(coordsRow);
     }
 
-    const isPolygon = geom.type === 'Polygon' || geom.type === 'MultiPolygon';
-    const mainFields = isPolygon ? [
-        { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text', value: props.name || '' },
-        { key: 'NM_MUN', label: 'Município Sede / Referência:', type: 'text', value: props.NM_MUN || props.Field3 || '' },
-        { key: 'CD_MUN', label: 'Código IBGE do Município:', type: 'text', value: props.CD_MUN || props.Field1 || '' },
-        { key: 'AREA_KM2', label: 'Área Territorial Coberta (km²):', type: 'text', value: props.AREA_KM2 || '' },
-        { key: 'Field8', label: 'Tipo da Fração (BBM, CIA, PEL, PA, etc.):', type: 'text', value: props.Field8 || '' },
-        { key: 'Field10', label: 'Denominação Completa da Fração:', type: 'text', value: props.Field10 || '' },
-        { key: 'Field7', label: 'Comando Operacional / Batalhão:', type: 'text', value: props.Field7 || '' },
-        { key: 'Field5', label: 'Situação / Status:', type: 'text', value: props.Field5 || '' },
-        { key: 'Field11', label: 'Data de Instalação (AAAA/MM/DD):', type: 'text', value: props.Field11 || '' },
-        { key: 'fill', label: 'Cor de Preenchimento (Hex):', type: 'text', value: props.fill || '#0288d1' }
-    ] : [
-        { key: 'name', label: 'Nome da Fração / Unidade BM / POI:', type: 'text', value: props.name || '' },
-        { key: 'UEOP', label: 'Batalhão / UEOP de Vinculação:', type: 'text', value: props.UEOP || '' },
-        { key: 'COB', label: 'Comando Operacional (COB):', type: 'text', value: props.COB || '' }
-    ];
+    // ---- Schema específico ou genérico ----
+    const schema = FEATURE_FIELD_SCHEMAS[classification];
+    const renderedKeys = new Set();
 
-    const renderedKeys = new Set(mainFields.map(f => f.key));
-    const systemKeys = new Set([
-        '_layerId', '_layerName', '_layerDbId', '_featureIndex',
-        'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
-        'fill-opacity', 'stroke-opacity', 'stroke-width', 'stroke',
-        'auxiliary_storage_labeling_positionx', 'auxiliary_storage_labeling_positiony',
-        'SIGLA_UF', 'Field1', 'Field3', 'Field4', 'Field9'
-    ]);
+    if (schema) {
+        // Formulário especializado
+        schema.forEach(field => {
+            const value = props[field.key];
+            let displayValue = '';
 
-    mainFields.forEach(field => {
-        const group = document.createElement('div');
-        group.className = 'form-group-edit';
-        group.innerHTML = `
-            <label>${field.label}</label>
-            <input type="${field.type}" data-key="${field.key}" value="${escapeHtml(String(field.value))}">
-        `;
-        container.appendChild(group);
-    });
+            if (Array.isArray(value)) {
+                displayValue = value.join('\n');
+            } else if (value !== undefined && value !== null) {
+                displayValue = String(value);
+            }
 
+            const group = document.createElement('div');
+            group.className = 'form-group-edit';
+
+            if (field.type === 'textarea') {
+                group.innerHTML = `
+                    <label>${field.label}</label>
+                    <textarea data-key="${field.key}" rows="4"
+                              style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; resize:vertical;">${escapeHtml(displayValue)}</textarea>
+                `;
+            } else {
+                group.innerHTML = `
+                    <label>${field.label}</label>
+                    <input type="${field.type || 'text'}" data-key="${field.key}"
+                           value="${escapeHtml(displayValue)}">
+                `;
+            }
+            container.appendChild(group);
+            renderedKeys.add(field.key);
+        });
+    }
+
+    // ---- Outros atributos (sempre, para não perder dados) ----
     const customPropsHeader = document.createElement('div');
-    customPropsHeader.innerHTML = '<h4 style="font-size:12px; color:#7f8c8d; margin-top:8px; margin-bottom:4px; text-transform:uppercase;">Outros Atributos</h4>';
+    customPropsHeader.innerHTML = `
+        <h4 style="font-size:12px; color:#7f8c8d; margin-top:12px; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">
+            ${schema ? 'Outros Atributos' : 'Atributos da Feição (camada personalizada)'}
+        </h4>
+    `;
     container.appendChild(customPropsHeader);
 
     const customContainer = document.createElement('div');
@@ -578,10 +654,20 @@ function renderEditFeatureForm(feature) {
     customContainer.style.gap = '8px';
 
     Object.keys(props).forEach(key => {
-        if (!renderedKeys.has(key) && !systemKeys.has(key)) {
-            customContainer.appendChild(createCustomPropRow(key, props[key]));
-        }
+        if (renderedKeys.has(key) || SYSTEM_PROP_KEYS.has(key)) return;
+
+        // Arrays que não estavam no schema principal
+        let val = props[key];
+        if (Array.isArray(val)) val = val.join(' | ');
+
+        customContainer.appendChild(createCustomPropRow(key, val));
     });
+
+    // Se for genérico e não houver nenhum atributo, deixa um placeholder
+    if (!schema && customContainer.children.length === 0) {
+        customContainer.appendChild(createCustomPropRow('', ''));
+    }
+
     container.appendChild(customContainer);
 }
 
@@ -669,7 +755,9 @@ function initEditFeatureModalListeners() {
     if (deleteBtn) {
         deleteBtn.addEventListener('click', async () => {
             if (!currentEditingContext || currentEditingContext.isNew) return;
-            const name = currentEditingContext.feature.properties?.name || 'esta feição';
+            const name = currentEditingContext.feature.properties?.name ||
+                         currentEditingContext.feature.properties?.['Nome do Hospital'] ||
+                         'esta feição';
             if (confirm(`Tem certeza que deseja excluir permanentemente "${name}"?`)) {
                 const { layerId, featureIndex, layerData } = currentEditingContext;
                 layerData.geojson.features.splice(featureIndex, 1);
@@ -739,11 +827,16 @@ function initEditFeatureModalListeners() {
     }
 }
 
+/**
+ * Aplica os valores do formulário de volta na feição.
+ * Trata textareas de arrays (um item por linha).
+ */
 function applyFormValuesToFeature(feature) {
     if (!feature.properties) feature.properties = {};
     const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
     if (!fieldsContainer) return;
 
+    // Coordenadas de ponto
     const latInput = document.getElementById('editProp_coordLat');
     const lngInput = document.getElementById('editProp_coordLng');
     if (latInput && lngInput && feature.geometry?.type === 'Point') {
@@ -758,10 +851,25 @@ function applyFormValuesToFeature(feature) {
         }
     }
 
-    fieldsContainer.querySelectorAll('input[data-key]').forEach(input => {
-        feature.properties[input.dataset.key] = input.value.trim();
+    // Campos com data-key (inputs e textareas do schema)
+    fieldsContainer.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.dataset.key;
+        let value = el.value.trim();
+
+        // Detecta se o campo original era array (hospitais) ou se o nome sugere lista
+        const original = feature.properties[key];
+        const looksLikeHospitalList = key.toLowerCase().includes('hospital');
+        if (Array.isArray(original) || looksLikeHospitalList) {
+            // Converte linhas (ou | ) em array
+            feature.properties[key] = value
+                ? value.split(/\n|\|/).map(s => s.trim()).filter(Boolean)
+                : [];
+        } else {
+            feature.properties[key] = value;
+        }
     });
 
+    // Propriedades customizadas (chave/valor livres)
     fieldsContainer.querySelectorAll('.custom-prop-row').forEach(row => {
         const keyInput = row.querySelector('.custom-prop-key');
         const valInput = row.querySelector('.custom-prop-value');
@@ -771,6 +879,7 @@ function applyFormValuesToFeature(feature) {
         }
     });
 
+    // Mantém compatibilidade com description legada
     if (feature.properties.UEOP && feature.properties.COB) {
         feature.properties.description = `COB: ${feature.properties.COB}<br>UEOP: ${feature.properties.UEOP}`;
     }

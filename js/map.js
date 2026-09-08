@@ -37,12 +37,49 @@ class OfflineTileLayer extends L.TileLayer {
 
 function initMap() {
     map = L.map('map', { center: [-15.7934, -47.8822], zoom: 4, zoomControl: false });
-    delete L.Icon.Default.prototype._getIconUrl;
+
+    // ------------------------------------------------------------------
+    // Ícones offline (SVG data-URL) – funcionam sem internet
+    // ------------------------------------------------------------------
+    const originIconSvg = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+  <path fill="#c0392b" stroke="#7b241c" stroke-width="1.2" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.3 21.7 0 14 0z"/>
+  <circle cx="14" cy="14" r="6" fill="#fff"/>
+  <circle cx="14" cy="14" r="3.2" fill="#c0392b"/>
+</svg>`);
+
+    const destIconSvg = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+  <path fill="#2980b9" stroke="#1a5276" stroke-width="1.2" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.3 21.7 0 14 0z"/>
+  <circle cx="14" cy="14" r="6" fill="#fff"/>
+  <circle cx="14" cy="14" r="3.2" fill="#2980b9"/>
+</svg>`);
+
+    const originIcon = L.icon({
+        iconUrl: `data:image/svg+xml,${originIconSvg}`,
+        iconSize: [28, 40],
+        iconAnchor: [14, 40],
+        popupAnchor: [0, -36]
+    });
+
+    const destIcon = L.icon({
+        iconUrl: `data:image/svg+xml,${destIconSvg}`,
+        iconSize: [28, 40],
+        iconAnchor: [14, 40],
+        popupAnchor: [0, -36]
+    });
+
+    // Expõe globalmente para uso em setOrigin / focusOnFeature / drawStraightLine
+    window.originIcon = originIcon;
+    window.destIcon = destIcon;
+
+    // Fallback para qualquer outro marcador que ainda use o default do Leaflet
     L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
     });
+
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     L.Control.ZoomExtended = L.Control.extend({
@@ -50,14 +87,17 @@ function initMap() {
             const btn = L.DomUtil.create('button', 'leaflet-control-zoom-extended');
             btn.innerHTML = '⤡';
             btn.title = 'Zoom para todas as feições';
-            L.DomEvent.on(btn, 'click', e => { L.DomEvent.stopPropagation(e); zoomToAllFeatures(); });
+            L.DomEvent.on(btn, 'click', e => {
+                L.DomEvent.stopPropagation(e);
+                zoomToAllFeatures();
+            });
             return btn;
         }
     });
 
     L.control.zoomExtended = function (opts) {
-              return new L.Control.ZoomExtended(opts);
-          };
+        return new L.Control.ZoomExtended(opts);
+    };
 
     L.control.zoomExtended({ position: 'topright' }).addTo(map);
 
@@ -101,7 +141,10 @@ function zoomToAllFeatures() {
         if (!map.hasLayer(layer)) continue;
         layer.eachLayer(l => {
             if (l.feature?.geometry) {
-                extractCoordinates(l.feature.geometry).forEach(c => { bounds.extend(c); hasFeatures = true; });
+                extractCoordinates(l.feature.geometry).forEach(c => {
+                    bounds.extend(c);
+                    hasFeatures = true;
+                });
             }
         });
     }
@@ -166,15 +209,22 @@ async function updateOriginPopup(lat, lng, description) {
 
 function setOrigin(lat, lng, description) {
     if (originMarker) map.removeLayer(originMarker);
-    originMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+
+    originMarker = L.marker([lat, lng], {
+        draggable: true,
+        icon: window.originIcon
+    }).addTo(map);
+
     originMarker.bindPopup(`<b>Origem:</b> ${description}<br>Arraste para ajustar.`).openPopup();
     updateOriginPopup(lat, lng, description);
+
     originMarker.on('dragend', () => {
         const pos = originMarker.getLatLng();
         currentSearchResult = { lat: pos.lat, lng: pos.lng, address: description };
         calculateDistancesToAllFeatures(pos.lat, pos.lng);
         updateOriginPopup(pos.lat, pos.lng, description);
     });
+
     currentSearchResult = { lat, lng, address: description };
 }
 
@@ -448,9 +498,13 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
 
     const latlngs = [[originPos.lat, originPos.lng], [lat, lng]];
     window.distanceLine = L.polyline(latlngs, { color: '#e74c3c', weight: 3, dashArray: '6,6' }).addTo(map);
-    window.distanceMarker = L.marker([lat, lng]).addTo(map)
+
+    window.distanceMarker = L.marker([lat, lng], {
+        icon: window.destIcon
+    }).addTo(map)
         .bindPopup(`<b>${name}</b><br>➡️ Linha reta (offline)<br>Distância: ${distance.toFixed(2)} km`)
         .openPopup();
+
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
 }
 
@@ -463,8 +517,11 @@ async function focusOnFeature(lng, lat, name, distance) {
     if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
 
     if (navigator.onLine) {
-        const tempMarker = L.marker([lat, lng]).addTo(map)
+        const tempMarker = L.marker([lat, lng], {
+            icon: window.destIcon
+        }).addTo(map)
             .bindPopup(`<b>${name}</b><br>🚗 Carregando traçado da rota...`).openPopup();
+
         try {
             const route = await getRouteDistance(originPos.lat, originPos.lng, lat, lng);
             if (route && route.source !== 'straight') {
@@ -482,7 +539,10 @@ async function focusOnFeature(lng, lat, name, distance) {
                     const dist = (r.summary.totalDistance / 1000).toFixed(2);
                     const dur = Math.round(r.summary.totalTime / 60);
                     map.removeLayer(tempMarker);
-                    window.distanceMarker = L.marker([lat, lng]).addTo(map)
+
+                    window.distanceMarker = L.marker([lat, lng], {
+                        icon: window.destIcon
+                    }).addTo(map)
                         .bindPopup(`
                             <div style="font-family:sans-serif;">
                                 <b style="color:#c0392b; font-size:13px;">${name}</b><br>
@@ -492,6 +552,7 @@ async function focusOnFeature(lng, lat, name, distance) {
                                 </div>
                             </div>`).openPopup();
                 });
+
                 window.routingControl.on('routingerror', () => {
                     map.removeLayer(tempMarker);
                     drawStraightLine(originPos, lat, lng, name, distance);

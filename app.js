@@ -223,6 +223,18 @@ try {
 
     syncViewCheckboxes(viewMode);
 
+// Atualiza camadas de logradouro quando a conexão muda
+window.addEventListener('online', () => {
+    updateOnlineStatus();
+    reloadLayers();          // esconde logradouros
+    showToast('Conexão restaurada. Tiles online disponíveis.', 'success', 2500);
+});
+window.addEventListener('offline', () => {
+    updateOnlineStatus();
+    reloadLayers();          // mostra logradouros já carregados
+    showToast('Modo offline. Malha de logradouros exibida como referência.', 'warning', 3500);
+});
+
     // Registro do Service Worker PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

@@ -1,4 +1,6 @@
-// Dicionário de Códigos IBGE de Municípios de Minas Gerais (RMBH e Sedes CBMMG)
+// js/utils.js - Utilitários gerais (normalização, municípios, toast, tiles)
+
+// Dicionário de Códigos IBGE de Municípios de Minas Gerais (RMBH + principais sedes)
 const IBGE_MUNICIPALITIES = {
     '3156700': 'Sabará',
     '3106200': 'Belo Horizonte',
@@ -63,17 +65,18 @@ const IBGE_MUNICIPALITIES = {
     '3152105': 'Ponte Nova'
 };
 
-// Obtém o nome do município a partir do código IBGE ou código de setor censitário
+/**
+ * Obtém o nome do município a partir do código IBGE ou código de setor censitário
+ */
 function getMunicipalityName(cdSetorOrCdMun) {
     if (!cdSetorOrCdMun) return '';
     const codeStr = String(cdSetorOrCdMun).replace(/\D/g, '');
     const prefix7 = codeStr.slice(0, 7);
     const prefix6 = codeStr.slice(0, 6);
-    
+
     if (IBGE_MUNICIPALITIES[prefix7]) return IBGE_MUNICIPALITIES[prefix7];
     if (IBGE_MUNICIPALITIES[prefix6 + '0']) return IBGE_MUNICIPALITIES[prefix6 + '0'];
-    
-    // Procura por correspondência parcial
+
     for (const [code, name] of Object.entries(IBGE_MUNICIPALITIES)) {
         if (code.startsWith(prefix6) || prefix7.startsWith(code.slice(0, 6))) {
             return name;
@@ -82,19 +85,36 @@ function getMunicipalityName(cdSetorOrCdMun) {
     return '';
 }
 
-// Helper para remover acentos, pontuação e converter para minúsculas
+/**
+ * Extrai o nome do município a partir do nome da camada
+ * Ex.: "Belo Horizonte - Logradouros" → "Belo Horizonte"
+ */
+function getMunicipalityFromLayerName(layerName) {
+    if (!layerName) return '';
+    return String(layerName)
+        .replace(/\s*-\s*Logradouros$/i, '')
+        .replace(/\s*-\s*Ruas$/i, '')
+        .replace(/\s*RMBH.*/i, 'RMBH')
+        .trim();
+}
+
+/**
+ * Helper para remover acentos, pontuação e converter para minúsculas
+ */
 function normalizeStr(str) {
     if (!str) return '';
     return String(str)
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
-        .replace(/\s+/g, " ")
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
+        .replace(/\s+/g, ' ')
         .toLowerCase()
         .trim();
 }
 
-// Expande abreviações comuns da língua portuguesa para busca precisa
+/**
+ * Expande abreviações comuns da língua portuguesa para busca precisa
+ */
 function expandSearchQuery(query) {
     if (!query) return '';
     let q = ' ' + normalizeStr(query) + ' ';
@@ -135,28 +155,41 @@ function expandSearchQuery(query) {
     return q.trim();
 }
 
-// Extrai/constrói informações estruturadas do logradouro a partir das propriedades da feature
-function getFeatureStreetInfo(props) {
+/**
+ * Extrai/constrói informações estruturadas do logradouro a partir das propriedades
+ * e, se necessário, do nome da camada (fallback para arquivos agregados).
+ *
+ * @param {object} props - properties da feature
+ * @param {string} [layerName] - nome da camada (ex.: "Belo Horizonte - Logradouros")
+ */
+function getFeatureStreetInfo(props, layerName = '') {
     if (!props) return null;
 
     let fullName = '';
     let streetOnly = '';
     let tipLog = props.NM_TIP_LOG || '';
     let titLog = props.NM_TIT_LOG || '';
+
+    // 1º tenta pelo código IBGE (quando existir)
     let munName = getMunicipalityName(props.CD_SETOR || props.CD_MUN);
 
-    // Formato padrão Censo IBGE (rmbh.geojson)
+    // 2º fallback: nome da camada
+    if (!munName && layerName) {
+        munName = getMunicipalityFromLayerName(layerName);
+    }
+
+    // Formato padrão Censo IBGE / arquivos simplificados
     if (props.NM_LOG) {
-        streetOnly = props.NM_LOG.trim();
+        streetOnly = String(props.NM_LOG).trim();
         const parts = [tipLog, titLog, streetOnly].filter(Boolean);
         fullName = parts.join(' ');
     } else {
-        fullName = props.NM_LOGRADOURO || 
-                   props.logradouro || 
-                   props.nome || 
-                   props.name || 
-                   props.LOGRADOURO || 
-                   props.RUAS || 
+        fullName = props.NM_LOGRADOURO ||
+                   props.logradouro ||
+                   props.nome ||
+                   props.name ||
+                   props.LOGRADOURO ||
+                   props.RUAS ||
                    '';
         streetOnly = fullName;
     }
@@ -166,23 +199,26 @@ function getFeatureStreetInfo(props) {
     return {
         fullName: fullName.trim(),
         streetOnly: streetOnly.trim(),
-        tipLog: tipLog.trim(),
-        titLog: titLog.trim(),
-        munName: munName,
+        tipLog: (tipLog || '').trim(),
+        titLog: (titLog || '').trim(),
+        munName: munName || 'MG',
         totalRes: Number(props.TOT_RES) || 0,
         totalGeral: Number(props.TOT_GERAL) || 0,
         cdSetor: props.CD_SETOR || ''
     };
 }
 
-// Extrai o nome textual simples do logradouro
-function getFeatureStreetName(props) {
-    const info = getFeatureStreetInfo(props);
+/**
+ * Extrai o nome textual simples do logradouro
+ */
+function getFeatureStreetName(props, layerName = '') {
+    const info = getFeatureStreetInfo(props, layerName);
     return info ? info.fullName : '';
 }
 
-
-// Função utilitária de notificações Toast (não bloqueantes)
+/**
+ * Função utilitária de notificações Toast (não bloqueantes)
+ */
 function showToast(message, type = 'info', duration = 3000) {
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
@@ -203,7 +239,9 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// Indicador de status online/offline
+/**
+ * Indicador de status online/offline
+ */
 function updateOnlineStatus() {
     const indicator = document.getElementById('status-indicator');
     if (!indicator) return;
@@ -219,7 +257,9 @@ function updateOnlineStatus() {
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 
-// Helpers para cálculos de coordenadas de Tiles
+/**
+ * Helpers para cálculos de coordenadas de Tiles
+ */
 function getTileBoundsForZoom(bounds, zoom) {
     const nw = bounds.getNorthWest();
     const se = bounds.getSouthEast();
@@ -235,5 +275,182 @@ function long2tile(lon, zoom) {
 }
 
 function lat2tile(lat, zoom) {
-    return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+    return Math.floor(
+        (1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) /
+            2 *
+            Math.pow(2, zoom)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Parse de endereço com número + interpolação aproximada em faces de logradouro
+// ---------------------------------------------------------------------------
+
+/**
+ * Extrai a parte do logradouro e o número (se existir) de uma query.
+ * Exemplos:
+ *   "Rua das Flores 123"     → { streetPart: "rua das flores", number: 123, hasNumber: true }
+ *   "Av. Afonso Pena, 1500"  → { streetPart: "avenida afonso pena", number: 1500, hasNumber: true }
+ *   "Rua das Flores"         → { streetPart: "rua das flores", number: null, hasNumber: false }
+ */
+function parseAddressQuery(query) {
+    if (!query) return { streetPart: '', number: null, hasNumber: false };
+
+    let q = String(query).trim();
+
+    // Remove pontuação comum de endereço, mantém espaços
+    q = q.replace(/[,;]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // Padrões de número: "123", "nº 123", "n. 123", "num 123", "n 123"
+    const numberRegex = /(?:n[ºo°.]?\s*|num\.?\s*|n\s+)?(\d{1,5})\s*$/i;
+    const match = q.match(numberRegex);
+
+    let number = null;
+    let streetPart = q;
+
+    if (match) {
+        number = parseInt(match[1], 10);
+        streetPart = q.slice(0, match.index).trim();
+        // Remove possíveis "nº", "n.", etc. que ficaram no final do streetPart
+        streetPart = streetPart.replace(/(?:n[ºo°.]?\s*|num\.?\s*|n\s+)$/i, '').trim();
+    }
+
+    // Normaliza o nome do logradouro (usa a função já existente)
+    const normalizedStreet = expandSearchQuery(streetPart);
+
+    return {
+        streetPart: normalizedStreet,
+        originalStreet: streetPart,
+        number,
+        hasNumber: number !== null && !isNaN(number) && number > 0
+    };
+}
+
+/**
+ * Interpola um ponto aproximado ao longo dos segmentos de uma rua
+ * com base no número do endereço e no total de residências (TOT_RES).
+ *
+ * @param {Array} features - features GeoJSON da mesma rua (LineString/MultiLineString)
+ * @param {number} number - número do endereço solicitado
+ * @param {number} totalRes - soma de TOT_RES dos segmentos (ou estimativa)
+ * @returns {{lat: number, lng: number}|null}
+ */
+function interpolatePointOnStreet(features, number, totalRes) {
+    if (!features || features.length === 0 || !number || number < 1) return null;
+    if (typeof turf === 'undefined') return null;
+
+    // Estimativa de "capacidade" da rua
+    // Usamos TOT_RES * 2 (lado par/ímpar) ou, na falta, um valor conservador
+    const estimatedCapacity = Math.max(
+        (totalRes > 0 ? totalRes * 2 : 0),
+        features.length * 8,          // fallback mínimo por segmento
+        20
+    );
+
+    // Se o número estiver muito acima da capacidade estimada → recusar
+    if (number > estimatedCapacity * 1.4) {
+        return null; // sinaliza "fora da faixa"
+    }
+
+    // Coleta todos os segmentos com comprimento e peso
+    const segments = [];
+    let totalLength = 0;
+    let totalWeight = 0;
+
+    for (const f of features) {
+        if (!f.geometry) continue;
+        try {
+            const length = turf.length(f, { units: 'meters' });
+            if (length < 1) continue;
+
+            const props = f.properties || {};
+            const weight = (Number(props.TOT_RES) || 0) + (Number(props.TOT_GERAL) || 0) || length;
+
+            segments.push({ feature: f, length, weight });
+            totalLength += length;
+            totalWeight += weight;
+        } catch (e) {
+            // ignora geometria inválida
+        }
+    }
+
+    if (segments.length === 0 || totalLength < 1) return null;
+
+    // Posição normalizada 0–1 (com leve bias para o início da rua)
+    // Usamos o número relativo à capacidade estimada
+    const ratio = Math.min(1, Math.max(0, (number - 1) / Math.max(estimatedCapacity - 1, 1)));
+
+    // Percorre os segmentos acumulando peso (ou comprimento)
+    let accumulated = 0;
+    const target = ratio * (totalWeight > 0 ? totalWeight : totalLength);
+
+    for (const seg of segments) {
+        const segWeight = totalWeight > 0 ? seg.weight : seg.length;
+        if (accumulated + segWeight >= target) {
+            // Ponto dentro deste segmento
+            const localRatio = segWeight > 0
+                ? (target - accumulated) / segWeight
+                : 0.5;
+
+            try {
+                const along = turf.along(seg.feature, localRatio * seg.length, { units: 'meters' });
+                const [lng, lat] = along.geometry.coordinates;
+                return { lat, lng };
+            } catch (e) {
+                // fallback para o ponto médio do segmento
+                try {
+                    const center = turf.center(seg.feature);
+                    return {
+                        lat: center.geometry.coordinates[1],
+                        lng: center.geometry.coordinates[0]
+                    };
+                } catch (_) {
+                    return null;
+                }
+            }
+        }
+        accumulated += segWeight;
+    }
+
+    // Último segmento (por segurança)
+    const last = segments[segments.length - 1];
+    try {
+        const along = turf.along(last.feature, last.length * 0.95, { units: 'meters' });
+        return {
+            lat: along.geometry.coordinates[1],
+            lng: along.geometry.coordinates[0]
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Dado um streetKey (ou nome + município), retorna todas as features
+ * daquela rua a partir das camadas já carregadas no IndexedDB.
+ */
+async function getStreetFeaturesByKey(streetKeyOrName, munName = '') {
+    const layers = await DB.getLayers();
+    const result = [];
+    const targetNorm = normalizeStr(streetKeyOrName);
+    const munNorm = normalizeStr(munName);
+
+    for (const layer of layers) {
+        if (!layer?.geojson?.features) continue;
+        // Só camadas de logradouro
+        if (!layer.name || !(layer.name.includes('Logradouros') || layer.name.includes('Ruas'))) continue;
+
+        for (const feature of layer.geojson.features) {
+            const info = getFeatureStreetInfo(feature.properties, layer.name);
+            if (!info?.fullName) continue;
+
+            const fullNorm = normalizeStr(info.fullName);
+            const munMatch = !munNorm || normalizeStr(info.munName).includes(munNorm) || munNorm.includes(normalizeStr(info.munName));
+
+            if (munMatch && (fullNorm === targetNorm || fullNorm.includes(targetNorm) || targetNorm.includes(fullNorm))) {
+                result.push(feature);
+            }
+        }
+    }
+    return result;
 }

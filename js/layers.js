@@ -1,6 +1,9 @@
 // js/layers.js - Carregamento, renderização e controle de visualização de camadas GeoJSON
+// Inclui carregamento PROGRESSIVO de logradouros (núcleo RMBH + sob demanda)
 
-// Semeia dados iniciais
+// ---------------------------------------------------------------------------
+// Semeia dados iniciais (Unidades BM + Articulação)
+// ---------------------------------------------------------------------------
 async function seedInitialData() {
     const layers = await DB.getLayers();
     if (layers.length > 0) return;
@@ -20,7 +23,6 @@ async function seedInitialData() {
             f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
         );
 
-        // Polígonos primeiro (ordem baixa)
         if (polygons.length) {
             await DB.saveLayer({
                 name: 'Articulação CBMMG',
@@ -30,7 +32,6 @@ async function seedInitialData() {
             });
         }
 
-        // Unidades BM por cima (ordem alta)
         if (points.length) {
             await DB.saveLayer({
                 name: 'Unidades CBMMG',
@@ -46,15 +47,15 @@ async function seedInitialData() {
     }
 }
 
-// Carrega Macrorregiões e Microrregiões (ordem: Macro primeiro)
-// Mesmo padrão do seed – só na 1ª execução
+// ---------------------------------------------------------------------------
+// Macrorregiões / Microrregiões
+// ---------------------------------------------------------------------------
 async function loadMicroMacroRegions() {
     try {
         const existing = await DB.getLayers();
         const hasMicro = existing.some(l => l.name && l.name.includes('Microrregi'));
         const hasMacro = existing.some(l => l.name && l.name.includes('Macrorregi'));
 
-        // 1. Macrorregiões primeiro (ficam por baixo)
         if (!hasMacro) {
             const res = await fetch('./data/macrorregioes/macrorregioes.geojson');
             if (res.ok) {
@@ -63,13 +64,12 @@ async function loadMicroMacroRegions() {
                     name: 'Macrorregiões de Saúde',
                     type: 'geojson',
                     order: 20,
-                    geojson: geojson
+                    geojson
                 });
                 console.log('Camada Macrorregiões de Saúde importada.');
             }
         }
 
-        // 2. Microrregiões depois
         if (!hasMicro) {
             const res = await fetch('./data/microrregioes/microrregioes.geojson');
             if (res.ok) {
@@ -78,18 +78,19 @@ async function loadMicroMacroRegions() {
                     name: 'Microrregiões de Saúde',
                     type: 'geojson',
                     order: 30,
-                    geojson: geojson
+                    geojson
                 });
                 console.log('Camada Microrregiões de Saúde importada.');
             }
         }
-
     } catch (e) {
         console.warn('Erro ao carregar Micro/Macro regiões:', e);
     }
 }
 
-// Carrega Hospitais de Referência (mesmo padrão das ruas – indexável offline)
+// ---------------------------------------------------------------------------
+// Hospitais de Referência
+// ---------------------------------------------------------------------------
 async function loadHospitalsData() {
     try {
         const existing = await DB.getLayers();
@@ -108,71 +109,255 @@ async function loadHospitalsData() {
         await DB.saveLayer({
             name: 'Hospitais de Referência MG',
             type: 'geojson',
-            geojson: geojson
+            geojson
         });
         console.log('Camada Hospitais de Referência MG importada.');
-
     } catch (e) {
         console.error('Erro ao carregar hospitais:', e);
     }
 }
 
-// Carrega os dados das ruas na primeira execução
-async function loadStreetDataFromGitHub() {
+// ===========================================================================
+// CARREGAMENTO PROGRESSIVO DE LOGRADOUROS
+// ===========================================================================
+
+// Códigos IBGE do núcleo RMBH (carregados na primeira necessidade)
+const RMBH_CORE_CODES = [
+    '3106200', // Belo Horizonte
+    '3118601', // Contagem
+    '3106705', // Betim
+    '3156700', // Sabará
+    '3157807', // Santa Luzia
+    '3171204', // Vespasiano
+    '3129806', // Ibirité
+    '3154606', // Ribeirão das Neves
+    '3144805', // Nova Lima
+    '3109006'  // Brumadinho
+];
+
+// Cache em memória dos municípios já carregados nesta sessão
+const loadedStreetMunicipalities = new Set();
+
+/**
+ * Carrega o índice de ruas (data/ruas/index.json)
+ */
+async function fetchStreetsIndex() {
+    let files = null;
+    let base = './';
+
     try {
-        const existingLayers = await DB.getLayers();
-        const hasStreetLayer = existingLayers.some(l =>
-            l.name && (l.name.includes('Ruas') || l.name.includes('Logradouros'))
+        const res = await fetch(base + 'data/ruas/index.json');
+        if (res.ok) files = await res.json();
+    } catch (e) {
+        console.warn('Índice local de ruas não encontrado, tentando remoto...', e);
+    }
+
+    if (!files) {
+        const baseUrl = 'https://raw.githubusercontent.com/pupiloalpha/articulacao-cbmmg-cobom/refs/heads/main/';
+        const res = await fetch(baseUrl + 'data/ruas/index.json');
+        if (!res.ok) throw new Error('Falha ao baixar índice de ruas.');
+        files = await res.json();
+        base = baseUrl;
+    }
+
+    return { files, base };
+}
+
+/**
+ * Verifica se já existe alguma camada de logradouros no IndexedDB
+ */
+async function hasAnyStreetLayer() {
+    const layers = await DB.getLayers();
+    return layers.some(l =>
+        l.name && (l.name.includes('Logradouros') || l.name.includes('Ruas') || l.name.includes('Street'))
+    );
+}
+
+/**
+ * Retorna os nomes normalizados dos municípios já carregados
+ */
+async function getAlreadyLoadedStreetNames() {
+    const layers = await DB.getLayers();
+    const names = new Set();
+    layers.forEach(l => {
+        if (l.name && (l.name.includes('Logradouros') || l.name.includes('Ruas'))) {
+            const mun = typeof getMunicipalityFromLayerName === 'function'
+                ? getMunicipalityFromLayerName(l.name)
+                : l.name;
+            if (mun) {
+                const n = normalizeStr(mun);
+                names.add(n);
+                loadedStreetMunicipalities.add(n);
+            }
+        }
+    });
+    return names;
+}
+
+/**
+ * Carrega um único arquivo de logradouros e grava no IndexedDB
+ */
+async function loadSingleStreetFile(fileInfo, base) {
+    const targetUrl = fileInfo.url.startsWith('http')
+        ? fileInfo.url
+        : (base + fileInfo.url);
+
+    const res = await fetch(targetUrl);
+    if (!res.ok) {
+        console.warn(`Falha ao carregar ${fileInfo.url}`);
+        return false;
+    }
+
+    const geojson = await res.json();
+
+    // Evita duplicar
+    const existing = await DB.getLayers();
+    if (existing.some(l => l.name === fileInfo.name)) {
+        const munNorm = normalizeStr(
+            typeof getMunicipalityFromLayerName === 'function'
+                ? getMunicipalityFromLayerName(fileInfo.name)
+                : fileInfo.name
         );
-        if (hasStreetLayer) {
-            console.log('Dados de ruas já carregados no banco local.');
-            return;
-        }
+        loadedStreetMunicipalities.add(munNorm);
+        return true;
+    }
 
-        let files = null;
-        let base = './';
-        try {
-            const indexResponse = await fetch(base + 'data/ruas/index.json');
-            if (indexResponse.ok) {
-                files = await indexResponse.json();
-            }
-        } catch (e) {
-            console.warn('Índice local de ruas não encontrado, tentando fallback...', e);
-        }
+    await DB.saveLayer({
+        name: fileInfo.name,
+        type: 'geojson',
+        geojson
+    });
 
-        if (!files) {
-            const baseUrl = 'https://raw.githubusercontent.com/pupiloalpha/articulacao-cbmmg-cobom/refs/heads/main/';
-            const indexResponse = await fetch(baseUrl + 'data/ruas/index.json');
-            if (!indexResponse.ok) throw new Error('Falha ao baixar índice de ruas.');
-            files = await indexResponse.json();
-            base = baseUrl;
-        }
+    const munNorm = normalizeStr(
+        typeof getMunicipalityFromLayerName === 'function'
+            ? getMunicipalityFromLayerName(fileInfo.name)
+            : fileInfo.name
+    );
+    loadedStreetMunicipalities.add(munNorm);
+    console.log(`Logradouros carregados: ${fileInfo.name}`);
+    return true;
+}
 
-        for (const fileInfo of files) {
-            const targetUrl = fileInfo.url.startsWith('http') ? fileInfo.url : (base + fileInfo.url);
-            const geojsonResponse = await fetch(targetUrl);
-            if (!geojsonResponse.ok) {
-                console.warn(`Falha ao carregar ${fileInfo.url}`);
-                continue;
-            }
-            const geojson = await geojsonResponse.json();
+/**
+ * Carrega o núcleo RMBH (primeira vez que precisar de ruas)
+ */
+async function loadRMBHCoreStreets() {
+    const already = await getAlreadyLoadedStreetNames();
+    if (already.size >= Math.min(5, RMBH_CORE_CODES.length)) {
+        console.log('Núcleo RMBH de logradouros já presente.');
+        return;
+    }
 
-            await DB.saveLayer({
-                name: fileInfo.name,
-                type: 'geojson',
-                geojson: geojson
-            });
-            console.log(`Camada "${fileInfo.name}" importada com sucesso no IndexedDB.`);
-        }
+    const { files, base } = await fetchStreetsIndex();
+    const toLoad = files.filter(f => {
+        const code = (f.url || '').split('/').pop().slice(0, 7);
+        return RMBH_CORE_CODES.includes(code);
+    });
 
-        await reloadLayers();
-        console.log('Dados das ruas carregados com sucesso!');
-    } catch (error) {
-        console.error('Erro ao carregar dados das ruas:', error);
+    console.log(`Carregando núcleo RMBH (${toLoad.length} municípios)...`);
+    for (const fileInfo of toLoad) {
+        await loadSingleStreetFile(fileInfo, base);
     }
 }
 
+/**
+ * Carrega logradouros de um município específico (pelo nome)
+ */
+async function ensureStreetDataForMunicipality(munName) {
+    if (!munName) return false;
+
+    const norm = normalizeStr(munName);
+    if (loadedStreetMunicipalities.has(norm)) return true;
+
+    const already = await getAlreadyLoadedStreetNames();
+    if (already.has(norm)) return true;
+
+    const { files, base } = await fetchStreetsIndex();
+
+    const match = files.find(f => {
+        const nameNorm = normalizeStr(
+            typeof getMunicipalityFromLayerName === 'function'
+                ? getMunicipalityFromLayerName(f.name)
+                : f.name
+        );
+        return nameNorm === norm || nameNorm.includes(norm) || norm.includes(nameNorm);
+    });
+
+    if (!match) {
+        console.warn(`Município não encontrado no índice de logradouros: ${munName}`);
+        return false;
+    }
+
+    return await loadSingleStreetFile(match, base);
+}
+
+/**
+ * Analisa a query de busca e carrega apenas os municípios relevantes
+ */
+async function ensureStreetDataForQuery(query) {
+    // Sempre garante o núcleo RMBH
+    await loadRMBHCoreStreets();
+
+    if (!query || String(query).trim().length < 3) return;
+
+    const expanded = typeof expandSearchQuery === 'function'
+        ? expandSearchQuery(query)
+        : normalizeStr(query);
+    const tokens = expanded.split(/\s+/).filter(t => t.length >= 3);
+
+    if (tokens.length === 0) return;
+
+    const { files } = await fetchStreetsIndex();
+    const possibleMuns = files.map(f =>
+        typeof getMunicipalityFromLayerName === 'function'
+            ? getMunicipalityFromLayerName(f.name)
+            : f.name
+    );
+
+    for (const mun of possibleMuns) {
+        const munNorm = normalizeStr(mun);
+        if (munNorm.length < 4) continue;
+
+        // Verifica se algum token da query corresponde ao município
+        const match = tokens.some(t =>
+            munNorm.includes(t) || t.includes(munNorm.split(' ')[0])
+        );
+        if (match) {
+            await ensureStreetDataForMunicipality(mun);
+        }
+    }
+}
+
+/**
+ * Função principal de entrada (compatível com o código antigo)
+ * Agora é progressiva: carrega núcleo RMBH + municípios mencionados na query.
+ *
+ * @param {string} [query=''] - texto da busca (opcional)
+ */
+async function loadStreetDataFromGitHub(query = '') {
+    try {
+        const hasAny = await hasAnyStreetLayer();
+        if (!hasAny) {
+            // Primeira vez → carrega só o núcleo RMBH
+            await loadRMBHCoreStreets();
+        }
+
+        // Se veio uma query, tenta carregar municípios mencionados nela
+        if (query) {
+            await ensureStreetDataForQuery(query);
+        }
+
+        if (typeof invalidateStreetIndex === 'function') {
+            invalidateStreetIndex();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados das ruas (progressivo):', error);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Limpeza one-time: remove feições MUNICIPIO de camadas já existentes
+// ---------------------------------------------------------------------------
 async function cleanupMunicipioFeatures() {
     try {
         const layers = await DB.getLayers();
@@ -198,7 +383,9 @@ async function cleanupMunicipioFeatures() {
     }
 }
 
+// ---------------------------------------------------------------------------
 // Recarrega todas as camadas do banco e adiciona ao mapa (respeitando order)
+// ---------------------------------------------------------------------------
 async function reloadLayers() {
     Object.values(overlayLayers).forEach(layer => {
         if (map && map.hasLayer(layer)) map.removeLayer(layer);
@@ -206,34 +393,40 @@ async function reloadLayers() {
     overlayLayers = {};
 
     const layers = await DB.getLayers(); // já vem ordenado por "order"
-    const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
+    const isOffline = !navigator.onLine;
+    const streetKeywords = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
 
     for (const layerData of layers) {
-        const isStreetLayer = hiddenNames.some(keyword => layerData.name.includes(keyword));
-        if (isStreetLayer) continue;
+        const isStreetLayer = streetKeywords.some(keyword =>
+            layerData.name && layerData.name.includes(keyword)
+        );
+
+        // Online → esconde logradouros (tiles bastam)
+        // Offline → mostra apenas as camadas de logradouro já carregadas
+        if (isStreetLayer && !isOffline) continue;
 
         if (layerVisibility[layerData.id] === undefined) {
-            layerVisibility[layerData.id] = true; // Micro, Macro e Hospitais visíveis por padrão
+            layerVisibility[layerData.id] = true;
         }
         if (layerVisibility[layerData.id]) {
-            addLayerToMap(layerData, viewMode);
+            addLayerToMap(layerData, viewMode, isStreetLayer);
         }
     }
+
     if (typeof invalidateStreetIndex === 'function') {
         invalidateStreetIndex();
     }
     updateLayerListUI();
 }
 
-// Identifica a classificação da feição para estilização e exibição correta
+// ---------------------------------------------------------------------------
+// Classificação de feições
+// ---------------------------------------------------------------------------
 function getFeatureClassification(feature) {
     const geomType = feature.geometry?.type;
     const props = feature.properties || {};
 
-    // Polígonos / MultiPolígonos
     if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-
-        // 1. MACRORREGIÃO tem prioridade (campos exclusivos ou mais específicos)
         if (
             props.Hospitais_de_Referencia_Macrorregiao ||
             props.Hospitais_de_Referencia_Macrorregiao_Texto ||
@@ -245,7 +438,6 @@ function getFeatureClassification(feature) {
             return 'MACRORREGIAO';
         }
 
-        // 2. MICRORREGIÃO
         if (
             props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
             props['Microrregião de Saúde'] ||
@@ -256,11 +448,9 @@ function getFeatureClassification(feature) {
             return 'MICRORREGIAO';
         }
 
-        // 3. Articulação CBMMG (polígonos operacionais)
         return 'POLYGON';
     }
 
-    // Points
     if (geomType === 'Point') {
         if (
             props['Nome do Hospital'] ||
@@ -270,7 +460,6 @@ function getFeatureClassification(feature) {
             return 'HOSPITAL';
         }
 
-        // Antigos centroids de município (já filtrados)
         if (
             props['FRAÇÃO'] ||
             props['Tempo-resposta'] ||
@@ -287,7 +476,9 @@ function getFeatureClassification(feature) {
     return 'OTHER';
 }
 
-// Gera badge com cor correspondente ao tempo-resposta
+// ---------------------------------------------------------------------------
+// Badge de tempo-resposta
+// ---------------------------------------------------------------------------
 function getTempoRespostaBadge(tempo) {
     if (!tempo || tempo === '-') {
         return '<span class="feature-badge badge-tempo-neutro">Não informado</span>';
@@ -305,7 +496,9 @@ function getTempoRespostaBadge(tempo) {
     return `<span class="feature-badge badge-tempo-neutro">⏱️ ${tempo}</span>`;
 }
 
-// Extrai latitude e longitude representativas da feição
+// ---------------------------------------------------------------------------
+// Coordenadas representativas
+// ---------------------------------------------------------------------------
 function getFeatureCoords(feature) {
     if (!feature.geometry) return null;
     if (feature.geometry.type === 'Point') {
@@ -322,13 +515,15 @@ function getFeatureCoords(feature) {
     return null;
 }
 
-// Formata o conteúdo HTML para o tooltip flutuante no hover
+// ---------------------------------------------------------------------------
+// Tooltip (hover)
+// ---------------------------------------------------------------------------
 function formatFeatureTooltip(feature) {
     const props = feature.properties || {};
     const type = getFeatureClassification(feature);
     const coords = getFeatureCoords(feature);
 
-    // ========== HOSPITAL ==========
+    // HOSPITAL
     if (type === 'HOSPITAL') {
         const nome = props['Nome do Hospital'] || props.name || 'Hospital';
         const mun = props.Município || props.Municipio || '-';
@@ -359,137 +554,133 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
-// ========== MICRORREGIÃO ==========
-if (type === 'MICRORREGIAO') {
-    const microName =
-        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
-        props['Microrregião de Saúde'] ||
-        props.NM_RGI ||
-        props.name ||
-        'Microrregião';
+    // MICRORREGIÃO
+    if (type === 'MICRORREGIAO') {
+        const microName =
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
+            props['Microrregião de Saúde'] ||
+            props.NM_RGI ||
+            props.name ||
+            'Microrregião';
 
-    const macroName =
-        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
-        props['Macrorregião de Saúde'] ||
-        props.Macrorregiao_Saude ||
-        '-';
+        const macroName =
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+            props['Macrorregião de Saúde'] ||
+            props.Macrorregiao_Saude ||
+            '-';
 
-    const mun = props.NM_MUN || props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Município '] || '-';
-    const pop2022 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)'];
-    const pop2025 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)'];
-    const area = props.AREA_KM2
-        ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km²`
-        : '-';
+        const mun = props.NM_MUN || props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Município '] || '-';
+        const pop2022 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)'];
+        const pop2025 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)'];
+        const area = props.AREA_KM2
+            ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km²`
+            : '-';
 
-    // Extração robusta da lista de hospitais
-    let hospList = props['Hospitais de Referência'] ||
-                   props.Hospitais_de_Referencia ||
-                   props.Hospitais_de_Referencia_Macrorregiao ||
-                   [];
+        let hospList = props['Hospitais de Referência'] ||
+                       props.Hospitais_de_Referencia ||
+                       props.Hospitais_de_Referencia_Macrorregiao ||
+                       [];
 
-    // Fallback para versão texto
-    if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
-        hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto.split('|').map(h => h.trim()).filter(Boolean);
-    }
+        if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
+            hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto.split('|').map(h => h.trim()).filter(Boolean);
+        }
 
-    let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
-    if (Array.isArray(hospList) && hospList.length > 0) {
-        hospitaisHtml = hospList
-            .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
-            .join('');
-    } else if (typeof hospList === 'string' && hospList.trim()) {
-        hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
-    }
+        let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
+        if (Array.isArray(hospList) && hospList.length > 0) {
+            hospitaisHtml = hospList
+                .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
+                .join('');
+        } else if (typeof hospList === 'string' && hospList.trim()) {
+            hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
+        }
 
-    return `
-        <div class="feature-card-header header-micro">
-            <h4 class="feature-card-title">🩺 ${microName}</h4>
-            <span class="feature-type-tag">Microrregião de Saúde</span>
-        </div>
-        <div class="feature-card-body">
-            <div class="feature-info-grid">
-                <div class="feature-info-row">
-                    <span class="feature-info-label">Município sede:</span>
-                    <span class="feature-info-value">${mun}</span>
-                </div>
-                <div class="feature-info-row">
-                    <span class="feature-info-label">Macrorregião:</span>
-                    <span class="feature-info-value"><span class="feature-badge badge-macro">${macroName}</span></span>
-                </div>
-                <div class="feature-info-row">
-                    <span class="feature-info-label">População 2022:</span>
-                    <span class="feature-info-value">${pop2022 ? Number(pop2022).toLocaleString('pt-BR') : '-'}</span>
-                </div>
-                <div class="feature-info-row">
-                    <span class="feature-info-label">População 2025 (est.):</span>
-                    <span class="feature-info-value">${pop2025 ? Number(pop2025).toLocaleString('pt-BR') : '-'}</span>
-                </div>
-                <div class="feature-info-row">
-                    <span class="feature-info-label">Área:</span>
-                    <span class="feature-info-value">${area}</span>
-                </div>
-                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
-                    <span class="feature-info-label">Hospitais de Referência:</span>
-                    <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">
-                        ${hospitaisHtml}
+        return `
+            <div class="feature-card-header header-micro">
+                <h4 class="feature-card-title">🩺 ${microName}</h4>
+                <span class="feature-type-tag">Microrregião de Saúde</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município sede:</span>
+                        <span class="feature-info-value">${mun}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Macrorregião:</span>
+                        <span class="feature-info-value"><span class="feature-badge badge-macro">${macroName}</span></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">População 2022:</span>
+                        <span class="feature-info-value">${pop2022 ? Number(pop2022).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">População 2025 (est.):</span>
+                        <span class="feature-info-value">${pop2025 ? Number(pop2025).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Área:</span>
+                        <span class="feature-info-value">${area}</span>
+                    </div>
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Hospitais de Referência:</span>
+                        <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">
+                            ${hospitaisHtml}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-}
-
-// ========== MACRORREGIÃO ==========
-if (type === 'MACRORREGIAO') {
-    const macroName =
-        props.Macrorregiao_Saude ||
-        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
-        props['Macrorregião de Saúde'] ||
-        props.name ||
-        'Macrorregião';
-
-    // Extração robusta
-    let hospList = props.Hospitais_de_Referencia_Macrorregiao ||
-                   props['Hospitais de Referência'] ||
-                   props.Hospitais_de_Referencia ||
-                   [];
-
-    // Fallback para versão texto
-    if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
-        hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto
-            .split('|')
-            .map(h => h.trim())
-            .filter(Boolean);
+        `;
     }
 
-    let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
-    if (Array.isArray(hospList) && hospList.length > 0) {
-        hospitaisHtml = hospList
-            .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
-            .join('');
-    } else if (typeof hospList === 'string' && hospList.trim()) {
-        hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
-    }
+    // MACRORREGIÃO
+    if (type === 'MACRORREGIAO') {
+        const macroName =
+            props.Macrorregiao_Saude ||
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+            props['Macrorregião de Saúde'] ||
+            props.name ||
+            'Macrorregião';
 
-    return `
-        <div class="feature-card-header header-macro">
-            <h4 class="feature-card-title">🏥 ${macroName}</h4>
-            <span class="feature-type-tag">Macrorregião de Saúde</span>
-        </div>
-        <div class="feature-card-body">
-            <div class="feature-info-grid">
-                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
-                    <span class="feature-info-label">Hospitais de Referência da Macro:</span>
-                    <div style="margin-top:4px;max-height:130px;overflow-y:auto;width:100%;">
-                        ${hospitaisHtml}
+        let hospList = props.Hospitais_de_Referencia_Macrorregiao ||
+                       props['Hospitais de Referência'] ||
+                       props.Hospitais_de_Referencia ||
+                       [];
+
+        if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
+            hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto
+                .split('|')
+                .map(h => h.trim())
+                .filter(Boolean);
+        }
+
+        let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
+        if (Array.isArray(hospList) && hospList.length > 0) {
+            hospitaisHtml = hospList
+                .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
+                .join('');
+        } else if (typeof hospList === 'string' && hospList.trim()) {
+            hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
+        }
+
+        return `
+            <div class="feature-card-header header-macro">
+                <h4 class="feature-card-title">🏥 ${macroName}</h4>
+                <span class="feature-type-tag">Macrorregião de Saúde</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Hospitais de Referência da Macro:</span>
+                        <div style="margin-top:4px;max-height:130px;overflow-y:auto;width:100%;">
+                            ${hospitaisHtml}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-}
+        `;
+    }
 
-    // ========== MUNICIPIO (legado – não deve mais aparecer) ==========
+    // MUNICIPIO (legado)
     if (type === 'MUNICIPIO') {
         const munName = props.name || 'Município';
         const fracao = props['FRAÇÃO'] || '-';
@@ -536,7 +727,7 @@ if (type === 'MACRORREGIAO') {
         `;
     }
 
-    // ========== UNIDADE BM ==========
+    // UNIDADE BM
     if (type === 'UNIDADE_BM') {
         const unitName = props.name || 'Unidade Operacional';
         const ueop = props.UEOP || '-';
@@ -567,7 +758,7 @@ if (type === 'MACRORREGIAO') {
         `;
     }
 
-    // ========== POLYGON (Articulação) ==========
+    // POLYGON (Articulação)
     if (type === 'POLYGON') {
         const polyName = props.name || 'Circunscrição Territorial';
         const mun = props.NM_MUN || props.Field3 || '-';
@@ -624,8 +815,9 @@ if (type === 'MACRORREGIAO') {
     `;
 }
 
-// Formata o conteúdo HTML para o popup ao clicar
-// Formata o conteúdo HTML para o popup ao clicar
+// ---------------------------------------------------------------------------
+// Popup (clique)
+// ---------------------------------------------------------------------------
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
@@ -633,14 +825,12 @@ function formatFeaturePopup(feature) {
     const name = (props.name || props['Nome do Hospital'] || 'Feição').replace(/'/g, "\\'");
     const isPoint = feature.geometry && feature.geometry.type === 'Point';
 
-    // Botão de fechar sempre presente
     const closeBtnHtml = `
         <button type="button" class="btn-popup-close"
                 onclick="if (typeof map !== 'undefined' && map) map.closePopup();"
                 title="Fechar popup">×</button>
     `;
 
-    // Ações só para pontos (não fazem sentido / não são funcionais em polígonos)
     let actionsHtml = '';
     if (isPoint && coords) {
         const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
@@ -680,8 +870,10 @@ function formatFeaturePopup(feature) {
     `;
 }
 
-// Adiciona uma camada ao mapa a partir dos dados
-function addLayerToMap(layerData, mode = viewMode) {
+// ---------------------------------------------------------------------------
+// Adiciona camada ao mapa (agora com flag isStreetLayer)
+// ---------------------------------------------------------------------------
+function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
     if (!layerData.geojson || !map) return;
 
     if (Array.isArray(layerData.geojson.features)) {
@@ -694,17 +886,23 @@ function addLayerToMap(layerData, mode = viewMode) {
     const geojsonLayer = L.geoJSON(layerData.geojson, {
         filter: function (feature) {
             const classification = getFeatureClassification(feature);
-
-            // Remove definitivamente MUNICIPIO da visualização
             if (classification === 'MUNICIPIO') return false;
-
             if (mode === 'none') return false;
-            if (mode === 'points') {
-                return feature.geometry.type === 'Point';
-            }
+            if (mode === 'points') return feature.geometry.type === 'Point';
             return true;
         },
         style: function (feature) {
+            // ---- Estilo especial para logradouros (offline) ----
+            if (isStreetLayer) {
+                return {
+                    color: '#64748b',
+                    weight: 1.3,
+                    opacity: 0.78,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                };
+            }
+
             const type = getFeatureClassification(feature);
             const props = feature.properties || {};
 
@@ -727,7 +925,6 @@ function addLayerToMap(layerData, mode = viewMode) {
                         opacity: 0.9
                     };
                 }
-                // POLYGON (Articulação)
                 return {
                     fillColor: props.fill || '#0288d1',
                     fillOpacity: props['fill-opacity'] !== undefined ? Number(props['fill-opacity']) : 0.3,
@@ -749,7 +946,6 @@ function addLayerToMap(layerData, mode = viewMode) {
                     fillOpacity: 0.9
                 });
             }
-            // UNIDADE_BM
             return L.circleMarker(latlng, {
                 radius: 8,
                 fillColor: '#e74c3c',
@@ -760,6 +956,36 @@ function addLayerToMap(layerData, mode = viewMode) {
             });
         },
         onEachFeature: (feature, layer) => {
+            // ---- Tooltip/Popup especial para logradouros ----
+            if (isStreetLayer) {
+                const info = getFeatureStreetInfo(feature.properties, layerData.name);
+                const name = info ? info.fullName : (feature.properties?.NM_LOG || 'Logradouro');
+                const mun = info ? info.munName : '';
+
+                layer.bindTooltip(`<strong>${name}</strong>${mun ? `<br><small>${mun}</small>` : ''}`, {
+                    sticky: true,
+                    direction: 'top',
+                    opacity: 0.95,
+                    className: 'feature-tooltip'
+                });
+
+                layer.bindPopup(`
+                    <div style="font-family:sans-serif;font-size:13px;padding:4px 2px;">
+                        <strong>🛣️ ${name}</strong>
+                        ${mun ? `<br><span style="color:#64748b;font-size:12px;">${mun} – MG</span>` : ''}
+                    </div>
+                `, { maxWidth: 280 });
+
+                layer.on('mouseover', function (e) {
+                    e.target.setStyle({ weight: 2.6, color: '#334155', opacity: 1 });
+                });
+                layer.on('mouseout', function (e) {
+                    geojsonLayer.resetStyle(e.target);
+                });
+                return; // não aplica o resto dos handlers de feições operacionais
+            }
+
+            // ---- handlers originais (Unidades, Hospitais, Polígonos…) ----
             layer.bindTooltip(formatFeatureTooltip(feature), {
                 sticky: true,
                 className: 'feature-tooltip',
@@ -809,16 +1035,20 @@ function addLayerToMap(layerData, mode = viewMode) {
     geojsonLayer.addTo(map);
     overlayLayers[layerData.id] = geojsonLayer;
 
-    const hasPoints = layerData.geojson.features.some(f => f.geometry.type === 'Point');
-    if (hasPoints) {
-        geojsonLayer.bringToFront();
+    // Logradouros ficam por baixo; pontos de Unidades/Hospitais na frente
+    if (!isStreetLayer) {
+        const hasPoints = layerData.geojson.features.some(f => f.geometry.type === 'Point');
+        if (hasPoints) {
+            geojsonLayer.bringToFront();
+        }
+    } else {
+        geojsonLayer.bringToBack();
     }
 }
 
-// ==========================================================================
+// ---------------------------------------------------------------------------
 // UI da lista de camadas + ações
-// ==========================================================================
-
+// ---------------------------------------------------------------------------
 async function renameLayer(layerId) {
     const layer = await DB.getLayerById(layerId);
     if (!layer) return;
@@ -890,7 +1120,6 @@ function updateLayerListUI() {
             actionsDiv.style.gap = '2px';
             actionsDiv.style.alignItems = 'center';
 
-            // Visibilidade
             const visBtn = document.createElement('button');
             visBtn.className = 'btn-icon layer-btn';
             visBtn.style.fontSize = '0.95rem';
