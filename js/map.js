@@ -1,4 +1,5 @@
 // js/map.js - Mapa Leaflet + cálculo de distâncias (sempre com todas as camadas do banco)
+// Etapa 1: fallback de rota reta mais informativo
 
 class OfflineTileLayer extends L.TileLayer {
     createTile(coords, done) {
@@ -491,21 +492,44 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     return { distance: straight, duration: null, source: 'straight' };
 }
 
+/**
+ * Desenha linha reta com feedback informativo (modo offline / fallback).
+ */
 function drawStraightLine(originPos, lat, lng, name, distance) {
     if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
     if (window.distanceMarker) { map.removeLayer(window.distanceMarker); window.distanceMarker = null; }
     if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
 
     const latlngs = [[originPos.lat, originPos.lng], [lat, lng]];
-    window.distanceLine = L.polyline(latlngs, { color: '#e74c3c', weight: 3, dashArray: '6,6' }).addTo(map);
+    window.distanceLine = L.polyline(latlngs, {
+        color: '#e74c3c',
+        weight: 3,
+        dashArray: '8,6',
+        opacity: 0.9
+    }).addTo(map);
+
+    const distText = distance.toFixed(2);
 
     window.distanceMarker = L.marker([lat, lng], {
         icon: window.destIcon
     }).addTo(map)
-        .bindPopup(`<b>${name}</b><br>➡️ Linha reta (offline)<br>Distância: ${distance.toFixed(2)} km`)
-        .openPopup();
+        .bindPopup(`
+            <div style="font-family:sans-serif; max-width:260px;">
+                <b style="color:#c0392b; font-size:13px;">${name}</b><br>
+                <div style="margin-top:6px; font-size:12px; line-height:1.45;">
+                    <b>Rota offline (linha reta)</b><br>
+                    Distância aproximada: <b>${distText} km</b><br>
+                    <small style="color:#7f8c8d;">
+                        Sem grafo de vias disponível no momento.<br>
+                        Use a rota online quando houver conexão para o traçado real.
+                    </small>
+                </div>
+            </div>
+        `).openPopup();
 
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
+
+    showToast(`Rota offline: linha reta aproximada (${distText} km).`, 'warning', 4500);
 }
 
 async function focusOnFeature(lng, lat, name, distance) {

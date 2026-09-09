@@ -1,4 +1,6 @@
-// js/search.js - Busca de endereços (Online/Offline) com suporte a número + interpolação
+// js/search.js - Busca de endereços (Online prioritário / Offline apenas sem conexão)
+// Pesquisa Online primeiro quando conectado. Pesquisa Offline somente quando navigator.onLine === false.
+// Suporte a número + interpolação + interseções robustas.
 
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
@@ -108,19 +110,366 @@ function extractCoordinatesFromGeom(geom, callback) {
     }
 }
 
-async function searchAddress(query) {
+/**
+ * Detecta padrão de interseção e extrai as duas ruas.
+ * Mais permissivo para "com", "x", "esquina", etc.
+ */
+function detectIntersection(query) {
+    const raw = String(query).trim();
+    if (!raw) return null;
+
+    const patterns = [
+        /\s+esquina\s+(?:com\s+)?(?:a\s+)?/i,
+        /\s+esq\.?\s+(?:com\s+)?(?:a\s+)?/i,
+        /\s+com\s+a\s+/i,
+        /\s+com\s+/i,
+        /\s+x\s+/i,
+        /\s+×\s+/i,
+        /\s+&\s+/i,
+        /\s+e\s+a\s+/i
+    ];
+
+    for (const re of patterns) {
+        const parts = raw.split(re);
+        if (parts.length >= 2) {
+            const streetA = parts[0].trim();
+            let streetB = parts.slice(1).join(' ').trim();
+            streetB = streetB.replace(/,?\s*(MG|Minas Gerais).*$/i, '').trim();
+
+            if (streetA.length >= 3 && streetB.length >= 3) {
+                return { streetA, streetB, original: raw };
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Tenta extrair município conhecido da query (lista IBGE de MG).
+ */
+function parseAddressQueryWithCity(query) {
+    const intersection = detectIntersection(query);
+    const base = parseAddressQuery(query);
+    let city = null;
+    let streetPart = base.streetPart || '';
+
+    const tokens = String(query).split(/[,\-–]/).map(t => t.trim()).filter(Boolean);
+    const allMunNames = Object.values(IBGE_MUNICIPALITIES || {});
+
+    for (let i = tokens.length - 1; i >= 0; i--) {
+        const candidate = normalizeStr(tokens[i]);
+        if (candidate.length < 4) continue;
+
+        const found = allMunNames.find(mun => {
+            const n = normalizeStr(mun);
+            return n === candidate || n.includes(candidate) || candidate.includes(n);
+        });
+
+        if (found) {
+            city = found;
+            const cityNorm = normalizeStr(found);
+            streetPart = streetPart
+                .split(/\s+/)
+                .filter(t => !cityNorm.includes(t) && !t.includes(cityNorm.split(' ')[0]))
+                .join(' ')
+                .trim();
+            break;
+        }
+    }
+
+    return {
+        ...base,
+        streetPart: streetPart || base.streetPart,
+        city,
+        isIntersection: !!intersection,
+        streetA: intersection ? intersection.streetA : null,
+        streetB: intersection ? intersection.streetB : null
+    };
+}
+
+/**
+ * Calcula ponto de interseção (ou aproximação segura) entre duas ruas do MESMO município.
+ */
+async function findIntersectionPoint(streetA, streetB) {
+    if (typeof turf === 'undefined') return null;
+
+    const munA = normalizeStr(streetA.munName || '');
+    const munB = normalizeStr(streetB.munName || '');
+    if (munA && munB && munA !== munB) {
+        return null;
+    }
+
+    const distCentroids = turf.distance(
+        turf.point([streetA.lng, streetA.lat]),
+        turf.point([streetB.lng, streetB.lat]),
+        { units: 'kilometers' }
+    );
+    if (distCentroids > 4.0) {
+        return null;
+    }
+
+    try {
+        const featuresA = await getStreetFeaturesByKey(streetA.fullName, streetA.munName);
+        const featuresB = await getStreetFeaturesByKey(streetB.fullName, streetB.munName);
+
+        if (!featuresA.length || !featuresB.length) return null;
+
+        // 1. Interseção geométrica real
+        for (const fa of featuresA) {
+            for (const fb of featuresB) {
+                try {
+                    const intersects = turf.lineIntersect(fa, fb);
+                    if (intersects?.features?.length > 0) {
+                        const [lng, lat] = intersects.features[0].geometry.coordinates;
+                        return { lat, lng, exact: true };
+                    }
+                } catch (_) { /* ignora */ }
+            }
+        }
+
+        // 2. Fallback controlado: ponto médio dos trechos mais próximos (< 60 m)
+        let bestDist = Infinity;
+        let bestPoint = null;
+
+        for (const fa of featuresA) {
+            for (const fb of featuresB) {
+                try {
+                    const centerB = turf.center(fb);
+                    const ptOnA = turf.nearestPointOnLine(fa, centerB);
+                    const ptOnB = turf.nearestPointOnLine(fb, ptOnA);
+                    const d = turf.distance(ptOnA, ptOnB, { units: 'meters' });
+
+                    if (d < bestDist && d < 60) {
+                        bestDist = d;
+                        const mid = turf.midpoint(ptOnA, ptOnB);
+                        bestPoint = {
+                            lat: mid.geometry.coordinates[1],
+                            lng: mid.geometry.coordinates[0],
+                            exact: false,
+                            approxDistMeters: Math.round(d)
+                        };
+                    }
+                } catch (_) { /* ignora */ }
+            }
+        }
+
+        return bestPoint;
+    } catch (e) {
+        console.warn('Erro ao calcular interseção offline:', e);
+        return null;
+    }
+}
+
+/**
+ * Score de similaridade de nome de rua (quanto maior, melhor).
+ */
+function streetNameScore(candidate, queryTokens) {
+    let score = 0;
+    const full = candidate.normalizedFull;
+    const only = candidate.normalizedStreetOnly;
+
+    queryTokens.forEach(t => {
+        if (full.includes(t)) score += 10;
+        if (only.includes(t)) score += 8;
+        if (full.startsWith(t) || only.startsWith(t)) score += 5;
+    });
+
+    score += Math.min(15, candidate.totalRes || 0);
+    return score;
+}
+
+/**
+ * ============================================================
+ * BUSCA ONLINE (prioritária quando conectado)
+ * ============================================================
+ */
+async function searchAddressOnline(rawQuery, parsed) {
     const resultsDiv = document.getElementById('searchResults');
     if (!resultsDiv) return;
 
-    const rawQuery = String(query).trim();
-    if (!rawQuery) {
-        resultsDiv.innerHTML = '';
-        return;
+    resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
+
+    try {
+        let data = [];
+        const seenPlaceIds = new Set();
+
+        // Viewbox aproximado de Minas Gerais (left, top, right, bottom)
+        // Ajuda o Nominatim a priorizar resultados dentro do estado
+        const viewbox = '-51.0,-14.0,-39.5,-23.0';
+
+        const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
+        const hasNumber = parsed.hasNumber;
+        const isIncomplete = !hasClearStreet || parsed.isIntersection ||
+            (parsed.streetPart || '').split(/\s+/).filter(Boolean).length <= 2;
+
+        // ---------- 1. Structured (quando temos rua clara) ----------
+        if (hasClearStreet) {
+            const streetParam = hasNumber
+                ? `${parsed.streetPart} ${parsed.number}`.trim()
+                : parsed.streetPart;
+
+            const params = new URLSearchParams({
+                format: 'json',
+                addressdetails: '1',
+                limit: '12',
+                countrycodes: 'BR',
+                'accept-language': 'pt',
+                street: streetParam,
+                state: 'Minas Gerais',
+                viewbox: viewbox,
+                bounded: '0'
+            });
+            if (parsed.city) params.set('city', parsed.city);
+
+            const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+            const response = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const structured = await response.json();
+
+            if (Array.isArray(structured)) {
+                structured.forEach(item => {
+                    if (item.place_id && !seenPlaceIds.has(item.place_id)) {
+                        seenPlaceIds.add(item.place_id);
+                        data.push(item);
+                    }
+                });
+            }
+        }
+
+        // ---------- 2. Free-form (sempre poderoso para queries incompletas / interseções) ----------
+        // Executa se: poucos resultados structured, query incompleta, interseção, ou nenhuma rua clara
+        if (data.length < 4 || isIncomplete || parsed.isIntersection) {
+            const freeParams = new URLSearchParams({
+                format: 'json',
+                addressdetails: '1',
+                limit: '12',
+                countrycodes: 'BR',
+                'accept-language': 'pt',
+                q: `${rawQuery}, Minas Gerais, Brazil`,
+                viewbox: viewbox,
+                bounded: '0'
+            });
+
+            const freeUrl = `https://nominatim.openstreetmap.org/search?${freeParams.toString()}`;
+            const freeRes = await fetch(freeUrl, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const freeData = await freeRes.json();
+
+            if (Array.isArray(freeData)) {
+                freeData.forEach(item => {
+                    if (item.place_id && !seenPlaceIds.has(item.place_id)) {
+                        seenPlaceIds.add(item.place_id);
+                        data.push(item);
+                    }
+                });
+            }
+        }
+
+        // ---------- 3. Fallback extra sem city (caso a cidade tenha atrapalhado) ----------
+        if (data.length === 0 && parsed.city && hasClearStreet) {
+            const streetParam = hasNumber
+                ? `${parsed.streetPart} ${parsed.number}`.trim()
+                : parsed.streetPart;
+
+            const params2 = new URLSearchParams({
+                format: 'json',
+                addressdetails: '1',
+                limit: '10',
+                countrycodes: 'BR',
+                'accept-language': 'pt',
+                street: streetParam,
+                state: 'Minas Gerais',
+                viewbox: viewbox,
+                bounded: '0'
+            });
+
+            const url2 = `https://nominatim.openstreetmap.org/search?${params2.toString()}`;
+            const res2 = await fetch(url2, { headers: { 'Accept': 'application/json' } });
+            const data2 = await res2.json();
+
+            if (Array.isArray(data2)) {
+                data2.forEach(item => {
+                    if (item.place_id && !seenPlaceIds.has(item.place_id)) {
+                        seenPlaceIds.add(item.place_id);
+                        data.push(item);
+                    }
+                });
+            }
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+            resultsDiv.innerHTML = '<div class="search-status-msg">❌ Nenhum endereço encontrado em Minas Gerais com os termos informados.</div>';
+            return;
+        }
+
+        // Scoring e mapeamento
+        const onlineResults = data.map(item => {
+            let score = 55;
+            const addr = item.address || {};
+            const house = addr.house_number || '';
+
+            if (parsed.hasNumber && house) {
+                const num = parseInt(house, 10);
+                if (!isNaN(num) && Math.abs(num - parsed.number) <= 20) score += 45;
+                else if (house.includes(String(parsed.number))) score += 30;
+            }
+
+            if (addr.state && normalizeStr(addr.state).includes('minas')) score += 15;
+            if (parsed.city && (addr.city || addr.town || addr.municipality)) {
+                const cityNorm = normalizeStr(parsed.city);
+                const foundCity = normalizeStr(addr.city || addr.town || addr.municipality || '');
+                if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) {
+                    score += 25;
+                }
+            }
+            if (parsed.isIntersection) score += 12;
+
+            // Bônus se o display_name contém partes da query original
+            const displayNorm = normalizeStr(item.display_name || '');
+            const queryTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
+                .split(/\s+/)
+                .filter(t => t.length >= 3);
+            queryTokens.forEach(t => {
+                if (displayNorm.includes(t)) score += 4;
+            });
+
+            return {
+                title: item.display_name.split(',')[0],
+                munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
+                address: item.display_name,
+                subtitle: item.display_name,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+                source: 'online_osm',
+                score,
+                houseNumber: house,
+                isIntersection: parsed.isIntersection
+            };
+        });
+
+        onlineResults.sort((a, b) => b.score - a.score);
+        displaySearchResults(onlineResults.slice(0, 12));
+
+    } catch (error) {
+        console.error('Erro na busca online:', error);
+        resultsDiv.innerHTML = '<div class="search-status-msg">Erro na busca online. Tente novamente ou verifique a conexão.</div>';
     }
+}
+
+/**
+ * ============================================================
+ * BUSCA OFFLINE (somente quando não há conexão)
+ * ============================================================
+ */
+async function searchAddressOffline(rawQuery, parsed) {
+    const resultsDiv = document.getElementById('searchResults');
+    if (!resultsDiv) return;
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
 
-    // Carregamento progressivo de logradouros
+    // Carregamento progressivo de logradouros (apenas offline)
     try {
         resultsDiv.innerHTML = '<div class="search-status-msg">📥 Verificando base de logradouros...</div>';
         await loadStreetDataFromGitHub(rawQuery);
@@ -129,13 +478,11 @@ async function searchAddress(query) {
         console.warn('Falha ao carregar base de ruas sob demanda:', e);
     }
 
-    // ---- Parse do número ----
-    const parsed = parseAddressQuery(rawQuery);
     const searchTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
         .split(/\s+/)
         .filter(Boolean);
 
-    if (searchTokens.length === 0) {
+    if (searchTokens.length === 0 && !parsed.isIntersection) {
         resultsDiv.innerHTML = '<div class="search-status-msg">Digite um termo válido para busca.</div>';
         return;
     }
@@ -143,7 +490,83 @@ async function searchAddress(query) {
     const matchedResults = [];
     const seenAddresses = new Set();
 
-    // 1. Índice de ruas offline
+    // ============================================================
+    // 0. Caminho especial para INTERSEÇÃO offline
+    // ============================================================
+    if (parsed.isIntersection && parsed.streetA && parsed.streetB) {
+        resultsDiv.innerHTML = '<div class="search-status-msg">🔀 Calculando interseção offline...</div>';
+
+        const streetIndex = await getOrBuildStreetIndex();
+        const tokensA = expandSearchQuery(parsed.streetA).split(/\s+/).filter(t => t.length >= 2);
+        const tokensB = expandSearchQuery(parsed.streetB).split(/\s+/).filter(t => t.length >= 2);
+
+        const candidatesA = [];
+        const candidatesB = [];
+
+        for (const street of streetIndex) {
+            const scoreA = streetNameScore(street, tokensA);
+            const scoreB = streetNameScore(street, tokensB);
+
+            if (scoreA >= 15) candidatesA.push({ street, score: scoreA });
+            if (scoreB >= 15) candidatesB.push({ street, score: scoreB });
+        }
+
+        candidatesA.sort((a, b) => b.score - a.score);
+        candidatesB.sort((a, b) => b.score - a.score);
+
+        const topA = candidatesA.slice(0, 8);
+        const topB = candidatesB.slice(0, 8);
+
+        let found = false;
+
+        for (const ca of topA) {
+            if (found) break;
+            for (const cb of topB) {
+                if (ca.street.streetKey === cb.street.streetKey) continue;
+
+                const munA = normalizeStr(ca.street.munName || '');
+                const munB = normalizeStr(cb.street.munName || '');
+
+                if (munA && munB && munA !== munB) continue;
+
+                const point = await findIntersectionPoint(ca.street, cb.street);
+                if (point) {
+                    const title = `Esquina: ${ca.street.fullName} × ${cb.street.fullName}`;
+                    const resultKey = `inter_${ca.street.streetKey}_${cb.street.streetKey}`;
+                    if (!seenAddresses.has(resultKey)) {
+                        seenAddresses.add(resultKey);
+                        matchedResults.push({
+                            title,
+                            munBadge: ca.street.munName || cb.street.munName,
+                            address: `${title} - ${ca.street.munName || cb.street.munName}, MG`,
+                            subtitle: point.exact
+                                ? 'Interseção geométrica encontrada'
+                                : `Aproximação (~${point.approxDistMeters} m entre vias)`,
+                            lat: point.lat,
+                            lng: point.lng,
+                            source: 'offline_intersection',
+                            score: point.exact ? 130 : 100,
+                            usedInterpolation: true,
+                            isIntersection: true
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (matchedResults.length > 0) {
+            matchedResults.sort((a, b) => b.score - a.score);
+            displaySearchResults(matchedResults.slice(0, 6));
+            return;
+        }
+        // Se não achou interseção, continua o fluxo normal offline
+    }
+
+    // ============================================================
+    // 1. Índice de ruas offline (busca normal)
+    // ============================================================
     const streetIndex = await getOrBuildStreetIndex();
 
     for (const street of streetIndex) {
@@ -166,9 +589,11 @@ async function searchAddress(query) {
         else score += 20;
 
         if (street.totalRes > 0) score += Math.min(15, street.totalRes);
-
-        // Bônus se o usuário digitou número (prioriza ruas com mais domicílios)
         if (parsed.hasNumber) score += 5;
+
+        if (parsed.city && normalizeStr(street.munName).includes(normalizeStr(parsed.city))) {
+            score += 25;
+        }
 
         const resultKey = `${street.fullName}__${street.munName}`;
         if (seenAddresses.has(resultKey)) continue;
@@ -182,7 +607,6 @@ async function searchAddress(query) {
         let usedInterpolation = false;
         let interpolationFailed = false;
 
-        // ---- Interpolação quando há número ----
         if (parsed.hasNumber) {
             try {
                 const features = await getStreetFeaturesByKey(street.fullName, street.munName);
@@ -222,7 +646,7 @@ async function searchAddress(query) {
         });
     }
 
-    // 2. Outras camadas (POIs, unidades etc.) – sem alteração de lógica
+    // 2. Outras camadas (POIs, unidades etc.)
     try {
         const layers = await DB.getLayers();
         for (const layer of layers) {
@@ -264,39 +688,33 @@ async function searchAddress(query) {
 
     if (topResults.length > 0) {
         displaySearchResults(topResults);
+    } else {
+        resultsDiv.innerHTML = '<div class="search-status-msg">📴 Modo Offline: Nenhum endereço correspondente na base local.</div>';
+    }
+}
+
+/**
+ * Função principal de entrada da busca.
+ * Decide automaticamente entre online (prioritário) e offline.
+ */
+async function searchAddress(query) {
+    const resultsDiv = document.getElementById('searchResults');
+    if (!resultsDiv) return;
+
+    const rawQuery = String(query).trim();
+    if (!rawQuery) {
+        resultsDiv.innerHTML = '';
         return;
     }
 
-    // 3. Fallback online (Nominatim) – inalterado
-    if (navigator.onLine) {
-        try {
-            resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
-            const viewbox = '-52,-15,-40,-24';
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(rawQuery)}&limit=8&countrycodes=BR&viewbox=${viewbox}&bounded=1&accept-language=pt`;
-            const response = await fetch(url);
-            const data = await response.json();
+    const parsed = parseAddressQueryWithCity(rawQuery);
 
-            if (data.length > 0) {
-                const onlineResults = data.map(item => ({
-                    title: item.display_name.split(',')[0],
-                    munBadge: 'Online (OSM)',
-                    address: item.display_name,
-                    subtitle: item.display_name,
-                    lat: parseFloat(item.lat),
-                    lng: parseFloat(item.lon),
-                    source: 'online_osm',
-                    score: 50
-                }));
-                displaySearchResults(onlineResults);
-            } else {
-                resultsDiv.innerHTML = '<div class="search-status-msg">❌ Nenhum endereço encontrado com os termos informados.</div>';
-            }
-        } catch (error) {
-            console.error('Erro na busca online:', error);
-            resultsDiv.innerHTML = '<div class="search-status-msg">Erro na busca online. Tente novamente.</div>';
-        }
+    if (navigator.onLine) {
+        // ===== ONLINE PRIORITÁRIO =====
+        await searchAddressOnline(rawQuery, parsed);
     } else {
-        resultsDiv.innerHTML = '<div class="search-status-msg">📴 Modo Offline: Nenhum endereço correspondente na base local.</div>';
+        // ===== OFFLINE SOMENTE =====
+        await searchAddressOffline(rawQuery, parsed);
     }
 }
 
@@ -310,10 +728,12 @@ function displaySearchResults(results) {
         item.className = 'search-result-item';
 
         let extraBadge = '';
-        if (result.usedInterpolation) {
-            extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">≈ Nº aproximado</span>`;
-        } else if (result.interpolationFailed) {
-            extraBadge = `<span class="search-result-mun-badge" style="background:#fdebd0;color:#b9770e;">Nº fora da faixa</span>`;
+        if (result.isIntersection) {
+            extraBadge = `<span class="search-result-mun-badge" style="background:#fef3c7;color:#92400e;">🔀 Esquina</span>`;
+        } else if (result.usedInterpolation || result.interpolationFailed) {
+            extraBadge = `<span class="search-result-mun-badge" style="background:#e8f4f8;color:#1a5276;">Busca realizada offline. Posição aproximada.</span>`;
+        } else if (result.source === 'online_osm' && result.houseNumber) {
+            extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">Nº ${escapeHtml(result.houseNumber)}</span>`;
         }
 
         item.innerHTML = `
@@ -331,10 +751,12 @@ function displaySearchResults(results) {
             resultsDiv.innerHTML = '';
             calculateDistancesToAllFeatures(result.lat, result.lng);
 
-            if (result.interpolationFailed) {
-                showToast(`Número ${result.originalNumber} fora da faixa estimada da via. Usando centro do logradouro.`, 'warning', 4500);
-            } else if (result.usedInterpolation) {
-                showToast(`Origem aproximada no nº ${result.originalNumber}: ${result.title}`, 'success');
+            if (result.isIntersection) {
+                showToast('Esquina definida (posição aproximada offline).', 'info', 4000);
+            } else if (result.usedInterpolation || result.interpolationFailed) {
+                showToast('Busca realizada offline. Posição aproximada.', 'info', 4000);
+            } else if (result.source === 'online_osm') {
+                showToast(`Origem definida (online): ${result.title}`, 'success');
             } else {
                 showToast(`Origem definida: ${result.title}`, 'success');
             }
