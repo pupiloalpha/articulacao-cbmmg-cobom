@@ -75,8 +75,33 @@ async function seedInitialData() {
     }
 }
 
+/**
+ * Carrega GeoJSON ou TopoJSON.
+ * Se for Topology, converte automaticamente para FeatureCollection.
+ */
+async function loadGeoOrTopo(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Falha ao carregar ${url}`);
+    const data = await res.json();
+
+    if (data.type === 'Topology') {
+        if (typeof topojson === 'undefined' || !topojson.feature) {
+            throw new Error('topojson-client não carregado');
+        }
+        // Pega o primeiro objeto disponível (padrão da conversão)
+        const objectName = Object.keys(data.objects)[0];
+        const geojson = topojson.feature(data, data.objects[objectName]);
+        // Garante que seja FeatureCollection
+        if (geojson.type === 'Feature') {
+            return { type: 'FeatureCollection', features: [geojson] };
+        }
+        return geojson;
+    }
+    return data; // já é GeoJSON
+}
+
 // ---------------------------------------------------------------------------
-// Macrorregiões / Microrregiões
+// Macrorregiões / Microrregiões (agora prioritiza TopoJSON)
 // ---------------------------------------------------------------------------
 async function loadMicroMacroRegions() {
     try {
@@ -85,9 +110,18 @@ async function loadMicroMacroRegions() {
         const hasMacro = existing.some(l => l.name && l.name.includes('Macrorregi'));
 
         if (!hasMacro) {
-            const res = await fetch('./data/macrorregioes/macrorregioes.geojson');
-            if (res.ok) {
-                const geojson = await res.json();
+            let geojson = null;
+            // Tenta TopoJSON primeiro
+            try {
+                geojson = await loadGeoOrTopo('./data/macrorregioes/macrorregioes.topojson');
+                console.log('Camada Macrorregiões carregada via TopoJSON');
+            } catch (e) {
+                console.warn('TopoJSON de Macrorregiões não encontrado, tentando GeoJSON...', e);
+                const res = await fetch('./data/macrorregioes/macrorregioes.geojson');
+                if (res.ok) geojson = await res.json();
+            }
+
+            if (geojson) {
                 await DB.saveLayer({
                     name: 'Macrorregiões de Saúde',
                     type: 'geojson',
@@ -99,9 +133,17 @@ async function loadMicroMacroRegions() {
         }
 
         if (!hasMicro) {
-            const res = await fetch('./data/microrregioes/microrregioes.geojson');
-            if (res.ok) {
-                const geojson = await res.json();
+            let geojson = null;
+            try {
+                geojson = await loadGeoOrTopo('./data/microrregioes/microrregioes.topojson');
+                console.log('Camada Microrregiões carregada via TopoJSON');
+            } catch (e) {
+                console.warn('TopoJSON de Microrregiões não encontrado, tentando GeoJSON...', e);
+                const res = await fetch('./data/microrregioes/microrregioes.geojson');
+                if (res.ok) geojson = await res.json();
+            }
+
+            if (geojson) {
                 await DB.saveLayer({
                     name: 'Microrregiões de Saúde',
                     type: 'geojson',

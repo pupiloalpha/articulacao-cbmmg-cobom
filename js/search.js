@@ -1,6 +1,7 @@
 // js/search.js - Busca de endereços (Online prioritário / Offline apenas sem conexão)
-// Pesquisa Online primeiro quando conectado. Pesquisa Offline somente quando navigator.onLine === false.
+// Pesquisa Online primeiro quando conectado. Pesquisa offline somente quando navigator.onLine === false.
 // Suporte a número + interpolação + interseções robustas.
+// NOVO: pré-carregamento de malha de logradouros ao selecionar resultado online.
 
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
@@ -294,7 +295,6 @@ async function searchAddressOnline(rawQuery, parsed) {
         const seenPlaceIds = new Set();
 
         // Viewbox aproximado de Minas Gerais (left, top, right, bottom)
-        // Ajuda o Nominatim a priorizar resultados dentro do estado
         const viewbox = '-51.0,-14.0,-39.5,-23.0';
 
         const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
@@ -338,7 +338,6 @@ async function searchAddressOnline(rawQuery, parsed) {
         }
 
         // ---------- 2. Free-form (sempre poderoso para queries incompletas / interseções) ----------
-        // Executa se: poucos resultados structured, query incompleta, interseção, ou nenhuma rua clara
         if (data.length < 4 || isIncomplete || parsed.isIntersection) {
             const freeParams = new URLSearchParams({
                 format: 'json',
@@ -367,7 +366,7 @@ async function searchAddressOnline(rawQuery, parsed) {
             }
         }
 
-        // ---------- 3. Fallback extra sem city (caso a cidade tenha atrapalhado) ----------
+        // ---------- 3. Fallback extra sem city ----------
         if (data.length === 0 && parsed.city && hasClearStreet) {
             const streetParam = hasNumber
                 ? `${parsed.streetPart} ${parsed.number}`.trim()
@@ -718,6 +717,9 @@ async function searchAddress(query) {
     }
 }
 
+/**
+ * Exibe resultados e, no clique de resultado ONLINE, pré-carrega a malha do município.
+ */
 function displaySearchResults(results) {
     const resultsDiv = document.getElementById('searchResults');
     if (!resultsDiv) return;
@@ -750,6 +752,43 @@ function displaySearchResults(results) {
             if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
             calculateDistancesToAllFeatures(result.lat, result.lng);
+
+            // ===== NOVO: pré-carregamento de malha quando o resultado é online =====
+            if (result.source === 'online_osm' && navigator.onLine) {
+                // Extrai município do badge ou do endereço
+                let munToLoad = null;
+                if (result.munBadge && result.munBadge !== 'Online (OSM)') {
+                    munToLoad = result.munBadge;
+                } else if (result.address) {
+                    // Tenta extrair do display_name (ex.: "... Belo Horizonte, Minas Gerais, Brasil")
+                    const parts = result.address.split(',').map(p => p.trim());
+                    // Procura o município conhecido na lista IBGE
+                    const allMuns = Object.values(IBGE_MUNICIPALITIES || {});
+                    for (const part of parts) {
+                        const found = allMuns.find(m => normalizeStr(m) === normalizeStr(part));
+                        if (found) {
+                            munToLoad = found;
+                            break;
+                        }
+                    }
+                }
+
+                if (munToLoad && typeof ensureStreetDataForMunicipality === 'function') {
+                    // Background – não bloqueia a UI
+                    ensureStreetDataForMunicipality(munToLoad)
+                        .then(ok => {
+                            if (ok) {
+                                console.log(`Malha de logradouros pré-carregada: ${munToLoad}`);
+                                if (typeof invalidateStreetIndex === 'function') invalidateStreetIndex();
+                            }
+                        })
+                        .catch(e => console.warn('Pré-carregamento de malha falhou:', e));
+                } else if (typeof loadStreetDataFromGitHub === 'function') {
+                    // Fallback: usa a query original / título
+                    loadStreetDataFromGitHub(result.title || result.address)
+                        .catch(e => console.warn('Pré-carregamento via query falhou:', e));
+                }
+            }
 
             if (result.isIntersection) {
                 showToast('Esquina definida (posição aproximada offline).', 'info', 4000);

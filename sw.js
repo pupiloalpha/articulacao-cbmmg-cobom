@@ -10,7 +10,8 @@ const STATIC_ASSETS = [
     './manifest.json',
     './data/backup_inicial.json',
     './data/ruas/index.json',
-    './data/ruas/rmbh.geojson',
+    './data/macrorregioes/macrorregioes.topojson',
+    './data/microrregioes/microrregioes.topojson',
     './icons/icon-192.png',
     './icons/icon-512.png',
     // Bibliotecas de terceiros (locais)
@@ -20,6 +21,7 @@ const STATIC_ASSETS = [
     './vendor/leaflet-routing-machine.js',
     './vendor/dexie.js',
     './vendor/turf.min.js',
+    './vendor/topojson.min.js',
     './vendor/jszip.min.js',
     './vendor/togeojson.umd.js'
 ];

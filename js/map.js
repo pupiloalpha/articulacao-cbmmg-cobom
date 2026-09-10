@@ -1,5 +1,4 @@
 // js/map.js - Mapa Leaflet + cálculo de distâncias (sempre com todas as camadas do banco)
-// Etapa 1: fallback de rota reta mais informativo
 
 class OfflineTileLayer extends L.TileLayer {
     createTile(coords, done) {
@@ -492,8 +491,389 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     return { distance: straight, duration: null, source: 'straight' };
 }
 
+// ============================================================
+// Rota Offline Aproximada (Janela Dinâmica) – versão melhorada
+// ============================================================
+
 /**
- * Desenha linha reta com feedback informativo (modo offline / fallback).
+ * Reverse geocode (Nominatim) para descobrir o município de um ponto.
+ * Retorna o nome do município ou null.
+ */
+async function reverseGeocodeCity(lat, lng) {
+    if (!navigator.onLine) return null;
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1&accept-language=pt`;
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const addr = data.address || {};
+        // Prioridade: city > town > municipality > county (comum em MG)
+        const city = addr.city || addr.town || addr.municipality || addr.county || null;
+        return city ? String(city).trim() : null;
+    } catch (e) {
+        console.warn('reverseGeocodeCity falhou:', e);
+        return null;
+    }
+}
+
+/**
+ * Garante que as malhas de logradouros dos municípios da origem e do destino
+ * estejam no IndexedDB. Só tenta baixar se estiver online.
+ * Também reforça o núcleo RMBH.
+ */
+async function ensureStreetsAroundPoints(originLat, originLng, destLat, destLng) {
+    // Sempre tenta o núcleo RMBH (já tem lógica de “já carregado”)
+    if (typeof loadRMBHCoreStreets === 'function') {
+        try { await loadRMBHCoreStreets(); } catch (_) {}
+    }
+
+    if (!navigator.onLine) return; // offline → não há o que baixar
+
+    const municipalities = new Set();
+
+    // Reverse geocode em paralelo
+    const [cityOrigin, cityDest] = await Promise.all([
+        reverseGeocodeCity(originLat, originLng),
+        reverseGeocodeCity(destLat, destLng)
+    ]);
+
+    if (cityOrigin) municipalities.add(cityOrigin);
+    if (cityDest) municipalities.add(cityDest);
+
+    // Também tenta extrair de possíveis polígonos de articulação já carregados
+    try {
+        const containing = await checkPolygonContainment(originLat, originLng);
+        containing.forEach(p => {
+            if (p.featureName && p.featureName.length > 3) {
+                // Pode ser nome de município em polígonos de articulação
+                municipalities.add(p.featureName);
+            }
+        });
+    } catch (_) {}
+
+    // Baixa cada município encontrado
+    for (const mun of municipalities) {
+        if (typeof ensureStreetDataForMunicipality === 'function') {
+            try {
+                await ensureStreetDataForMunicipality(mun);
+            } catch (e) {
+                console.warn(`Falha ao pré-carregar logradouros de ${mun}:`, e);
+            }
+        }
+    }
+
+    // Invalida índice de ruas para a próxima busca offline
+    if (typeof invalidateStreetIndex === 'function') {
+        invalidateStreetIndex();
+    }
+}
+
+/**
+ * Coleta segmentos de logradouro que intersectam o bbox.
+ * Retorna array de { coords: [[lng,lat], ...], length }
+ */
+async function collectStreetSegmentsInBbox(bbox) {
+    const layers = await DB.getLayers();
+    const segments = [];
+    const [minLng, minLat, maxLng, maxLat] = bbox;
+
+    for (const layer of layers) {
+        if (!layer?.geojson?.features) continue;
+        if (!layer.name || !(layer.name.includes('Logradouros') || layer.name.includes('Ruas'))) continue;
+
+        for (const feature of layer.geojson.features) {
+            const geom = feature.geometry;
+            if (!geom || (geom.type !== 'LineString' && geom.type !== 'MultiLineString')) continue;
+
+            // Bbox rápido da feature
+            let fMinLng = Infinity, fMinLat = Infinity, fMaxLng = -Infinity, fMaxLat = -Infinity;
+            const processCoords = (c) => {
+                const lng = c[0], lat = c[1];
+                if (lng < fMinLng) fMinLng = lng;
+                if (lat < fMinLat) fMinLat = lat;
+                if (lng > fMaxLng) fMaxLng = lng;
+                if (lat > fMaxLat) fMaxLat = lat;
+            };
+
+            if (geom.type === 'LineString') {
+                geom.coordinates.forEach(processCoords);
+            } else {
+                geom.coordinates.forEach(line => line.forEach(processCoords));
+            }
+
+            // Intersecta com o bbox da janela?
+            if (fMaxLng < minLng || fMinLng > maxLng || fMaxLat < minLat || fMinLat > maxLat) continue;
+
+            // Extrai as linhas
+            const lines = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+            for (const line of lines) {
+                if (line.length < 2) continue;
+                let len = 0;
+                for (let i = 1; i < line.length; i++) {
+                    len += turf.distance(
+                        turf.point(line[i - 1]),
+                        turf.point(line[i]),
+                        { units: 'meters' }
+                    );
+                }
+                segments.push({ coords: line, length: len });
+            }
+        }
+    }
+    return segments;
+}
+
+/**
+ * Constrói grafo simples a partir dos segmentos.
+ * Nós identificados por chave "lng.toFixed(5),lat.toFixed(5)"
+ */
+function buildStreetGraph(segments, maxEdges = 1500) {
+    const nodes = new Map(); // key → {lng, lat, edges: [{to, weight}]}
+    let edgeCount = 0;
+
+    const getKey = (lng, lat) => `${lng.toFixed(5)},${lat.toFixed(5)}`;
+
+    const addNode = (lng, lat) => {
+        const key = getKey(lng, lat);
+        if (!nodes.has(key)) {
+            nodes.set(key, { lng, lat, edges: [] });
+        }
+        return key;
+    };
+
+    // 1. Arestas ao longo de cada segmento
+    for (const seg of segments) {
+        if (edgeCount >= maxEdges) break;
+        const coords = seg.coords;
+        for (let i = 1; i < coords.length; i++) {
+            if (edgeCount >= maxEdges) break;
+            const [lng1, lat1] = coords[i - 1];
+            const [lng2, lat2] = coords[i];
+            const k1 = addNode(lng1, lat1);
+            const k2 = addNode(lng2, lat2);
+            const w = turf.distance(turf.point([lng1, lat1]), turf.point([lng2, lat2]), { units: 'meters' });
+            if (w < 0.5) continue; // ignora pontos quase idênticos
+            nodes.get(k1).edges.push({ to: k2, weight: w });
+            nodes.get(k2).edges.push({ to: k1, weight: w });
+            edgeCount += 2;
+        }
+    }
+
+    // 2. Conexões entre nós próximos (< 18 m) – une ruas diferentes
+    const nodeKeys = Array.from(nodes.keys());
+    for (let i = 0; i < nodeKeys.length && edgeCount < maxEdges; i++) {
+        const n1 = nodes.get(nodeKeys[i]);
+        for (let j = i + 1; j < nodeKeys.length && edgeCount < maxEdges; j++) {
+            const n2 = nodes.get(nodeKeys[j]);
+            const d = turf.distance(
+                turf.point([n1.lng, n1.lat]),
+                turf.point([n2.lng, n2.lat]),
+                { units: 'meters' }
+            );
+            if (d > 0.8 && d < 18) {
+                n1.edges.push({ to: nodeKeys[j], weight: d });
+                n2.edges.push({ to: nodeKeys[i], weight: d });
+                edgeCount += 2;
+            }
+        }
+    }
+
+    return { nodes, edgeCount };
+}
+
+/**
+ * Dijkstra simples (retorna array de [lng, lat] ou null)
+ */
+function dijkstra(graph, startKey, endKey) {
+    const { nodes } = graph;
+    if (!nodes.has(startKey) || !nodes.has(endKey)) return null;
+
+    const dist = new Map();
+    const prev = new Map();
+    const pq = []; // [distance, key]
+
+    for (const key of nodes.keys()) {
+        dist.set(key, Infinity);
+    }
+    dist.set(startKey, 0);
+    pq.push([0, startKey]);
+
+    while (pq.length > 0) {
+        pq.sort((a, b) => a[0] - b[0]);
+        const [d, u] = pq.shift();
+        if (d > dist.get(u)) continue;
+        if (u === endKey) break;
+
+        for (const { to, weight } of nodes.get(u).edges) {
+            const nd = d + weight;
+            if (nd < dist.get(to)) {
+                dist.set(to, nd);
+                prev.set(to, u);
+                pq.push([nd, to]);
+            }
+        }
+    }
+
+    if (!prev.has(endKey) && startKey !== endKey) return null;
+
+    // Reconstrói caminho
+    const path = [];
+    let cur = endKey;
+    while (cur) {
+        const n = nodes.get(cur);
+        path.push([n.lng, n.lat]);
+        cur = prev.get(cur);
+    }
+    path.reverse();
+    return path.length >= 2 ? path : null;
+}
+
+/**
+ * Encontra o nó mais próximo de um ponto
+ */
+function findNearestNode(graph, lng, lat) {
+    let bestKey = null;
+    let bestDist = Infinity;
+    for (const [key, node] of graph.nodes) {
+        const d = turf.distance(
+            turf.point([lng, lat]),
+            turf.point([node.lng, node.lat]),
+            { units: 'meters' }
+        );
+        if (d < bestDist) {
+            bestDist = d;
+            bestKey = key;
+        }
+    }
+    return { key: bestKey, dist: bestDist };
+}
+
+/**
+ * Função principal – Janela Dinâmica (melhorada)
+ * Retorna { path: [[lng,lat],...], distanceMeters, attempts } ou null
+ */
+async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
+    const startTime = performance.now();
+    const TIMEOUT = 2800; // ms (aumentado)
+    const MAX_EDGES = 1500;
+
+    // 1. Garante malhas dos municípios envolvidos (só baixa se online)
+    try {
+        await ensureStreetsAroundPoints(originLat, originLng, destLat, destLng);
+    } catch (e) {
+        console.warn('ensureStreetsAroundPoints:', e);
+    }
+
+    let bufferKm = 0.5; // buffer inicial maior
+    const expansions = [0.7, 0.8, 1.0, 1.2]; // expansões mais generosas
+
+    for (let attempt = 0; attempt <= expansions.length; attempt++) {
+        if (performance.now() - startTime > TIMEOUT) {
+            console.warn('Timeout na rota offline');
+            return null;
+        }
+
+        // BBOX da linha origem-destino expandido
+        const line = turf.lineString([[originLng, originLat], [destLng, destLat]]);
+        const buffered = turf.buffer(line, bufferKm, { units: 'kilometers' });
+        const bbox = turf.bbox(buffered);
+
+        const segments = await collectStreetSegmentsInBbox(bbox);
+        console.log(`Janela ${attempt + 1}: buffer ${bufferKm.toFixed(1)} km → ${segments.length} segmentos`);
+
+        if (segments.length < 2) {
+            if (attempt < expansions.length) bufferKm += expansions[attempt];
+            continue;
+        }
+
+        const graph = buildStreetGraph(segments, MAX_EDGES);
+        if (graph.nodes.size < 2) {
+            if (attempt < expansions.length) bufferKm += expansions[attempt];
+            continue;
+        }
+
+        const startSnap = findNearestNode(graph, originLng, originLat);
+        const endSnap = findNearestNode(graph, destLng, destLat);
+
+        // Snap máximo aumentado para 180 m
+        if (!startSnap.key || !endSnap.key || startSnap.dist > 180 || endSnap.dist > 180) {
+            if (attempt < expansions.length) bufferKm += expansions[attempt];
+            continue;
+        }
+
+        const path = dijkstra(graph, startSnap.key, endSnap.key);
+        if (path && path.length >= 2) {
+            let dist = 0;
+            for (let i = 1; i < path.length; i++) {
+                dist += turf.distance(turf.point(path[i - 1]), turf.point(path[i]), { units: 'meters' });
+            }
+            return {
+                path,
+                distanceMeters: Math.round(dist),
+                attempts: attempt + 1,
+                snapOrigin: startSnap.dist,
+                snapDest: endSnap.dist
+            };
+        }
+
+        if (attempt < expansions.length) bufferKm += expansions[attempt];
+    }
+
+    return null;
+}
+
+/**
+ * Desenha a rota offline encontrada
+ */
+function drawOfflineRoute(originPos, path, name, distanceMeters) {
+    if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
+    if (window.distanceMarker) { map.removeLayer(window.distanceMarker); window.distanceMarker = null; }
+    if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
+
+    // Converte path [[lng,lat]] → [[lat,lng]] para Leaflet
+    const latlngs = path.map(c => [c[1], c[0]]);
+    // Inclui origem e destino reais
+    latlngs.unshift([originPos.lat, originPos.lng]);
+    latlngs.push([path[path.length - 1][1], path[path.length - 1][0]]);
+
+    window.distanceLine = L.polyline(latlngs, {
+        color: '#1a5276',
+        weight: 5,
+        opacity: 0.9,
+        lineJoin: 'round'
+    }).addTo(map);
+
+    const distKm = (distanceMeters / 1000).toFixed(2);
+
+    window.distanceMarker = L.marker([latlngs[latlngs.length - 1][0], latlngs[latlngs.length - 1][1]], {
+        icon: window.destIcon
+    }).addTo(map)
+        .bindPopup(`
+            <div style="font-family:sans-serif; max-width:280px;">
+                <b style="color:#1a5276; font-size:13px;">${name}</b><br>
+                <div style="margin-top:6px; font-size:12px; line-height:1.45;">
+                    <b>Rota offline aproximada (vias locais)</b><br>
+                    Distância: <b>${distKm} km</b><br>
+                    <small style="color:#7f8c8d;">
+                        Calculada com a malha de logradouros disponível no dispositivo.<br>
+                        Pode conter pequenas imprecisões.
+                    </small>
+                </div>
+            </div>
+        `).openPopup();
+
+    map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
+    showToast(`Rota offline aproximada: ${distKm} km`, 'success', 4000);
+}
+
+/**
+ * Substitui a função drawStraightLine original
  */
 function drawStraightLine(originPos, lat, lng, name, distance) {
     if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
@@ -510,24 +890,65 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
 
     const distText = distance.toFixed(2);
 
+    const popupContent = `
+        <div style="font-family:sans-serif; max-width:280px;">
+            <b style="color:#c0392b; font-size:13px;">${name}</b><br>
+            <div style="margin-top:6px; font-size:12px; line-height:1.45;">
+                <b>Rota offline (linha reta)</b><br>
+                Distância aproximada: <b>${distText} km</b><br>
+                <small style="color:#7f8c8d;">
+                    Sem grafo de vias disponível no momento.
+                </small>
+            </div>
+            <button id="btnCalcOfflineRoute" 
+                    style="margin-top:10px; width:100%; padding:7px 10px; background:#1a5276; color:white; border:none; border-radius:5px; font-size:12px; font-weight:600; cursor:pointer;">
+                🛣️ Calcular rota aproximada pelas vias locais
+            </button>
+        </div>
+    `;
+
     window.distanceMarker = L.marker([lat, lng], {
         icon: window.destIcon
     }).addTo(map)
-        .bindPopup(`
-            <div style="font-family:sans-serif; max-width:260px;">
-                <b style="color:#c0392b; font-size:13px;">${name}</b><br>
-                <div style="margin-top:6px; font-size:12px; line-height:1.45;">
-                    <b>Rota offline (linha reta)</b><br>
-                    Distância aproximada: <b>${distText} km</b><br>
-                    <small style="color:#7f8c8d;">
-                        Sem grafo de vias disponível no momento.<br>
-                        Use a rota online quando houver conexão para o traçado real.
-                    </small>
-                </div>
-            </div>
-        `).openPopup();
+        .bindPopup(popupContent).openPopup();
 
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
+
+    // Listener do botão (depois que o popup abre)
+    setTimeout(() => {
+        const btn = document.getElementById('btnCalcOfflineRoute');
+        if (btn) {
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                btn.textContent = '⏳ Calculando...';
+                showToast('Calculando rota offline pelas vias locais...', 'info', 2500);
+
+                try {
+                    const result = await findApproxOfflineRoute(
+                        originPos.lat, originPos.lng,
+                        lat, lng
+                    );
+
+                    if (result && result.path) {
+                        drawOfflineRoute(originPos, result.path, name, result.distanceMeters);
+                    } else {
+                        showToast(
+                            'Não foi possível traçar rota pelas vias locais. Verifique se a malha do município está carregada ou tente novamente online.',
+                            'warning',
+                            5500
+                        );
+                        btn.disabled = false;
+                        btn.textContent = '🛣️ Calcular rota aproximada pelas vias locais';
+                    }
+                } catch (err) {
+                    console.error('Erro na rota offline:', err);
+                    showToast('Erro ao calcular rota offline.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '🛣️ Calcular rota aproximada pelas vias locais';
+                }
+            });
+        }
+    }, 300);
 
     showToast(`Rota offline: linha reta aproximada (${distText} km).`, 'warning', 4500);
 }
