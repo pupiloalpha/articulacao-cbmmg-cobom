@@ -10,35 +10,63 @@ async function seedInitialData() {
 
     try {
         const response = await fetch('./data/backup_inicial.json');
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.warn('backup_inicial.json não encontrado ou inacessível.');
+            return;
+        }
         const backup = await response.json();
-        const features = backup.featureCollection?.features || [];
 
-        const points = features.filter(f => {
-            if (f.geometry?.type !== 'Point') return false;
-            return getFeatureClassification(f) !== 'MUNICIPIO';
-        });
+        // Aceita tanto o formato exportado (version + featureCollection)
+        // quanto um FeatureCollection simples na raiz
+        const features =
+            backup.featureCollection?.features ||
+            backup.features ||
+            [];
 
-        const polygons = features.filter(f =>
-            f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
-        );
-
-        if (polygons.length) {
-            await DB.saveLayer({
-                name: 'Articulação CBMMG',
-                type: 'geojson',
-                order: 10,
-                geojson: { type: 'FeatureCollection', features: polygons }
-            });
+        if (!features.length) {
+            console.warn('backup_inicial.json sem feições.');
+            return;
         }
 
-        if (points.length) {
+        // Agrupa pelas _layerName (quando existirem) para preservar a estrutura correta
+        const grouped = {};
+        features.forEach(feature => {
+            const layerName =
+                feature.properties?._layerName ||
+                (feature.geometry?.type === 'Point' ? 'Unidades BM' : 'Articulação BM');
+
+            if (!grouped[layerName]) {
+                grouped[layerName] = { type: 'FeatureCollection', features: [] };
+            }
+
+            // Remove metadados internos de camada antes de salvar
+            const clean = JSON.parse(JSON.stringify(feature));
+            if (clean.properties) {
+                delete clean.properties._layerId;
+                delete clean.properties._layerName;
+            }
+            grouped[layerName].features.push(clean);
+        });
+
+        // Ordem preferencial das camadas operacionais
+        const preferredOrder = {
+            'Articulação BM': 10,
+            'Articulação CBMMG': 10,
+            'Unidades BM': 100,
+            'Unidades CBMMG': 100
+        };
+
+        for (const [name, geojson] of Object.entries(grouped)) {
+            // Descarta camadas de logradouro que possam ter vindo por engano
+            if (['RMBH', 'Ruas', 'Logradouros', 'Street'].some(k => name.includes(k))) continue;
+
             await DB.saveLayer({
-                name: 'Unidades CBMMG',
+                name,
                 type: 'geojson',
-                order: 100,
-                geojson: { type: 'FeatureCollection', features: points }
+                order: preferredOrder[name] ?? 50,
+                geojson
             });
+            console.log(`Camada inicial importada: ${name} (${geojson.features.length} feições)`);
         }
 
         await reloadLayers();
@@ -460,16 +488,18 @@ function getFeatureClassification(feature) {
             return 'HOSPITAL';
         }
 
+        // Unidades / frações BM operacionais (campos limpos do schema UNIDADE_BM)
         if (
+            props.UEOP ||
+            props.COB ||
             props['FRAÇÃO'] ||
             props['Tempo-resposta'] ||
-            props['Zona de Quente'] ||
-            props['Unidades de Saúde'] ||
-            props['Unidade CBMMG']
+            props['Zona de Quente']
         ) {
-            return 'MUNICIPIO';
+            return 'UNIDADE_BM';
         }
 
+        // Fallback seguro: qualquer outro ponto operacional é tratado como Unidade BM
         return 'UNIDADE_BM';
     }
 
