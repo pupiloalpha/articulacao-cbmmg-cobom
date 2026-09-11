@@ -1,6 +1,6 @@
 {
   "type": "FeatureCollection",
-  "name": "Hospitais de Referência Macrorregiões de Saúde - Minas Gerais",
+  "name": "Hospitais de Referência e UPAs de Belo Horizonte - Macrorregiões de Saúde Minas Gerais (Atualizado)",
   "crs": {
     "type": "name",
     "properties": {
@@ -14,12 +14,17 @@
         "Nome do Hospital": "Hospital João XXIII",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9258,
-        "Longitude": -43.9314
+        "Especialidades": "Urgência e emergência de alta complexidade; trauma e politrauma; queimados; toxicologia; cirurgia geral e do trauma; ortopedia e traumatologia; neurocirurgia; cirurgia plástica reparadora; cirurgia bucomaxilofacial; neurologia; pediatria; medicina intensiva; oftalmologia; otorrinolaringologia; cirurgia vascular",
+        "Endereço": "Avenida Professor Alfredo Balena, 400 - Santa Efigênia, Belo Horizonte - MG, CEP 30130-100",
+        "Latitude": -19.925832,
+        "Longitude": -43.931388
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9314, -19.9258]
+        "coordinates": [
+          -43.931388,
+          -19.925832
+        ]
       }
     },
     {
@@ -28,12 +33,17 @@
         "Nome do Hospital": "Hospital das Clínicas da UFMG",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9247,
-        "Longitude": -43.9280
+        "Especialidades": "Hospital universitário de alta complexidade; clínica médica; cirurgia geral e especialidades; oncologia; cardiologia; neurologia e neurocirurgia; nefrologia; transplantologia; ginecologia e obstetrícia; pediatria; oftalmologia; otorrinolaringologia; endocrinologia; infectologia; medicina intensiva; radiologia e diagnóstico por imagem",
+        "Endereço": "Avenida Professor Alfredo Balena, 110 - Santa Efigênia, Belo Horizonte - MG, CEP 30130-100",
+        "Latitude": -19.924,
+        "Longitude": -43.928
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9280, -19.9247]
+        "coordinates": [
+          -43.928,
+          -19.924
+        ]
       }
     },
     {
@@ -42,12 +52,17 @@
         "Nome do Hospital": "Santa Casa de Belo Horizonte",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Hospital geral de alta complexidade; oncologia; cardiologia; cirurgia geral e especialidades; clínica médica; neurologia; ortopedia; ginecologia e obstetrícia; pediatria; nefrologia; medicina intensiva; radiologia",
+        "Endereço": "Avenida Francisco Sales, 1111 - Santa Efigênia, Belo Horizonte - MG, CEP 30150-221",
         "Latitude": -19.9228,
         "Longitude": -43.9274
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9274, -19.9228]
+        "coordinates": [
+          -43.9274,
+          -19.9228
+        ]
       }
     },
     {
@@ -56,12 +71,17 @@
         "Nome do Hospital": "Hospital Júlia Kubitschek",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9200,
-        "Longitude": -43.9500
+        "Especialidades": "Pneumologia e tisiologia; cirurgia torácica; clínica médica; cirurgia geral; ginecologia e obstetrícia; neonatologia; ortopedia; doenças respiratórias graves; doenças neuromusculares e raras; urgência e emergência",
+        "Endereço": "Rua Doutor Cristiano Resende, 2745 - Araguaia/Milionários, Belo Horizonte - MG, CEP 30620-470",
+        "Latitude": -19.9908,
+        "Longitude": -43.9978
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9500, -19.9200]
+        "coordinates": [
+          -43.9978,
+          -19.9908
+        ]
       }
     },
     {
@@ -70,12 +90,17 @@
         "Nome do Hospital": "Hospital Metropolitano Dr. Célio de Castro",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9100,
-        "Longitude": -43.9400
+        "Especialidades": "Urgência e emergência clínica e cirúrgica; AVC; clínica médica; ortopedia; cirurgia geral; cirurgia vascular; neurocirurgia; neurologia; urologia; medicina intensiva",
+        "Endereço": "Rua Dona Luiza, 311 - Milionários, Belo Horizonte - MG, CEP 30620-090",
+        "Latitude": -19.9805,
+        "Longitude": -44.015
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9400, -19.9100]
+        "coordinates": [
+          -44.015,
+          -19.9805
+        ]
       }
     },
     {
@@ -84,12 +109,17 @@
         "Nome do Hospital": "Hospital Metropolitano Odilon Behrens",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9150,
-        "Longitude": -43.9450
+        "Especialidades": "Urgência e emergência; pediatria; ortopedia e traumatologia; cirurgia geral; neurologia e neurocirurgia; ginecologia e obstetrícia; cirurgia vascular; odontologia; clínica médica; neonatologia",
+        "Endereço": "Rua Formiga, 50 - São Cristóvão, Belo Horizonte - MG, CEP 31210-780",
+        "Latitude": -19.91,
+        "Longitude": -43.95
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9450, -19.9150]
+        "coordinates": [
+          -43.95,
+          -19.91
+        ]
       }
     },
     {
@@ -98,12 +128,17 @@
         "Nome do Hospital": "Hospital Risoleta Tolentino Neves",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.8500,
-        "Longitude": -43.9800
+        "Especialidades": "Hospital universitário; clínica médica; cirurgia geral; ortopedia; ginecologia e obstetrícia; pediatria; cardiologia; neurologia; oncologia; medicina intensiva; urgência e emergência",
+        "Endereço": "Rua das Gabirobas, 1 - Vila Clóris/Laranjeiras, Belo Horizonte - MG, CEP 31744-012",
+        "Latitude": -19.81761,
+        "Longitude": -43.94846
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9800, -19.8500]
+        "coordinates": [
+          -43.94846,
+          -19.81761
+        ]
       }
     },
     {
@@ -112,12 +147,17 @@
         "Nome do Hospital": "Hospital Sofia Feldman",
         "Município": "Belo Horizonte",
         "Macrorregião de Saúde": "CENTRO",
-        "Latitude": -19.9300,
-        "Longitude": -43.9200
+        "Especialidades": "Maternidade e assistência materno-infantil; pré-natal de alto risco; parto e nascimento; neonatologia; urgência ginecológica; saúde da mulher e da criança",
+        "Endereço": "Rua Antônio Bandeira, 1060 - Tupi B, Belo Horizonte - MG, CEP 31844-130 (Unidade principal)",
+        "Latitude": -19.85,
+        "Longitude": -43.92
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.9200, -19.9300]
+        "coordinates": [
+          -43.92,
+          -19.85
+        ]
       }
     },
     {
@@ -126,12 +166,17 @@
         "Nome do Hospital": "Hospital Municipal de Contagem",
         "Município": "Contagem",
         "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Hospital geral; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia; ortopedia",
+        "Endereço": "Avenida João César de Oliveira, s/n - Eldorado, Contagem - MG",
         "Latitude": -19.9317,
         "Longitude": -44.0539
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.0539, -19.9317]
+        "coordinates": [
+          -44.0539,
+          -19.9317
+        ]
       }
     },
     {
@@ -140,12 +185,17 @@
         "Nome do Hospital": "Hospital Público Regional de Betim",
         "Município": "Betim",
         "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Hospital regional; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia; ortopedia; medicina intensiva",
+        "Endereço": "Rua Padre Eustáquio, s/n ou endereço oficial do município - Betim - MG",
         "Latitude": -19.9678,
         "Longitude": -44.1983
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.1983, -19.9678]
+        "coordinates": [
+          -44.1983,
+          -19.9678
+        ]
       }
     },
     {
@@ -154,12 +204,17 @@
         "Nome do Hospital": "Hospital Municipal/Regional de Ibirité",
         "Município": "Ibirité",
         "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Hospital regional; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia",
+        "Endereço": "Rua José Maria Taitson ou endereço municipal - Ibirité - MG",
         "Latitude": -20.0219,
         "Longitude": -44.0589
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.0589, -20.0219]
+        "coordinates": [
+          -44.0589,
+          -20.0219
+        ]
       }
     },
     {
@@ -168,12 +223,17 @@
         "Nome do Hospital": "Hospital Nossa Senhora das Graças",
         "Município": "Sete Lagoas",
         "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Sete Lagoas - MG (endereço oficial municipal)",
         "Latitude": -19.4658,
         "Longitude": -44.2467
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.2467, -19.4658]
+        "coordinates": [
+          -44.2467,
+          -19.4658
+        ]
       }
     },
     {
@@ -182,12 +242,17 @@
         "Nome do Hospital": "Hospital Regional de Barbacena Dr. José Américo",
         "Município": "Barbacena",
         "Macrorregião de Saúde": "CENTRO SUL",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência; medicina intensiva",
+        "Endereço": "Barbacena - MG",
         "Latitude": -21.2258,
         "Longitude": -43.7736
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.7736, -21.2258]
+        "coordinates": [
+          -43.7736,
+          -21.2258
+        ]
       }
     },
     {
@@ -196,12 +261,17 @@
         "Nome do Hospital": "Hospital Regional de Conselheiro Lafaiete",
         "Município": "Conselheiro Lafaiete",
         "Macrorregião de Saúde": "CENTRO SUL",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Conselheiro Lafaiete - MG",
         "Latitude": -20.6603,
         "Longitude": -43.7861
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.7861, -20.6603]
+        "coordinates": [
+          -43.7861,
+          -20.6603
+        ]
       }
     },
     {
@@ -210,12 +280,17 @@
         "Nome do Hospital": "Hospital e Maternidade São José",
         "Município": "Conselheiro Lafaiete",
         "Macrorregião de Saúde": "CENTRO SUL",
-        "Latitude": -20.6600,
-        "Longitude": -43.7860
+        "Especialidades": "Maternidade e hospital geral; ginecologia e obstetrícia; neonatologia; clínica médica; cirurgia geral",
+        "Endereço": "Conselheiro Lafaiete - MG",
+        "Latitude": -20.66,
+        "Longitude": -43.786
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.7860, -20.6600]
+        "coordinates": [
+          -43.786,
+          -20.66
+        ]
       }
     },
     {
@@ -224,12 +299,17 @@
         "Nome do Hospital": "Santa Casa de Misericórdia de São João del Rei",
         "Município": "São João del Rei",
         "Macrorregião de Saúde": "CENTRO SUL",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "São João del Rei - MG",
         "Latitude": -21.1356,
         "Longitude": -44.2617
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.2617, -21.1356]
+        "coordinates": [
+          -44.2617,
+          -21.1356
+        ]
       }
     },
     {
@@ -238,12 +318,17 @@
         "Nome do Hospital": "Complexo Hospitalar Samuel Libânio",
         "Município": "Pouso Alegre",
         "Macrorregião de Saúde": "EXTREMO SUL",
-        "Latitude": -22.2300,
+        "Especialidades": "Hospital de alta complexidade; clínica médica; cirurgia geral e especialidades; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; neurologia; medicina intensiva",
+        "Endereço": "Pouso Alegre - MG",
+        "Latitude": -22.23,
         "Longitude": -45.9364
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.9364, -22.2300]
+        "coordinates": [
+          -45.9364,
+          -22.23
+        ]
       }
     },
     {
@@ -252,12 +337,17 @@
         "Nome do Hospital": "Hospital de Clínicas de Itajubá (AISI)",
         "Município": "Itajubá",
         "Macrorregião de Saúde": "EXTREMO SUL",
+        "Especialidades": "Hospital de clínicas; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Itajubá - MG",
         "Latitude": -22.4256,
         "Longitude": -45.4528
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.4528, -22.4256]
+        "coordinates": [
+          -45.4528,
+          -22.4256
+        ]
       }
     },
     {
@@ -266,12 +356,17 @@
         "Nome do Hospital": "Santa Casa de Misericórdia de Poços de Caldas",
         "Município": "Poços de Caldas",
         "Macrorregião de Saúde": "EXTREMO SUL",
+        "Especialidades": "Hospital geral; oncologia (UNACON); clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; radioterapia",
+        "Endereço": "Poços de Caldas - MG",
         "Latitude": -21.7875,
         "Longitude": -46.5614
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-46.5614, -21.7875]
+        "coordinates": [
+          -46.5614,
+          -21.7875
+        ]
       }
     },
     {
@@ -280,12 +375,17 @@
         "Nome do Hospital": "Santa Casa de Caridade de Diamantina",
         "Município": "Diamantina",
         "Macrorregião de Saúde": "JEQUITINHONHA",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Diamantina - MG",
         "Latitude": -18.2494,
         "Longitude": -43.6003
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.6003, -18.2494]
+        "coordinates": [
+          -43.6003,
+          -18.2494
+        ]
       }
     },
     {
@@ -294,12 +394,17 @@
         "Nome do Hospital": "Hospital Municipal de Governador Valadares",
         "Município": "Governador Valadares",
         "Macrorregião de Saúde": "LESTE",
+        "Especialidades": "Hospital municipal; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia",
+        "Endereço": "Governador Valadares - MG",
         "Latitude": -18.8511,
         "Longitude": -41.9494
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-41.9494, -18.8511]
+        "coordinates": [
+          -41.9494,
+          -18.8511
+        ]
       }
     },
     {
@@ -308,12 +413,17 @@
         "Nome do Hospital": "Hospital Regional de Governador Valadares (HRGV)",
         "Município": "Governador Valadares",
         "Macrorregião de Saúde": "LESTE",
-        "Latitude": -18.8510,
-        "Longitude": -41.9490
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Governador Valadares - MG",
+        "Latitude": -18.851,
+        "Longitude": -41.949
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-41.9490, -18.8510]
+        "coordinates": [
+          -41.949,
+          -18.851
+        ]
       }
     },
     {
@@ -322,12 +432,17 @@
         "Nome do Hospital": "Hospital Antônio Gonçalves Ferreira / HAGF",
         "Município": "Ponte Nova",
         "Macrorregião de Saúde": "LESTE DO SUL",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Ponte Nova - MG",
         "Latitude": -20.4164,
         "Longitude": -42.9086
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.9086, -20.4164]
+        "coordinates": [
+          -42.9086,
+          -20.4164
+        ]
       }
     },
     {
@@ -336,12 +451,17 @@
         "Nome do Hospital": "Hospital Bom Samaritano",
         "Município": "Teófilo Otoni",
         "Macrorregião de Saúde": "NORDESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Teófilo Otoni - MG",
         "Latitude": -17.8578,
-        "Longitude": -41.5050
+        "Longitude": -41.505
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-41.5050, -17.8578]
+        "coordinates": [
+          -41.505,
+          -17.8578
+        ]
       }
     },
     {
@@ -350,12 +470,17 @@
         "Nome do Hospital": "Hospital Regional de Teófilo Otoni (HRTO)",
         "Município": "Teófilo Otoni",
         "Macrorregião de Saúde": "NORDESTE",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Teófilo Otoni - MG",
         "Latitude": -17.8575,
         "Longitude": -41.5055
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-41.5055, -17.8575]
+        "coordinates": [
+          -41.5055,
+          -17.8575
+        ]
       }
     },
     {
@@ -364,12 +489,17 @@
         "Nome do Hospital": "Hospital Municipal de Paracatu",
         "Município": "Paracatu",
         "Macrorregião de Saúde": "NOROESTE",
+        "Especialidades": "Hospital municipal; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Paracatu - MG",
         "Latitude": -17.2222,
         "Longitude": -46.8747
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-46.8747, -17.2222]
+        "coordinates": [
+          -46.8747,
+          -17.2222
+        ]
       }
     },
     {
@@ -378,12 +508,17 @@
         "Nome do Hospital": "Hospital Regional Antônio Dias",
         "Município": "Patos de Minas",
         "Macrorregião de Saúde": "NOROESTE",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Rua Major Gote, 1231 - Centro, Patos de Minas - MG, CEP 38700-001",
         "Latitude": -18.5789,
         "Longitude": -46.5181
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-46.5181, -18.5789]
+        "coordinates": [
+          -46.5181,
+          -18.5789
+        ]
       }
     },
     {
@@ -392,12 +527,17 @@
         "Nome do Hospital": "Hospital Dr. Moisés Magalhães Freire",
         "Município": "Pirapora",
         "Macrorregião de Saúde": "NORTE",
-        "Latitude": -17.3450,
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Pirapora - MG",
+        "Latitude": -17.345,
         "Longitude": -44.9419
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.9419, -17.3450]
+        "coordinates": [
+          -44.9419,
+          -17.345
+        ]
       }
     },
     {
@@ -406,12 +546,17 @@
         "Nome do Hospital": "Hospital Municipal Dr. Oswaldo Prediliano Santana",
         "Município": "Salinas",
         "Macrorregião de Saúde": "NORTE",
+        "Especialidades": "Hospital municipal; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Salinas - MG",
         "Latitude": -15.8525,
         "Longitude": -42.1742
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.1742, -15.8525]
+        "coordinates": [
+          -42.1742,
+          -15.8525
+        ]
       }
     },
     {
@@ -420,12 +565,17 @@
         "Nome do Hospital": "Hospital Regional de Janaúba",
         "Município": "Janaúba",
         "Macrorregião de Saúde": "NORTE",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; oncologia (UNACON); urgência e emergência",
+        "Endereço": "Janaúba - MG",
         "Latitude": -15.8025,
         "Longitude": -43.3086
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.3086, -15.8025]
+        "coordinates": [
+          -43.3086,
+          -15.8025
+        ]
       }
     },
     {
@@ -434,12 +584,17 @@
         "Nome do Hospital": "Hospital Santo Antônio",
         "Município": "Taiobeiras",
         "Macrorregião de Saúde": "NORTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Taiobeiras - MG",
         "Latitude": -15.8078,
         "Longitude": -42.2331
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.2331, -15.8078]
+        "coordinates": [
+          -42.2331,
+          -15.8078
+        ]
       }
     },
     {
@@ -448,12 +603,17 @@
         "Nome do Hospital": "Hospital das Clínicas Dr. Mário Ribeiro da Silveira",
         "Município": "Montes Claros",
         "Macrorregião de Saúde": "NORTE",
-        "Latitude": -16.7350,
+        "Especialidades": "Hospital de clínicas; clínica médica; cirurgia geral e especialidades; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; neurologia; medicina intensiva",
+        "Endereço": "Montes Claros - MG",
+        "Latitude": -16.735,
         "Longitude": -43.8617
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.8617, -16.7350]
+        "coordinates": [
+          -43.8617,
+          -16.735
+        ]
       }
     },
     {
@@ -462,12 +622,17 @@
         "Nome do Hospital": "Santa Casa de Misericórdia de Montes Claros",
         "Município": "Montes Claros",
         "Macrorregião de Saúde": "NORTE",
+        "Especialidades": "Hospital geral de alta complexidade; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; oncologia; medicina intensiva; medicina fetal",
+        "Endereço": "Montes Claros - MG",
         "Latitude": -16.7355,
-        "Longitude": -43.8620
+        "Longitude": -43.862
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.8620, -16.7355]
+        "coordinates": [
+          -43.862,
+          -16.7355
+        ]
       }
     },
     {
@@ -476,12 +641,17 @@
         "Nome do Hospital": "Hospital Manoel Gonçalves",
         "Município": "Itaúna",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Itaúna - MG",
         "Latitude": -20.0753,
         "Longitude": -44.5764
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.5764, -20.0753]
+        "coordinates": [
+          -44.5764,
+          -20.0753
+        ]
       }
     },
     {
@@ -490,12 +660,17 @@
         "Nome do Hospital": "Hospital Nossa Senhora da Conceição",
         "Município": "Pará de Minas",
         "Macrorregião de Saúde": "OESTE",
-        "Latitude": -19.8600,
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Pará de Minas - MG",
+        "Latitude": -19.86,
         "Longitude": -44.6083
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.6083, -19.8600]
+        "coordinates": [
+          -44.6083,
+          -19.86
+        ]
       }
     },
     {
@@ -504,12 +679,17 @@
         "Nome do Hospital": "Hospital Regional de Divinópolis (HRD)",
         "Município": "Divinópolis",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Divinópolis - MG",
         "Latitude": -20.1389,
         "Longitude": -44.8839
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.8839, -20.1389]
+        "coordinates": [
+          -44.8839,
+          -20.1389
+        ]
       }
     },
     {
@@ -518,12 +698,17 @@
         "Nome do Hospital": "Hospital São Carlos",
         "Município": "Lagoa da Prata",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Lagoa da Prata - MG",
         "Latitude": -20.0225,
         "Longitude": -45.5436
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.5436, -20.0225]
+        "coordinates": [
+          -45.5436,
+          -20.0225
+        ]
       }
     },
     {
@@ -532,12 +717,17 @@
         "Nome do Hospital": "Hospital São João de Deus",
         "Município": "Divinópolis",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; neurologia; medicina intensiva; urgência e emergência",
+        "Endereço": "Divinópolis - MG",
         "Latitude": -20.1436,
         "Longitude": -44.8861
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-44.8861, -20.1436]
+        "coordinates": [
+          -44.8861,
+          -20.1436
+        ]
       }
     },
     {
@@ -546,12 +736,17 @@
         "Nome do Hospital": "Hospital São Luiz",
         "Município": "Formiga",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Formiga - MG",
         "Latitude": -20.4644,
         "Longitude": -45.4264
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.4264, -20.4644]
+        "coordinates": [
+          -45.4264,
+          -20.4644
+        ]
       }
     },
     {
@@ -560,12 +755,17 @@
         "Nome do Hospital": "Santa Casa de Campo Belo",
         "Município": "Campo Belo",
         "Macrorregião de Saúde": "OESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Campo Belo - MG",
         "Latitude": -20.8975,
         "Longitude": -45.2772
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.2772, -20.8975]
+        "coordinates": [
+          -45.2772,
+          -20.8975
+        ]
       }
     },
     {
@@ -574,12 +774,17 @@
         "Nome do Hospital": "Casa de Caridade de Carangola",
         "Município": "Carangola",
         "Macrorregião de Saúde": "SUDESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Carangola - MG",
         "Latitude": -20.7331,
         "Longitude": -42.0294
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.0294, -20.7331]
+        "coordinates": [
+          -42.0294,
+          -20.7331
+        ]
       }
     },
     {
@@ -588,12 +793,17 @@
         "Nome do Hospital": "Casa de Caridade de Muriaé (Hospital do Câncer de Muriaé)",
         "Município": "Muriaé",
         "Macrorregião de Saúde": "SUDESTE",
+        "Especialidades": "Hospital geral e oncologia (CACON); clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; oncologia; radioterapia",
+        "Endereço": "Muriaé - MG",
         "Latitude": -21.1306,
         "Longitude": -42.3664
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.3664, -21.1306]
+        "coordinates": [
+          -42.3664,
+          -21.1306
+        ]
       }
     },
     {
@@ -602,12 +812,17 @@
         "Nome do Hospital": "Hospital Regional João Penido",
         "Município": "Juiz de Fora",
         "Macrorregião de Saúde": "SUDESTE",
+        "Especialidades": "Hospital regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Juiz de Fora - MG",
         "Latitude": -21.7642,
         "Longitude": -43.3503
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.3503, -21.7642]
+        "coordinates": [
+          -43.3503,
+          -21.7642
+        ]
       }
     },
     {
@@ -616,12 +831,17 @@
         "Nome do Hospital": "Hospital Santa Isabel",
         "Município": "Ubá",
         "Macrorregião de Saúde": "SUDESTE",
-        "Latitude": -21.1200,
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Ubá - MG",
+        "Latitude": -21.12,
         "Longitude": -42.9428
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.9428, -21.1200]
+        "coordinates": [
+          -42.9428,
+          -21.12
+        ]
       }
     },
     {
@@ -630,12 +850,17 @@
         "Nome do Hospital": "Hospital e Maternidade Therezinha de Jesus",
         "Município": "Juiz de Fora",
         "Macrorregião de Saúde": "SUDESTE",
-        "Latitude": -21.7640,
-        "Longitude": -43.3500
+        "Especialidades": "Maternidade e hospital geral; ginecologia e obstetrícia; neonatologia; clínica médica; cirurgia geral; pediatria",
+        "Endereço": "Juiz de Fora - MG",
+        "Latitude": -21.764,
+        "Longitude": -43.35
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-43.3500, -21.7640]
+        "coordinates": [
+          -43.35,
+          -21.764
+        ]
       }
     },
     {
@@ -644,12 +869,17 @@
         "Nome do Hospital": "Irmandade da Santa Casa de Misericórdia de Passos",
         "Município": "Passos",
         "Macrorregião de Saúde": "SUDOESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; medicina intensiva; urgência e emergência",
+        "Endereço": "Passos - MG",
         "Latitude": -20.7192,
         "Longitude": -46.6094
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-46.6094, -20.7192]
+        "coordinates": [
+          -46.6094,
+          -20.7192
+        ]
       }
     },
     {
@@ -658,12 +888,17 @@
         "Nome do Hospital": "Santa Casa de Misericórdia de Piumhi",
         "Município": "Piumhi",
         "Macrorregião de Saúde": "SUDOESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "Piumhi - MG",
         "Latitude": -20.4694,
         "Longitude": -45.9578
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.9578, -20.4694]
+        "coordinates": [
+          -45.9578,
+          -20.4694
+        ]
       }
     },
     {
@@ -672,12 +907,17 @@
         "Nome do Hospital": "Santa Casa de Misericórdia de São Sebastião do Paraíso",
         "Município": "São Sebastião do Paraíso",
         "Macrorregião de Saúde": "SUDOESTE",
+        "Especialidades": "Hospital geral; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; urgência e emergência",
+        "Endereço": "São Sebastião do Paraíso - MG",
         "Latitude": -20.9169,
         "Longitude": -46.9911
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-46.9911, -20.9169]
+        "coordinates": [
+          -46.9911,
+          -20.9169
+        ]
       }
     },
     {
@@ -686,12 +926,17 @@
         "Nome do Hospital": "Hospital Universitário Alfenas / HAVelano",
         "Município": "Alfenas",
         "Macrorregião de Saúde": "SUL",
+        "Especialidades": "Hospital universitário; clínica médica; cirurgia geral e especialidades; ginecologia e obstetrícia; pediatria; ortopedia; cardiologia; neurologia; medicina intensiva",
+        "Endereço": "Alfenas - MG",
         "Latitude": -21.4292,
         "Longitude": -45.9472
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.9472, -21.4292]
+        "coordinates": [
+          -45.9472,
+          -21.4292
+        ]
       }
     },
     {
@@ -700,12 +945,17 @@
         "Nome do Hospital": "Hospitais polos de Varginha",
         "Município": "Varginha",
         "Macrorregião de Saúde": "SUL",
+        "Especialidades": "Polo hospitalar regional; clínica médica; cirurgia geral; ginecologia e obstetrícia; pediatria; ortopedia; medicina intensiva; urgência e emergência",
+        "Endereço": "Varginha - MG (Fundação Hospitalar de Varginha e unidades polos)",
         "Latitude": -21.5514,
         "Longitude": -45.4303
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-45.4303, -21.5514]
+        "coordinates": [
+          -45.4303,
+          -21.5514
+        ]
       }
     },
     {
@@ -714,12 +964,17 @@
         "Nome do Hospital": "Hospital de Clínicas da UFU",
         "Município": "Uberlândia",
         "Macrorregião de Saúde": "TRIÂNGULO DO NORTE",
+        "Especialidades": "Hospital universitário de alta complexidade; clínica médica; cirurgia geral e especialidades; oncologia; cardiologia; neurologia e neurocirurgia; nefrologia; transplantologia; ginecologia e obstetrícia; pediatria; medicina intensiva; medicina fetal",
+        "Endereço": "Uberlândia - MG",
         "Latitude": -18.9186,
         "Longitude": -48.2578
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-48.2578, -18.9186]
+        "coordinates": [
+          -48.2578,
+          -18.9186
+        ]
       }
     },
     {
@@ -728,12 +983,17 @@
         "Nome do Hospital": "Hospital de Clínicas de Uberaba / HC-UFTM",
         "Município": "Uberaba",
         "Macrorregião de Saúde": "TRIÂNGULO DO SUL",
+        "Especialidades": "Hospital universitário de alta complexidade; clínica médica; cirurgia geral e especialidades; oncologia; cardiologia; neurologia; ginecologia e obstetrícia; pediatria; medicina intensiva; medicina fetal",
+        "Endereço": "Uberaba - MG",
         "Latitude": -19.7483,
         "Longitude": -47.9319
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-47.9319, -19.7483]
+        "coordinates": [
+          -47.9319,
+          -19.7483
+        ]
       }
     },
     {
@@ -742,12 +1002,197 @@
         "Nome do Hospital": "Hospital Márcio Cunha",
         "Município": "Ipatinga",
         "Macrorregião de Saúde": "VALE DO AÇO",
+        "Especialidades": "Hospital geral de alta complexidade; clínica médica; cirurgia geral e especialidades; cardiologia; ortopedia; ginecologia e obstetrícia; pediatria; neurologia; medicina intensiva; urgência e emergência",
+        "Endereço": "Ipatinga - MG",
         "Latitude": -19.4972,
         "Longitude": -42.5394
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [-42.5394, -19.4972]
+        "coordinates": [
+          -42.5394,
+          -19.4972
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Barreiro",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Rua Cabo Valério dos Santos, 285 - Átila de Paiva (Barreiro), Belo Horizonte - MG (endereço temporário durante reforma; sede original Rua Aurélio Lopes / Diamante)",
+        "Latitude": -19.9961,
+        "Longitude": -44.02,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -44.02,
+          -19.9961
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Centro-Sul",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Rua Domingos Vieira, 488 - Santa Efigênia, Belo Horizonte - MG",
+        "Latitude": -19.9245,
+        "Longitude": -43.9255,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.9255,
+          -19.9245
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Leste",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Avenida dos Andradas, 7450 - Vera Cruz, Belo Horizonte - MG",
+        "Latitude": -19.92,
+        "Longitude": -43.9,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.9,
+          -19.92
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Nordeste",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Rua Joaquim Gouvêa, 560 - São Paulo, Belo Horizonte - MG",
+        "Latitude": -19.89,
+        "Longitude": -43.92,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.92,
+          -19.89
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Noroeste",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade (vinculada ao Complexo Hospitalar Odilon Behrens)",
+        "Endereço": "Rua Pereira Passos, 38 - São Cristóvão, Belo Horizonte - MG",
+        "Latitude": -19.91,
+        "Longitude": -43.955,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.955,
+          -19.91
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Norte",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Avenida Risoleta Neves, 2580 - Guarani, Belo Horizonte - MG",
+        "Latitude": -19.8456559,
+        "Longitude": -43.914261,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.914261,
+          -19.8456559
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Oeste",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Rua Santa Cruz, 137 - Alto Barroca, Belo Horizonte - MG",
+        "Latitude": -19.94,
+        "Longitude": -43.98,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.98,
+          -19.94
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Pampulha",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Avenida Santa Terezinha, 515 - Santa Terezinha, Belo Horizonte - MG",
+        "Latitude": -19.86,
+        "Longitude": -43.97,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.97,
+          -19.86
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Nome do Hospital": "UPA Venda Nova",
+        "Município": "Belo Horizonte",
+        "Macrorregião de Saúde": "CENTRO",
+        "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
+        "Endereço": "Rua Padre Pedro Pinto, 173 - Venda Nova, Belo Horizonte - MG",
+        "Latitude": -19.82023,
+        "Longitude": -43.95347,
+        "Tipo": "UPA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.95347,
+          -19.82023
+        ]
       }
     }
   ]
