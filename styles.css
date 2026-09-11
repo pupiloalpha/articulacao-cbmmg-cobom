@@ -522,6 +522,16 @@ body {
     background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
 }
 
+/* UPAs (teal – pronto atendimento) */
+.header-upa {
+    background: linear-gradient(135deg, #0e6655 0%, #16a085 100%);
+}
+
+.badge-upa {
+    background: #d5f5e3;
+    color: #0e6655;
+}
+
 /* Hospitais (azul saúde) */
 .header-hospital {
     background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);

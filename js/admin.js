@@ -375,16 +375,19 @@ let isCreateMode = false;
 const FEATURE_FIELD_SCHEMAS = {
     UNIDADE_BM: [
         { key: 'name', label: 'Nome da Fração / Unidade BM / POI:', type: 'text' },
-        { key: 'UEOP', label: 'Batalhão / UEOP de Vinculação:', type: 'text' },
-        { key: 'COB', label: 'Comando Operacional (COB):', type: 'text' },
+        { key: 'Município', label: 'Município:', type: 'text' },
+        { key: 'UEOP', label: 'Batalhão / UEOP (BBM / CIA IND):', type: 'text' },
+        { key: 'COB', label: 'Comando Operacional (COB / CEB):', type: 'text' },
         { key: 'FRAÇÃO', label: 'Fração / Destacamento:', type: 'text' },
-        { key: 'Tempo-resposta', label: 'Tempo-Resposta:', type: 'text' },
-        { key: 'Zona de Quente', label: 'Zona de Risco / Quente:', type: 'text' }
+        { key: 'Endereço', label: 'Endereço completo:', type: 'text' }
     ],
     HOSPITAL: [
-        { key: 'Nome do Hospital', label: 'Nome do Hospital:', type: 'text' },
+        { key: 'Nome do Hospital', label: 'Nome do Hospital / UPA:', type: 'text' },
+        { key: 'Tipo', label: 'Tipo (deixe "UPA" para Unidades de Pronto Atendimento):', type: 'text' },
         { key: 'Município', label: 'Município:', type: 'text' },
-        { key: 'Macrorregião de Saúde', label: 'Macrorregião de Saúde:', type: 'text' }
+        { key: 'Macrorregião de Saúde', label: 'Macrorregião de Saúde:', type: 'text' },
+        { key: 'Especialidades', label: 'Especialidades / Serviços:', type: 'textarea' },
+        { key: 'Endereço', label: 'Endereço completo:', type: 'text' }
     ],
     MICRORREGIAO: [
         { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde', label: 'Microrregião de Saúde:', type: 'text' },
@@ -419,6 +422,7 @@ const FEATURE_FIELD_SCHEMAS = {
     ]
 };
 
+// Chaves de sistema que nunca devem aparecer no formulário de edição
 // Chaves de sistema que nunca devem aparecer no formulário de edição
 const SYSTEM_PROP_KEYS = new Set([
     '_layerId', '_layerName', '_layerDbId', '_featureIndex',
@@ -513,6 +517,7 @@ function prepareModalForEditOrCreate() {
         if (newLayerGroup) newLayerGroup.classList.remove('hidden');
     } else {
         const name = currentEditingContext.feature.properties?.name ||
+                     currentEditingContext.feature.properties?.['Nome da Unidade'] ||
                      currentEditingContext.feature.properties?.['Nome do Hospital'] ||
                      'Feição sem nome';
         const classification = typeof getFeatureClassification === 'function'

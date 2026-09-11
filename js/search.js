@@ -322,9 +322,18 @@ async function searchAddressOnline(rawQuery, parsed) {
             if (parsed.city) params.set('city', parsed.city);
 
             const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
             const response = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
+                method: 'GET',
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`Nominatim HTTP ${response.status}`);
             const structured = await response.json();
 
             if (Array.isArray(structured)) {
@@ -351,9 +360,16 @@ async function searchAddressOnline(rawQuery, parsed) {
             });
 
             const freeUrl = `https://nominatim.openstreetmap.org/search?${freeParams.toString()}`;
+            const freeController = new AbortController();
+            const freeTimeout = setTimeout(() => freeController.abort(), 8000);
             const freeRes = await fetch(freeUrl, {
-                headers: { 'Accept': 'application/json' }
+                method: 'GET',
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' },
+                signal: freeController.signal
             });
+            clearTimeout(freeTimeout);
+            if (!freeRes.ok) throw new Error(`Nominatim HTTP ${freeRes.status}`);
             const freeData = await freeRes.json();
 
             if (Array.isArray(freeData)) {
@@ -385,7 +401,16 @@ async function searchAddressOnline(rawQuery, parsed) {
             });
 
             const url2 = `https://nominatim.openstreetmap.org/search?${params2.toString()}`;
-            const res2 = await fetch(url2, { headers: { 'Accept': 'application/json' } });
+            const ctrl2 = new AbortController();
+            const t2 = setTimeout(() => ctrl2.abort(), 8000);
+            const res2 = await fetch(url2, {
+                method: 'GET',
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' },
+                signal: ctrl2.signal
+            });
+            clearTimeout(t2);
+            if (!res2.ok) throw new Error(`Nominatim HTTP ${res2.status}`);
             const data2 = await res2.json();
 
             if (Array.isArray(data2)) {
@@ -399,8 +424,9 @@ async function searchAddressOnline(rawQuery, parsed) {
         }
 
         if (!Array.isArray(data) || data.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-status-msg">❌ Nenhum endereço encontrado em Minas Gerais com os termos informados.</div>';
-            return;
+            // Não encontrou online → permite fallback offline
+            resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Nada encontrado online. Verificando base local...</div>';
+            return false;
         }
 
         // Scoring e mapeamento
@@ -453,8 +479,11 @@ async function searchAddressOnline(rawQuery, parsed) {
 
     } catch (error) {
         console.error('Erro na busca online:', error);
-        resultsDiv.innerHTML = '<div class="search-status-msg">Erro na busca online. Tente novamente ou verifique a conexão.</div>';
+        // Retorna false para o caller fazer fallback offline
+        resultsDiv.innerHTML = '<div class="search-status-msg">⚠️ Busca online indisponível (CORS/rede). Tentando base local...</div>';
+        return false;
     }
+    return true;
 }
 
 /**
@@ -706,11 +735,27 @@ async function searchAddress(query) {
         return;
     }
 
+    // Evita disparar busca online com termos muito curtos (reduz spam no Nominatim)
+    if (rawQuery.length < 3) {
+        resultsDiv.innerHTML = '<div class="search-status-msg">Digite pelo menos 3 caracteres...</div>';
+        return;
+    }
+
     const parsed = parseAddressQueryWithCity(rawQuery);
 
     if (navigator.onLine) {
-        // ===== ONLINE PRIORITÁRIO =====
-        await searchAddressOnline(rawQuery, parsed);
+        // ===== ONLINE PRIORITÁRIO, com fallback automático para offline =====
+        try {
+            const onlineOk = await searchAddressOnline(rawQuery, parsed);
+            // searchAddressOnline retorna false quando falhou (CORS/rede/vazio)
+            if (onlineOk === false) {
+                console.warn('Busca online indisponível (CORS/rede). Alternando para base local...');
+                await searchAddressOffline(rawQuery, parsed);
+            }
+        } catch (err) {
+            console.warn('Falha na busca online, usando offline:', err);
+            await searchAddressOffline(rawQuery, parsed);
+        }
     } else {
         // ===== OFFLINE SOMENTE =====
         await searchAddressOffline(rawQuery, parsed);

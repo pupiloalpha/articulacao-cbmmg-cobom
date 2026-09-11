@@ -522,21 +522,26 @@ function getFeatureClassification(feature) {
     }
 
     if (geomType === 'Point') {
+        // HOSPITAL / UPA (prioriza campos oficiais do geojson de saúde)
         if (
             props['Nome do Hospital'] ||
             props['Macrorregião de Saúde'] ||
-            (props.name && String(props.name).toLowerCase().includes('hospital'))
+            props.Tipo === 'UPA' ||
+            (props.name && String(props.name).toLowerCase().includes('hospital')) ||
+            (props.name && String(props.name).toLowerCase().startsWith('upa '))
         ) {
             return 'HOSPITAL';
         }
 
-        // Unidades / frações BM operacionais (campos limpos do schema UNIDADE_BM)
+        // Unidades / frações BM – schema canônico + schema novo
         if (
             props.UEOP ||
             props.COB ||
             props['FRAÇÃO'] ||
-            props['Tempo-resposta'] ||
-            props['Zona de Quente']
+            props['BBM / CIA IND'] ||
+            props['COB / CEB'] ||
+            props['Nome da Unidade'] ||
+            props.Fração
         ) {
             return 'UNIDADE_BM';
         }
@@ -548,24 +553,30 @@ function getFeatureClassification(feature) {
     return 'OTHER';
 }
 
-// ---------------------------------------------------------------------------
-// Badge de tempo-resposta
-// ---------------------------------------------------------------------------
-function getTempoRespostaBadge(tempo) {
-    if (!tempo || tempo === '-') {
-        return '<span class="feature-badge badge-tempo-neutro">Não informado</span>';
+/**
+ * Helper: identifica se a feição HOSPITAL é uma UPA
+ */
+function isUPA(feature) {
+    const props = feature.properties || {};
+    if (props.Tipo === 'UPA') return true;
+    const nome = String(props['Nome do Hospital'] || props.name || '').toLowerCase();
+    return nome.startsWith('upa ') || nome.includes('unidade de pronto atendimento');
+}
+
+/**
+ * Helper: extrai nome amigável da feição (compatível schema antigo + novo)
+ */
+function getFeatureDisplayName(feature) {
+    const props = feature.properties || {};
+    const type = getFeatureClassification(feature);
+
+    if (type === 'HOSPITAL') {
+        return props['Nome do Hospital'] || props.name || 'Hospital';
     }
-    const t = String(tempo).toLowerCase();
-    if (t.includes('< 30') || t.includes('30 min') || t.includes('30min')) {
-        return `<span class="feature-badge badge-tempo-verde">⏱️ ${tempo}</span>`;
+    if (type === 'UNIDADE_BM') {
+        return props.name || props['Nome da Unidade'] || 'Unidade Operacional';
     }
-    if (t.includes('< 1 hora') || t.includes('< 1h') || t.includes('<1h')) {
-        return `<span class="feature-badge badge-tempo-amarelo">⏱️ ${tempo}</span>`;
-    }
-    if (t.includes('> 1 hora') || t.includes('> 1h') || t.includes('>1h')) {
-        return `<span class="feature-badge badge-tempo-vermelho">⏱️ ${tempo}</span>`;
-    }
-    return `<span class="feature-badge badge-tempo-neutro">⏱️ ${tempo}</span>`;
+    return props.name || props['Nome do Hospital'] || 'Feição';
 }
 
 // ---------------------------------------------------------------------------
@@ -595,17 +606,49 @@ function formatFeatureTooltip(feature) {
     const type = getFeatureClassification(feature);
     const coords = getFeatureCoords(feature);
 
-    // HOSPITAL
+    // =====================================================================
+    // HOSPITAL / UPA
+    // =====================================================================
     if (type === 'HOSPITAL') {
-        const nome = props['Nome do Hospital'] || props.name || 'Hospital';
+        const isUpa = isUPA(feature);
+        const nome = props['Nome do Hospital'] || props.name || (isUpa ? 'UPA' : 'Hospital');
         const mun = props.Município || props.Municipio || '-';
         const macro = props['Macrorregião de Saúde'] || props.Macrorregiao_Saude || '-';
+        const especialidades = props.Especialidades || props.especialidades || '';
+        const endereco = props.Endereço || props.endereco || props.Endereco || '';
         const coordsStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '-';
 
+        const headerClass = isUpa ? 'header-upa' : 'header-hospital';
+        const typeTag = isUpa ? 'UPA – Pronto Atendimento' : 'Hospital de Referência';
+        const icon = isUpa ? '🚑' : '🏥';
+
+        let especialidadesHtml = '';
+        if (especialidades) {
+            const texto = String(especialidades).length > 220
+                ? String(especialidades).slice(0, 217) + '…'
+                : especialidades;
+            especialidadesHtml = `
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Especialidades:</span>
+                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;color:#34495e;">
+                        ${texto}
+                    </span>
+                </div>`;
+        }
+
+        let enderecoHtml = '';
+        if (endereco) {
+            enderecoHtml = `
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Endereço:</span>
+                    <span class="feature-info-value" style="text-align:left;font-size:11px;">${endereco}</span>
+                </div>`;
+        }
+
         return `
-            <div class="feature-card-header header-hospital">
-                <h4 class="feature-card-title">🏥 ${nome}</h4>
-                <span class="feature-type-tag">Hospital de Referência</span>
+            <div class="feature-card-header ${headerClass}">
+                <h4 class="feature-card-title">${icon} ${nome}</h4>
+                <span class="feature-type-tag">${typeTag}</span>
             </div>
             <div class="feature-card-body">
                 <div class="feature-info-grid">
@@ -615,8 +658,12 @@ function formatFeatureTooltip(feature) {
                     </div>
                     <div class="feature-info-row">
                         <span class="feature-info-label">Macrorregião:</span>
-                        <span class="feature-info-value"><span class="feature-badge badge-macro">${macro}</span></span>
+                        <span class="feature-info-value">
+                            <span class="feature-badge ${isUpa ? 'badge-upa' : 'badge-macro'}">${macro}</span>
+                        </span>
                     </div>
+                    ${especialidadesHtml}
+                    ${enderecoHtml}
                     <div class="feature-info-row">
                         <span class="feature-info-label">Coordenadas:</span>
                         <span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span>
@@ -626,7 +673,9 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
+    // =====================================================================
     // MICRORREGIÃO
+    // =====================================================================
     if (type === 'MICRORREGIAO') {
         const microName =
             props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
@@ -645,16 +694,12 @@ function formatFeatureTooltip(feature) {
         const pop2022 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)'];
         const pop2025 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)'];
         const area = props.AREA_KM2
-            ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km²`
+            ? `${Number(props.AREA_KM2).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} km²`
             : '-';
 
-        let hospList = props['Hospitais de Referência'] ||
-                       props.Hospitais_de_Referencia ||
-                       props.Hospitais_de_Referencia_Macrorregiao ||
-                       [];
-
-        if ((!Array.isArray(hospList) || hospList.length === 0) && props.Hospitais_de_Referencia_Macrorregiao_Texto) {
-            hospList = props.Hospitais_de_Referencia_Macrorregiao_Texto.split('|').map(h => h.trim()).filter(Boolean);
+        let hospList = props['Hospitais de Referência'] || props.Hospitais_de_Referencia || [];
+        if ((!Array.isArray(hospList) || hospList.length === 0) && typeof props['Hospitais de Referência'] === 'string') {
+            hospList = props['Hospitais de Referência'].split(/\\n|\\|/).map(h => h.trim()).filter(Boolean);
         }
 
         let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
@@ -662,49 +707,49 @@ function formatFeatureTooltip(feature) {
             hospitaisHtml = hospList
                 .map(h => `<div style="margin:2px 0;font-size:11px;line-height:1.3;">• ${h}</div>`)
                 .join('');
-        } else if (typeof hospList === 'string' && hospList.trim()) {
-            hospitaisHtml = `<div style="font-size:11px;">${hospList}</div>`;
         }
 
         return `
             <div class="feature-card-header header-micro">
-                <h4 class="feature-card-title">🩺 ${microName}</h4>
+                <h4 class="feature-card-title">🟢 ${microName}</h4>
                 <span class="feature-type-tag">Microrregião de Saúde</span>
             </div>
             <div class="feature-card-body">
                 <div class="feature-info-grid">
                     <div class="feature-info-row">
-                        <span class="feature-info-label">Município sede:</span>
-                        <span class="feature-info-value">${mun}</span>
-                    </div>
-                    <div class="feature-info-row">
                         <span class="feature-info-label">Macrorregião:</span>
                         <span class="feature-info-value"><span class="feature-badge badge-macro">${macroName}</span></span>
                     </div>
                     <div class="feature-info-row">
-                        <span class="feature-info-label">População 2022:</span>
-                        <span class="feature-info-value">${pop2022 ? Number(pop2022).toLocaleString('pt-BR') : '-'}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">População 2025 (est.):</span>
-                        <span class="feature-info-value">${pop2025 ? Number(pop2025).toLocaleString('pt-BR') : '-'}</span>
+                        <span class="feature-info-label">Município sede:</span>
+                        <span class="feature-info-value">${mun}</span>
                     </div>
                     <div class="feature-info-row">
                         <span class="feature-info-label">Área:</span>
                         <span class="feature-info-value">${area}</span>
                     </div>
+                    ${pop2022 ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Pop. 2022:</span>
+                        <span class="feature-info-value">${Number(pop2022).toLocaleString('pt-BR')}</span>
+                    </div>` : ''}
+                    ${pop2025 ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Pop. 2025 (est.):</span>
+                        <span class="feature-info-value">${Number(pop2025).toLocaleString('pt-BR')}</span>
+                    </div>` : ''}
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Hospitais de Referência:</span>
-                        <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">
-                            ${hospitaisHtml}
-                        </div>
+                        <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">${hospitaisHtml}</div>
                     </div>
                 </div>
             </div>
         `;
     }
 
+    // =====================================================================
     // MACRORREGIÃO
+    // =====================================================================
     if (type === 'MACRORREGIAO') {
         const macroName =
             props.Macrorregiao_Saude ||
@@ -752,59 +797,17 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
-    // MUNICIPIO (legado)
-    if (type === 'MUNICIPIO') {
-        const munName = props.name || 'Município';
-        const fracao = props['FRAÇÃO'] || '-';
-        const tempo = props['Tempo-resposta'] || '-';
-        const zona = props['Zona de Quente'] || '-';
-        const ueop = props.UEOP || '-';
-        const cob = props.COB || '-';
-        const unBm = props['Unidade CBMMG'] || '-';
-        const unSaude = props['Unidades de Saúde'] || '-';
-
-        return `
-            <div class="feature-card-header header-municipio">
-                <h4 class="feature-card-title">🏙️ ${munName}</h4>
-                <span class="feature-type-tag">Município (legado)</span>
-            </div>
-            <div class="feature-card-body">
-                <div class="feature-info-grid">
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Fração Atendimento:</span>
-                        <span class="feature-info-value" style="color:#c0392b;">${fracao}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Tempo-Resposta:</span>
-                        <span class="feature-info-value">${getTempoRespostaBadge(tempo)}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Zona de Risco:</span>
-                        <span class="feature-info-value"><span class="feature-badge badge-zona">${zona}</span></span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Batalhão / UEOP:</span>
-                        <span class="feature-info-value"><span class="feature-badge badge-ueop">${ueop}</span></span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Comando (COB):</span>
-                        <span class="feature-info-value"><span class="feature-badge badge-cob">${cob}</span></span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Recursos Locais:</span>
-                        <span class="feature-info-value">🚒 ${unBm} BM | 🏥 ${unSaude} Saúde</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // UNIDADE BM
+    // =====================================================================
+    // UNIDADE BM (schema canônico + novo)
+    // =====================================================================
     if (type === 'UNIDADE_BM') {
-        const unitName = props.name || 'Unidade Operacional';
-        const ueop = props.UEOP || '-';
-        const cob = props.COB || '-';
-        const coordsStr = coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : '-';
+        const unitName = props.name || props['Nome da Unidade'] || 'Unidade Operacional';
+        const ueop = props.UEOP || props['BBM / CIA IND'] || '-';
+        const cob = props.COB || props['COB / CEB'] || '-';
+        const fracao = props['FRAÇÃO'] || props.Fração || props['Fração'] || '-';
+        const municipio = props.Município || props.Municipio || '';
+        const endereco = props.Endereço || props.endereco || props.Endereco || '';
+        const coordsStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '-';
 
         return `
             <div class="feature-card-header header-unidade">
@@ -813,6 +816,11 @@ function formatFeatureTooltip(feature) {
             </div>
             <div class="feature-card-body">
                 <div class="feature-info-grid">
+                    ${municipio ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município:</span>
+                        <span class="feature-info-value">${municipio}</span>
+                    </div>` : ''}
                     <div class="feature-info-row">
                         <span class="feature-info-label">Batalhão / UEOP:</span>
                         <span class="feature-info-value"><span class="feature-badge badge-ueop">${ueop}</span></span>
@@ -821,6 +829,15 @@ function formatFeatureTooltip(feature) {
                         <span class="feature-info-label">Comando (COB):</span>
                         <span class="feature-info-value"><span class="feature-badge badge-cob">${cob}</span></span>
                     </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Fração:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${fracao}</span>
+                    </div>
+                    ${endereco ? `
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Endereço:</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:11px;">${endereco}</span>
+                    </div>` : ''}
                     <div class="feature-info-row">
                         <span class="feature-info-label">Coordenadas:</span>
                         <span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span>
@@ -830,7 +847,9 @@ function formatFeatureTooltip(feature) {
         `;
     }
 
+    // =====================================================================
     // POLYGON (Articulação)
+    // =====================================================================
     if (type === 'POLYGON') {
         const polyName = props.name || 'Circunscrição Territorial';
         const mun = props.NM_MUN || props.Field3 || '-';
@@ -879,7 +898,7 @@ function formatFeatureTooltip(feature) {
     // Fallback genérico
     return `
         <div class="feature-card-header">
-            <h4 class="feature-card-title">📍 ${props.name || 'Feição'}</h4>
+            <h4 class="feature-card-title">📍 ${props.name || props['Nome da Unidade'] || props['Nome do Hospital'] || 'Feição'}</h4>
         </div>
         <div class="feature-card-body">
             <p>${props.description || 'Sem descrição adicional.'}</p>
@@ -890,11 +909,13 @@ function formatFeatureTooltip(feature) {
 // ---------------------------------------------------------------------------
 // Popup (clique)
 // ---------------------------------------------------------------------------
+// Popup (clique)
+// ---------------------------------------------------------------------------
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
     const props = feature.properties || {};
-    const name = (props.name || props['Nome do Hospital'] || 'Feição').replace(/'/g, "\\'");
+    const name = getFeatureDisplayName(feature).replace(/'/g, "\\'");
     const isPoint = feature.geometry && feature.geometry.type === 'Point';
 
     const closeBtnHtml = `
@@ -942,6 +963,8 @@ function formatFeaturePopup(feature) {
     `;
 }
 
+// ---------------------------------------------------------------------------
+// Adiciona camada ao mapa (agora com flag isStreetLayer)
 // ---------------------------------------------------------------------------
 // Adiciona camada ao mapa (agora com flag isStreetLayer)
 // ---------------------------------------------------------------------------
@@ -1008,16 +1031,19 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
         },
         pointToLayer: (feature, latlng) => {
             const type = getFeatureClassification(feature);
+
             if (type === 'HOSPITAL') {
+                const upa = isUPA(feature);
                 return L.circleMarker(latlng, {
-                    radius: 7,
-                    fillColor: '#2980b9',
-                    color: '#1a5276',
+                    radius: upa ? 6.5 : 7,
+                    fillColor: upa ? '#16a085' : '#2980b9',   // teal UPA / azul Hospital
+                    color: upa ? '#0e6655' : '#1a5276',
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 0.9
                 });
             }
+
             return L.circleMarker(latlng, {
                 radius: 8,
                 fillColor: '#e74c3c',
