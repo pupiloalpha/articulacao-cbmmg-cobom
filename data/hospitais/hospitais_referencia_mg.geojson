@@ -16,14 +16,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Urgência e emergência de alta complexidade; trauma e politrauma; queimados; toxicologia; cirurgia geral e do trauma; ortopedia e traumatologia; neurocirurgia; cirurgia plástica reparadora; cirurgia bucomaxilofacial; neurologia; pediatria; medicina intensiva; oftalmologia; otorrinolaringologia; cirurgia vascular",
         "Endereço": "Avenida Professor Alfredo Balena, 400 - Santa Efigênia, Belo Horizonte - MG, CEP 30130-100",
-        "Latitude": -19.925832,
-        "Longitude": -43.931388
+        "Latitude": -19.9260427,
+        "Longitude": -43.9309807
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.931388,
-          -19.925832
+          -43.9309807,
+          -19.9260427
         ]
       }
     },
@@ -35,14 +35,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Hospital universitário de alta complexidade; clínica médica; cirurgia geral e especialidades; oncologia; cardiologia; neurologia e neurocirurgia; nefrologia; transplantologia; ginecologia e obstetrícia; pediatria; oftalmologia; otorrinolaringologia; endocrinologia; infectologia; medicina intensiva; radiologia e diagnóstico por imagem",
         "Endereço": "Avenida Professor Alfredo Balena, 110 - Santa Efigênia, Belo Horizonte - MG, CEP 30130-100",
-        "Latitude": -19.924,
-        "Longitude": -43.928
+        "Latitude": -19.9243807,
+        "Longitude": -43.9281445
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.928,
-          -19.924
+          -43.9281445,
+          -19.9243807
         ]
       }
     },
@@ -54,14 +54,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Hospital geral de alta complexidade; oncologia; cardiologia; cirurgia geral e especialidades; clínica médica; neurologia; ortopedia; ginecologia e obstetrícia; pediatria; nefrologia; medicina intensiva; radiologia",
         "Endereço": "Avenida Francisco Sales, 1111 - Santa Efigênia, Belo Horizonte - MG, CEP 30150-221",
-        "Latitude": -19.9228,
-        "Longitude": -43.9274
+        "Latitude": -19.9246594,
+        "Longitude": -43.9257772
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.9274,
-          -19.9228
+          -43.9257772,
+          -19.9246594
         ]
       }
     },
@@ -73,14 +73,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Pneumologia e tisiologia; cirurgia torácica; clínica médica; cirurgia geral; ginecologia e obstetrícia; neonatologia; ortopedia; doenças respiratórias graves; doenças neuromusculares e raras; urgência e emergência",
         "Endereço": "Rua Doutor Cristiano Resende, 2745 - Araguaia/Milionários, Belo Horizonte - MG, CEP 30620-470",
-        "Latitude": -19.9908,
-        "Longitude": -43.9978
+        "Latitude": -19.9912003,
+        "Longitude": -43.9993533
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.9978,
-          -19.9908
+          -43.9993533,
+          -19.9912003
         ]
       }
     },
@@ -92,14 +92,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Urgência e emergência clínica e cirúrgica; AVC; clínica médica; ortopedia; cirurgia geral; cirurgia vascular; neurocirurgia; neurologia; urologia; medicina intensiva",
         "Endereço": "Rua Dona Luiza, 311 - Milionários, Belo Horizonte - MG, CEP 30620-090",
-        "Latitude": -19.9805,
-        "Longitude": -44.015
+        "Latitude": -19.985677,
+        "Longitude": -44.0063482
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -44.015,
-          -19.9805
+          -44.0063482,
+          -19.985677
         ]
       }
     },
@@ -111,14 +111,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Urgência e emergência; pediatria; ortopedia e traumatologia; cirurgia geral; neurologia e neurocirurgia; ginecologia e obstetrícia; cirurgia vascular; odontologia; clínica médica; neonatologia",
         "Endereço": "Rua Formiga, 50 - São Cristóvão, Belo Horizonte - MG, CEP 31210-780",
-        "Latitude": -19.91,
-        "Longitude": -43.95
+        "Latitude": -19.9041612,
+        "Longitude": -43.9468635
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.95,
-          -19.91
+          -43.9468635,
+          -19.9041612
         ]
       }
     },
@@ -130,14 +130,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Hospital universitário; clínica médica; cirurgia geral; ortopedia; ginecologia e obstetrícia; pediatria; cardiologia; neurologia; oncologia; medicina intensiva; urgência e emergência",
         "Endereço": "Rua das Gabirobas, 1 - Vila Clóris/Laranjeiras, Belo Horizonte - MG, CEP 31744-012",
-        "Latitude": -19.81761,
-        "Longitude": -43.94846
+        "Latitude": -19.8177528,
+        "Longitude": -43.9483901
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.94846,
-          -19.81761
+          -43.9483901,
+          -19.8177528
         ]
       }
     },
@@ -149,14 +149,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Maternidade e assistência materno-infantil; pré-natal de alto risco; parto e nascimento; neonatologia; urgência ginecológica; saúde da mulher e da criança",
         "Endereço": "Rua Antônio Bandeira, 1060 - Tupi B, Belo Horizonte - MG, CEP 31844-130 (Unidade principal)",
-        "Latitude": -19.85,
-        "Longitude": -43.92
+        "Latitude": -19.8362726,
+        "Longitude": -43.9150209
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.92,
-          -19.85
+          -43.9150209,
+          -19.8362726
         ]
       }
     },
@@ -168,14 +168,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Hospital geral; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia; ortopedia",
         "Endereço": "Avenida João César de Oliveira, s/n - Eldorado, Contagem - MG",
-        "Latitude": -19.9317,
-        "Longitude": -44.0539
+        "Latitude": -19.9364232,
+        "Longitude": -44.0612669
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -44.0539,
-          -19.9317
+          -44.0612669,
+          -19.9364232
         ]
       }
     },
@@ -187,14 +187,14 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Hospital regional; urgência e emergência; clínica médica; cirurgia geral; pediatria; ginecologia e obstetrícia; ortopedia; medicina intensiva",
         "Endereço": "Rua Padre Eustáquio, s/n ou endereço oficial do município - Betim - MG",
-        "Latitude": -19.9678,
-        "Longitude": -44.1983
+        "Latitude": -19.9478,
+        "Longitude": -44.1897
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -44.1983,
-          -19.9678
+          -44.1897,
+          -19.9478
         ]
       }
     },
@@ -1023,15 +1023,15 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
         "Endereço": "Rua Cabo Valério dos Santos, 285 - Átila de Paiva (Barreiro), Belo Horizonte - MG (endereço temporário durante reforma; sede original Rua Aurélio Lopes / Diamante)",
-        "Latitude": -19.9961,
-        "Longitude": -44.02,
+        "Latitude": -19.9792983,
+        "Longitude": -44.0290564,
         "Tipo": "UPA"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -44.02,
-          -19.9961
+          -44.0290564,
+          -19.9792983
         ]
       }
     },
@@ -1043,15 +1043,15 @@
         "Macrorregião de Saúde": "CENTRO",
         "Especialidades": "Unidade de Pronto Atendimento 24h; clínica médica; pediatria; ortopedia; cirurgia geral; urgência e emergência de média complexidade",
         "Endereço": "Rua Domingos Vieira, 488 - Santa Efigênia, Belo Horizonte - MG",
-        "Latitude": -19.9245,
-        "Longitude": -43.9255,
+        "Latitude": -19.9221242,
+        "Longitude": -43.925308,
         "Tipo": "UPA"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -43.9255,
-          -19.9245
+          -43.925308,
+          -19.9221242
         ]
       }
     },
