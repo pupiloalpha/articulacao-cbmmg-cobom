@@ -21,6 +21,9 @@ function setupAuth() {
         if (searchContainer) searchContainer.classList.remove('hidden');
     }
     updateLayerListUI();
+    if (typeof renderLegend === 'function') {
+	renderLegend().catch(() => {});
+    }
 }
 
 async function sha256(str) {
@@ -423,9 +426,9 @@ const FEATURE_FIELD_SCHEMAS = {
 };
 
 // Chaves de sistema que nunca devem aparecer no formulário de edição
-// Chaves de sistema que nunca devem aparecer no formulário de edição
 const SYSTEM_PROP_KEYS = new Set([
     '_layerId', '_layerName', '_layerDbId', '_featureIndex',
+    '_tipo', '_uf',
     'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
     'auxiliary_storage_labeling_positionx', 'auxiliary_storage_labeling_positiony',
     'SIGLA_UF', 'Field1', 'Field3', 'Field4', 'Field9',

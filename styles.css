@@ -1324,3 +1324,203 @@ body {
     max-width: 280px;
     line-height: 1.4;
 }
+
+/* ==========================================================================
+   ÍCONES ESPECÍFICOS POR TIPO DE FEIÇÃO (PIN + EMOJI)
+   ========================================================================== */
+
+.feature-pin-wrapper {
+    background: transparent !important;
+    border: none !important;
+    overflow: visible !important;
+}
+
+.feature-pin-wrapper .pin-marker {
+    position: relative;
+    border-radius: 50%;
+    background: var(--pin-bg, #c0392b);
+    border: 2.5px solid #ffffff;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.35),
+        0 0 0 1px var(--pin-border, #7b241c),
+        0 0 0 3px rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    will-change: transform;
+}
+
+.feature-pin-wrapper .pin-marker .pin-emoji {
+    display: block;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+    user-select: none;
+    transform: translateY(0.5px);
+}
+
+.feature-pin-wrapper:hover .pin-marker {
+    transform: scale(1.15);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 0 2px var(--pin-border, #7b241c),
+        0 0 0 5px rgba(255, 255, 255, 0.5);
+    z-index: 9999;
+}
+
+/* Sombra sutil embaixo (efeito de "flutuação") */
+.feature-pin-wrapper .pin-marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    width: 60%;
+    height: 4px;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.28), transparent 70%);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   LEGENDA DE ÍCONES NA SIDEBAR
+   ========================================================================== */
+#legendSection {
+    padding: 12px;
+    background: #ffffff;
+    border-top: 1px solid var(--card-border);
+}
+
+#legendSection h3 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.legend-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    border: 1px solid var(--card-border);
+    transition: background 0.15s ease;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.legend-item:hover {
+    background: #eef2f7;
+}
+
+.legend-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1.5px currentColor, 0 1px 3px rgba(0, 0, 0, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    flex-shrink: 0;
+    background-clip: padding-box;
+}
+
+.legend-label {
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   ÍCONES COMPACTOS NA LISTA DE CAMADAS
+   ========================================================================== */
+
+/* Ajuste do layout da linha */
+#layersUl li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    min-height: 38px;
+}
+
+/* Pilha de ícones (até 3 + contador) */
+.layer-icon-stack {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    padding: 1px 0;
+}
+
+/* Cada ícone circular pequeno */
+.layer-icon-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--layer-icon-bg, #95a5a6);
+    border: 1.5px solid #ffffff;
+    box-shadow:
+        0 0 0 1px var(--layer-icon-border, #7f8c8d),
+        0 1px 2px rgba(0, 0, 0, 0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    flex-shrink: 0;
+    user-select: none;
+    transition: transform 0.15s ease;
+}
+
+#layersUl li:hover .layer-icon-badge {
+    transform: translateY(-1px);
+}
+
+/* Contador "+N" para tipos adicionais */
+.layer-icon-more {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-left: 1px;
+    padding: 1px 3px;
+    border-radius: 8px;
+    background: #eef2f7;
+    border: 1px solid var(--card-border);
+    line-height: 1.1;
+}
+
+/* Nome da camada com truncamento elegante */
+.layer-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Ações (botões) — mantém o comportamento atual */
+#layersUl li .layer-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+}

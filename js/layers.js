@@ -487,6 +487,11 @@ async function reloadLayers() {
         invalidateStreetIndex();
     }
     updateLayerListUI();
+	
+	// Atualiza legenda com base nos tipos presentes
+	if (typeof renderLegend === 'function') {
+	    renderLegend().catch(() => {});
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +502,14 @@ function getFeatureClassification(feature) {
     const props = feature.properties || {};
 
     if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+
+        // 👇 NOVO - EVENTO_FOGO
+        // Evento de fogo (Painel do Fogo / CENSIPAM)
+        if (props._tipo === 'EVENTO_FOGO' ||
+            (props.id_evento !== undefined && props.status_evento !== undefined)) {
+            return 'EVENTO_FOGO';
+        }
+
         if (
             props.Hospitais_de_Referencia_Macrorregiao ||
             props.Hospitais_de_Referencia_Macrorregiao_Texto ||
@@ -571,10 +584,15 @@ function getFeatureDisplayName(feature) {
     const type = getFeatureClassification(feature);
 
     if (type === 'HOSPITAL') {
-        return props['Nome do Hospital'] || props.name || 'Hospital';
+	const nome = props['Nome do Hospital'] || props.name || 'Hospital';
+	return isUPA(feature) ? `🚑 ${nome}` : nome;
     }
     if (type === 'UNIDADE_BM') {
         return props.name || props['Nome da Unidade'] || 'Unidade Operacional';
+    }
+    // 👇 NOVO - EVENTO_FOGO
+    if (type === 'EVENTO_FOGO') {
+        return `Evento #${props.id_evento ?? '-'}`;
     }
     return props.name || props['Nome do Hospital'] || 'Feição';
 }
@@ -605,6 +623,108 @@ function formatFeatureTooltip(feature) {
     const props = feature.properties || {};
     const type = getFeatureClassification(feature);
     const coords = getFeatureCoords(feature);
+
+    // =====================================================================
+    // 👇 NOVO - EVENTO_FOGO
+    // Evento de fogo (Painel do Fogo / CENSIPAM)
+    // =====================================================================
+    if (type === 'EVENTO_FOGO') {
+        const fmtDate = (d) => d ? new Date(d).toLocaleString('pt-BR') : '-';
+        const num = (v, dec = 2) =>
+            (v == null || isNaN(v)) ? '-' :
+            Number(v).toLocaleString('pt-BR', {
+                minimumFractionDigits: dec,
+                maximumFractionDigits: dec
+            });
+
+        const status  = props.status_evento || 'Evento';
+        const area    = num(props.area_total_evento, 2);
+        const persist = props.persistencia_dias ?? '-';
+        const dtMin   = fmtDate(props.dt_minima);
+        const dtMax   = fmtDate(props.dt_maxima);
+        const dtVisto = fmtDate(props.dt_ultima_visao);
+        const mun     = props.municipio || '-';
+        const pais    = props.pais || 'Brasil';
+        const dominio = props.dominio || '-';
+        const ti      = props.terra_indigena || '-';
+        const uc      = props.unidade_conservacao || '-';
+        const quil    = props.quilombola || '-';
+        const pa      = props.projeto_assentamento || '-';
+
+        const indice   = props.indice_prioridade != null ? Number(props.indice_prioridade) : null;
+        const variacao = props.indice_variacao   != null ? Number(props.indice_variacao)   : null;
+
+        const isAtivo = String(status).toLowerCase().includes('ativo');
+        const headerClass = isAtivo ? 'header-unidade' : 'header-micro';
+        const icon = isAtivo ? '🚨' : '👀';
+
+        let prioridadeBadge = '<span class="feature-badge badge-tempo-neutro">sem índice</span>';
+        if (indice != null && Number.isFinite(indice)) {
+            const cls = indice >= 0.7 ? 'badge-cob'
+                      : indice >= 0.4 ? 'badge-zona'
+                      : 'badge-tempo-verde';
+            const seta = variacao > 0 ? '▲' : (variacao < 0 ? '▼' : '■');
+            prioridadeBadge = `<span class="feature-badge ${cls}">${seta} ${indice.toFixed(2)}</span>`;
+        }
+
+        return `
+            <div class="feature-card-header ${headerClass}">
+                <h4 class="feature-card-title">${icon} Evento #${props.id_evento ?? '-'}</h4>
+                <span class="feature-type-tag">${status}</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Prioridade:</span>
+                        <span class="feature-info-value">${prioridadeBadge}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Área total:</span>
+                        <span class="feature-info-value"><b>${area} km²</b></span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Persistência:</span>
+                        <span class="feature-info-value">${persist} dias</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">1ª detecção:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${dtMin}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Última detecção:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${dtMax}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Última visão:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${dtVisto}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município:</span>
+                        <span class="feature-info-value">${mun}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Domínio:</span>
+                        <span class="feature-info-value">${dominio} • ${pais}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Terra Indígena:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${ti}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Unid. Conservação:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${uc}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Quilombola:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${quil}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Assentamento:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${pa}</span>
+                    </div>
+                </div>
+            </div>`;
+    }
 
     // =====================================================================
     // HOSPITAL / UPA
@@ -909,8 +1029,6 @@ function formatFeatureTooltip(feature) {
 // ---------------------------------------------------------------------------
 // Popup (clique)
 // ---------------------------------------------------------------------------
-// Popup (clique)
-// ---------------------------------------------------------------------------
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
@@ -966,6 +1084,7 @@ function formatFeaturePopup(feature) {
 // ---------------------------------------------------------------------------
 // Adiciona camada ao mapa (agora com flag isStreetLayer)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // Adiciona camada ao mapa (agora com flag isStreetLayer)
 // ---------------------------------------------------------------------------
 function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
@@ -986,6 +1105,10 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
             if (mode === 'points') return feature.geometry.type === 'Point';
             return true;
         },
+
+        // ============================================================
+        // ESTILO (polígonos / linhas)
+        // ============================================================
         style: function (feature) {
             // ---- Estilo especial para logradouros (offline) ----
             if (isStreetLayer) {
@@ -1002,6 +1125,32 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
             const props = feature.properties || {};
 
             if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+
+                // Eventos de fogo — coloração por índice de prioridade
+                if (type === 'EVENTO_FOGO') {
+                    const indice  = Number(props.indice_prioridade);
+                    const persist = Number(props.persistencia_dias) || 0;
+
+                    let fillColor   = '#f39c12';
+                    let strokeColor = '#b9770e';
+                    let fillOpacity = 0.22;
+                    let weight      = 1.5;
+
+                    if (Number.isFinite(indice)) {
+                        if (indice >= 0.7)      { fillColor = '#c0392b'; strokeColor = '#7b241c'; fillOpacity = 0.35; weight = 2.2; }
+                        else if (indice >= 0.4) { fillColor = '#e67e22'; strokeColor = '#a04000'; fillOpacity = 0.28; weight = 1.8; }
+                        else                    { fillColor = '#f1c40f'; strokeColor = '#b7950b'; fillOpacity = 0.20; weight = 1.4; }
+                    } else if (String(props.status_evento || '').toLowerCase().includes('ativo')) {
+                        fillColor = '#e74c3c'; strokeColor = '#922b21'; fillOpacity = 0.30; weight = 2;
+                    }
+
+                    if (persist >= 5 && Number.isFinite(indice) && indice >= 0.7) {
+                        weight = 2.8;
+                    }
+
+                    return { fillColor, color: strokeColor, weight, opacity: 0.95, fillOpacity };
+                }
+
                 if (type === 'MICRORREGIAO') {
                     return {
                         fillColor: '#27ae60',
@@ -1029,32 +1178,32 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                 };
             }
         },
+
+        // ============================================================
+        // PONTOS → marcadores com ícone específico por tipo
+        // ============================================================
         pointToLayer: (feature, latlng) => {
-            const type = getFeatureClassification(feature);
-
-            if (type === 'HOSPITAL') {
-                const upa = isUPA(feature);
-                return L.circleMarker(latlng, {
-                    radius: upa ? 6.5 : 7,
-                    fillColor: upa ? '#16a085' : '#2980b9',   // teal UPA / azul Hospital
-                    color: upa ? '#0e6655' : '#1a5276',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.9
-                });
+            const type = resolveIconType(feature);
+            let badge = '';
+            if (type === 'EVENTO_FOGO') {
+                const indice = Number(feature.properties?.indice_prioridade);
+                if (Number.isFinite(indice) && indice >= 0.7) badge = '★';
             }
-
-            return L.circleMarker(latlng, {
-                radius: 8,
-                fillColor: '#e74c3c',
-                color: '#962d22',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.9
+            return L.marker(latlng, {
+                icon: createFeatureIcon(type, { badge }),
+                riseOnHover: true,
+                title: getFeatureDisplayName(feature)
             });
         },
+
+        // ============================================================
+        // HANDLERS (tooltip, popup, hover, clique)
+        // ============================================================
         onEachFeature: (feature, layer) => {
-            // ---- Tooltip/Popup especial para logradouros ----
+
+            // --------------------------------------------------
+            // LOGRADOUROS (linhas) — tooltip/popup próprio
+            // --------------------------------------------------
             if (isStreetLayer) {
                 const info = getFeatureStreetInfo(feature.properties, layerData.name);
                 const name = info ? info.fullName : (feature.properties?.NM_LOG || 'Logradouro');
@@ -1074,16 +1223,20 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                     </div>
                 `, { maxWidth: 280 });
 
+                // Hover em LINHA → apenas espessura/cor
                 layer.on('mouseover', function (e) {
                     e.target.setStyle({ weight: 2.6, color: '#334155', opacity: 1 });
                 });
                 layer.on('mouseout', function (e) {
                     geojsonLayer.resetStyle(e.target);
                 });
-                return; // não aplica o resto dos handlers de feições operacionais
+
+                return; // não aplica handlers de feições operacionais
             }
 
-            // ---- handlers originais (Unidades, Hospitais, Polígonos…) ----
+            // --------------------------------------------------
+            // FEIÇÕES OPERACIONAIS (pontos e polígonos)
+            // --------------------------------------------------
             layer.bindTooltip(formatFeatureTooltip(feature), {
                 sticky: true,
                 className: 'feature-tooltip',
@@ -1097,9 +1250,19 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                 closeButton: false
             });
 
+            // Hover adaptativo: marcador ≠ polígono
             layer.on('mouseover', function (e) {
                 const l = e.target;
-                const type = getFeatureClassification(feature);
+
+                // Ponto (L.Marker) → troca ícone para versão com destaque
+                if (l instanceof L.Marker) {
+                    const type = resolveIconType(feature);
+                    l.setIcon(createFeatureIcon(type, { emphasis: true }));
+                    l.setZIndexOffset(1000);
+                    return;
+                }
+
+                // Polígono → destaque visual padrão
                 if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
                     l.setStyle({
                         weight: 3,
@@ -1107,17 +1270,20 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                         fillColor: '#f39c12',
                         fillOpacity: 0.4
                     });
-                } else if (feature.geometry.type === 'Point') {
-                    l.setStyle({
-                        radius: type === 'HOSPITAL' ? 10 : 11,
-                        weight: 3,
-                        color: '#f39c12',
-                        fillOpacity: 1
-                    });
                 }
             });
 
             layer.on('mouseout', function (e) {
+                const l = e.target;
+
+                // Restaura ícone padrão do marcador
+                if (l instanceof L.Marker) {
+                    const type = resolveIconType(feature);
+                    l.setIcon(createFeatureIcon(type));
+                    l.setZIndexOffset(0);
+                    return;
+                }
+
                 geojsonLayer.resetStyle(e.target);
             });
 
@@ -1133,7 +1299,7 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
     geojsonLayer.addTo(map);
     overlayLayers[layerData.id] = geojsonLayer;
 
-    // Logradouros ficam por baixo; pontos de Unidades/Hospitais na frente
+    // Logradouros ficam por baixo; pontos operacionais na frente
     if (!isStreetLayer) {
         const hasPoints = layerData.geojson.features.some(f => f.geometry.type === 'Point');
         if (hasPoints) {
@@ -1205,18 +1371,42 @@ function updateLayerListUI() {
         visibleLayers.forEach((layer, index) => {
             const li = document.createElement('li');
 
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = layer.name;
-            nameSpan.style.flex = '1';
-            nameSpan.style.overflow = 'hidden';
-            nameSpan.style.textOverflow = 'ellipsis';
-            nameSpan.style.whiteSpace = 'nowrap';
+            // -------- Pilha de ícones (até 3 + contador "+N") --------
+            const iconStack = document.createElement('div');
+            iconStack.className = 'layer-icon-stack';
+            if (typeof buildLayerIconHtml === 'function') {
+                iconStack.innerHTML = buildLayerIconHtml(layer);
+            }
 
+            // Clique no ícone → enquadra a camada
+            iconStack.style.cursor = 'pointer';
+            iconStack.title = 'Clique para enquadrar esta camada no mapa';
+            iconStack.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const lyr = overlayLayers[layer.id];
+                if (!lyr || !map) return;
+                const bounds = L.latLngBounds();
+                lyr.eachLayer(l => {
+                    if (l.feature?.geometry) {
+                        extractCoordinates(l.feature.geometry).forEach(c => bounds.extend(c));
+                    }
+                });
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40] });
+                } else {
+                    showToast('Camada sem feições visíveis para enquadrar.', 'info');
+                }
+            });
+
+            // -------- Nome da camada --------
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'layer-name';
+            nameSpan.textContent = layer.name;
+            nameSpan.title = layer.name;   // tooltip mostra o nome completo se truncar
+
+            // -------- Ações (visibilidade, renomear, etc.) --------
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'layer-actions';
-            actionsDiv.style.display = 'flex';
-            actionsDiv.style.gap = '2px';
-            actionsDiv.style.alignItems = 'center';
 
             const visBtn = document.createElement('button');
             visBtn.className = 'btn-icon layer-btn';
@@ -1289,6 +1479,8 @@ function updateLayerListUI() {
                 actionsDiv.appendChild(delBtn);
             }
 
+            // -------- Monta a linha --------
+            li.appendChild(iconStack);
             li.appendChild(nameSpan);
             li.appendChild(actionsDiv);
             ul.appendChild(li);

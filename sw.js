@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
     './data/ruas/index.json',
     './data/macrorregioes/macrorregioes.topojson',
     './data/microrregioes/microrregioes.topojson',
+    './js/icons.js',
     './icons/icon-192.png',
     './icons/icon-512.png',
     // Bibliotecas de terceiros (locais)

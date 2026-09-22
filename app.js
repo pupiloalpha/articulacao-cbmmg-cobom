@@ -133,6 +133,9 @@ try {
     setTimeout(hideLoading, 1800);
 }
 
+// Eventos de fogo (Painel do Fogo/CENSIPAM) — atualização a cada 2h
+initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:', e));
+
     // Restante da inicialização
     setupAuth();
     initAdminAuthListeners();
