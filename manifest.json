@@ -1,24 +1,58 @@
 {
-    "name": "GIS PWA Offline",
-    "short_name": "GIS PWA",
-    "description": "Aplicação GIS offline com suporte a KML/KMZ, cálculo de distâncias e cache de tiles.",
+    "name": "Articulação CBMMG - COBOM-BH",
+    "short_name": "COBOM-BH",
+    "description": "Sistema de articulação territorial e despacho operacional do Corpo de Bombeiros Militar de Minas Gerais - COBOM-BH",
     "start_url": "./",
     "scope": "./",
     "display": "standalone",
-    "background_color": "#ecf0f1",
-    "theme_color": "#2c3e50",
+    "orientation": "any",
+    "background_color": "#8e1b1b",
+    "theme_color": "#8e1b1b",
+    "lang": "pt-BR",
+    "dir": "ltr",
+    "categories": ["productivity", "utilities", "government"],
     "icons": [
+        {
+            "src": "./icons/icon-128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "./icons/icon-152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
         {
             "src": "./icons/icon-192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "./icons/icon-384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "./icons/icon-512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "./icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "./icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
         }
     ]
 }
