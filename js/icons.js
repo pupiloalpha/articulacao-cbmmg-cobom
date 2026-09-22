@@ -39,6 +39,14 @@ const FEATURE_ICON_CONFIG = {
         description: 'Foco de incêndio monitorado',
         size: 34
     },
+    CHAMADA: {
+        emoji: '🚨',
+        bg: '#e74c3c',
+        border: '#922b21',
+        label: 'Chamada CBMMG',
+        description: 'Chamada operacional em andamento / finalizada',
+        size: 34
+    },
     MACRORREGIAO: {
         emoji: '🏥',
         bg: '#8e44ad',
@@ -110,13 +118,15 @@ function resolveIconType(feature) {
  */
 function createFeatureIcon(type, opts = {}) {
     const cfg = FEATURE_ICON_CONFIG[type] || FEATURE_ICON_CONFIG.DEFAULT;
+    const bg     = opts.bg     || cfg.bg;
+    const border = opts.border || cfg.border;
     const emphasis = !!opts.emphasis;
-    const badge = opts.badge || '';
-    const cacheKey = `${type}|${emphasis ? 'hi' : 'lo'}|${badge}`;
+    const badge    = opts.badge || '';
+    const cacheKey = `${type}|${bg}|${border}|${emphasis ? 'hi' : 'lo'}|${badge}`;
 
     if (_iconCache.has(cacheKey)) return _iconCache.get(cacheKey);
 
-    const size = Math.round(cfg.size * (emphasis ? 1.18 : 1));
+    const size      = Math.round(cfg.size * (emphasis ? 1.18 : 1));
     const emojiSize = Math.round(size * 0.5);
 
     const badgeHtml = badge
@@ -133,8 +143,8 @@ function createFeatureIcon(type, opts = {}) {
 
     const html = `
         <div class="pin-marker" style="
-            --pin-bg: ${cfg.bg};
-            --pin-border: ${cfg.border};
+            --pin-bg: ${bg};
+            --pin-border: ${border};
             width: ${size}px;
             height: ${size}px;
         ">
@@ -272,6 +282,28 @@ function buildLayerIconHtml(layer, maxVisible = 3) {
     return icons + more;
 }
 
+/**
+ * Monta as opções de ícone específicas por tipo de feição.
+ * Hoje cobre:
+ *  - CHAMADA       → cor por situação operacional
+ *  - EVENTO_FOGO   → badge ★ quando prioridade alta
+ */
+function buildIconOptsForFeature(feature, emphasis = false) {
+    const opts = { emphasis };
+    const type = resolveIconType(feature);
+
+    if (type === 'CHAMADA' && typeof getChamadaSituationStyle === 'function') {
+        const st = getChamadaSituationStyle(feature.properties?.situacao);
+        opts.bg = st.color;
+        opts.border = st.border;
+    }
+    if (type === 'EVENTO_FOGO') {
+        const indice = Number(feature.properties?.indice_prioridade);
+        if (Number.isFinite(indice) && indice >= 0.7) opts.badge = '★';
+    }
+    return opts;
+}
+
 // Exporta globais
 window.FEATURE_ICON_CONFIG   = FEATURE_ICON_CONFIG;
 window.createFeatureIcon     = createFeatureIcon;
@@ -280,3 +312,5 @@ window.renderLegend          = renderLegend;
 
 window.getLayerIconTypes  = getLayerIconTypes;
 window.buildLayerIconHtml = buildLayerIconHtml;
+
+window.buildIconOptsForFeature = buildIconOptsForFeature;

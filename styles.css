@@ -1524,3 +1524,25 @@ body {
     flex-shrink: 0;
     margin-left: auto;
 }
+
+/* ==========================================================================
+   CHAMADAS CBMMG - Refinamentos visuais
+   ========================================================================== */
+
+/* Ajusta o tooltip de chamada para não ficar largo demais */
+.feature-tooltip .feature-card-body .feature-info-value {
+    word-break: break-word;
+}
+
+/* Badges de alerta/destaque/autoridade quando empilhados */
+.feature-tooltip .feature-info-row .feature-badge + .feature-badge {
+    margin-left: 4px;
+}
+
+/* Números longos (chamada / REDS) não devem quebrar layout */
+.feature-tooltip .feature-info-value[style*="monospace"] {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}

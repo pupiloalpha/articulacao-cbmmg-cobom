@@ -135,15 +135,45 @@ function setupFileUpload() {
         handleFiles(e.target.files);
         fileInput.value = '';
     });
+
+    // Botão dedicado de importação de chamadas
+    if (typeof setupChamadasImportUI === 'function') {
+        setupChamadasImportUI();
+    }
 }
 
 async function handleFiles(files) {
     if (!window.isAdmin) return;
+
     for (const file of files) {
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        // ---------- CSV de chamadas CBMMG ----------
+        if (ext === 'csv') {
+            try {
+                const layers = await DB.getLayers();
+                const existing = layers.find(l => l.name === CHAMADAS_LAYER_NAME);
+
+                let replaceExisting = false;
+                if (existing) {
+                    const qty = existing.geojson?.features?.length || 0;
+                    replaceExisting = confirm(
+                        `Já existe a camada "${CHAMADAS_LAYER_NAME}" com ${qty} chamada(s).\n\n` +
+                        `OK = SUBSTITUIR os dados existentes\n` +
+                        `Cancelar = CRIAR NOVA camada com data/hora`
+                    );
+                }
+                await importChamadasCSV(file, { replaceExisting });
+            } catch (err) {
+                console.error('Erro ao importar CSV:', err);
+                showToast('Erro ao importar CSV: ' + err.message, 'error', 5000);
+            }
+            continue;
+        }
+
+        // ---------- KML / KMZ / JSON / GeoJSON ----------
         try {
             let geojson;
-            const ext = file.name.split('.').pop().toLowerCase();
-
             if (ext === 'kml') {
                 const text = await file.text();
                 const kmlDom = new DOMParser().parseFromString(text, 'text/xml');
@@ -151,7 +181,7 @@ async function handleFiles(files) {
             } else if (ext === 'kmz') {
                 const zip = await JSZip.loadAsync(file);
                 const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-                if (!kmlFile) throw new Error('Nenhum arquivo KML encontrado dentro do KMZ');
+                if (!kmlFile) throw new Error('Nenhum arquivo KML dentro do KMZ');
                 const kmlText = await kmlFile.async('text');
                 const kmlDom = new DOMParser().parseFromString(kmlText, 'text/xml');
                 geojson = toGeoJSON.kml(kmlDom);
@@ -161,7 +191,7 @@ async function handleFiles(files) {
                 if (!geojson.type || geojson.type !== 'FeatureCollection') {
                     if (geojson.type === 'Feature') {
                         geojson = { type: 'FeatureCollection', features: [geojson] };
-                    } else if (['Point', 'Polygon', 'LineString', 'MultiPolygon'].includes(geojson.type)) {
+                    } else if (['Point','Polygon','LineString','MultiPolygon'].includes(geojson.type)) {
                         geojson = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: geojson, properties: {} }] };
                     } else {
                         throw new Error('GeoJSON em formato inválido');

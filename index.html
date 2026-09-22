@@ -51,11 +51,13 @@
         <div id="adminTools" class="hidden">
             <h3>Ferramentas Admin</h3>
             <div id="dropZone" class="drop-zone">
-                Arraste e solte .kml/.kmz/.json/.geojson aqui ou clique para enviar
-                <input type="file" id="fileInput" accept=".kml,.kmz,.json,.geojson" multiple hidden>
+                Arraste e solte .kml/.kmz/.json/.geojson/.csv aqui ou clique para enviar
+                <input type="file" id="fileInput" accept=".kml,.kmz,.json,.geojson,.csv" multiple hidden>
             </div>
             <button id="addMarkerBtn" class="btn">Adicionar POI</button>
             <button id="addPolygonBtn" class="btn">Desenhar Polígono</button>
+	    <button id="importChamadasBtn" class="btn" style="background:#c0392b;">🚨 Importar Chamadas (CSV)</button>
+            <input type="file" id="chamadasFileInput" accept=".csv,text/csv" hidden>
             <button id="exportBackupBtn" class="btn">Exportar Backup</button>
             <button id="importBackupBtn" class="btn">Importar Backup</button>
             <input type="file" id="importFileInput" accept=".json" hidden>
@@ -177,12 +179,13 @@
     <script src="./js/utils.js"></script>
     <script src="./js/map.js"></script>
     <script src="./js/icons.js"></script>
+    <script src="./js/eventos.js"></script>
+    <script src="./js/chamadas.js"></script>
     <script src="./js/layers.js"></script>
     <script src="./js/search.js"></script>
     <script src="./js/gps.js"></script>
     <script src="./js/tiles.js"></script>
     <script src="./js/admin.js"></script>
-    <script src="./js/eventos.js"></script>
     <script src="./app.js"></script>
 </body>
 </html>

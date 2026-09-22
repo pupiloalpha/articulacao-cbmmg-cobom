@@ -535,6 +535,10 @@ function getFeatureClassification(feature) {
     }
 
     if (geomType === 'Point') {
+	// Chamadas operacionais CBMMG (importadas via CSV)
+        if (props._tipo === 'CHAMADA' || props.numChamada) {
+            return 'CHAMADA';
+        }
         // HOSPITAL / UPA (prioriza campos oficiais do geojson de saúde)
         if (
             props['Nome do Hospital'] ||
@@ -590,9 +594,11 @@ function getFeatureDisplayName(feature) {
     if (type === 'UNIDADE_BM') {
         return props.name || props['Nome da Unidade'] || 'Unidade Operacional';
     }
-    // 👇 NOVO - EVENTO_FOGO
     if (type === 'EVENTO_FOGO') {
         return `Evento #${props.id_evento ?? '-'}`;
+    }
+    if (type === 'CHAMADA') {
+        return `Chamada ${props.numChamada || 's/n'}`;
     }
     return props.name || props['Nome do Hospital'] || 'Feição';
 }
@@ -625,7 +631,68 @@ function formatFeatureTooltip(feature) {
     const coords = getFeatureCoords(feature);
 
     // =====================================================================
-    // 👇 NOVO - EVENTO_FOGO
+    // CHAMADA CBMMG (importada via CSV)
+    // =====================================================================
+    if (type === 'CHAMADA') {
+        const st = (typeof getChamadaSituationStyle === 'function')
+            ? getChamadaSituationStyle(props.situacao)
+            : { color: '#e74c3c', border: '#922b21', label: props.situacao || '—' };
+
+        const isSim = (v) => String(v || '').toLowerCase().trim().startsWith('s');
+
+        const badges = [];
+        if (isSim(props.alerta))           badges.push('<span class="feature-badge" style="background:#fadbd8;color:#922b21;">⚠️ Alerta</span>');
+        if (isSim(props.destaque))         badges.push('<span class="feature-badge" style="background:#fdebd0;color:#b9770e;">⭐ Destaque</span>');
+        if (isSim(props.envolveAutoridade))badges.push('<span class="feature-badge" style="background:#e8daef;color:#6c3483;">👮 Autoridade</span>');
+
+        const badgesHtml = badges.length
+            ? `<div class="feature-info-row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start;">${badges.join(' ')}</div>`
+            : '';
+
+        return `
+            <div class="feature-card-header" style="background: linear-gradient(135deg, ${st.color} 0%, ${st.border} 100%);">
+                <h4 class="feature-card-title">🚨 Chamada ${props.numChamada || 's/n'}</h4>
+                <span class="feature-type-tag">${st.label}</span>
+            </div>
+            <div class="feature-card-body">
+                <div class="feature-info-grid">
+                    ${props.numREDS ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">REDS:</span>
+                        <span class="feature-info-value" style="font-family:monospace;font-size:10.5px;">${props.numREDS}</span>
+                    </div>` : ''}
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Natureza:</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;color:#2c3e50;line-height:1.35;">${props.natureza || '—'}</span>
+                    </div>
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Local:</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:11px;">${props.localFato || '—'}</span>
+                    </div>
+                    ${props.unidadeResponsavel ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Unidade:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${props.unidadeResponsavel}</span>
+                    </div>` : ''}
+                    ${props.recursosEmpenhados ? `
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Recursos empenhados:</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:10.5px;font-family:monospace;color:#34495e;">${props.recursosEmpenhados}</span>
+                    </div>` : ''}
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Criada em:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${props.dataCriacaoTexto || '—'}</span>
+                    </div>
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Situação em:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${props.dataSituacaoAtualTexto || '—'}</span>
+                    </div>
+                    ${badgesHtml}
+                </div>
+            </div>`;
+    }
+
+    // =====================================================================
     // Evento de fogo (Painel do Fogo / CENSIPAM)
     // =====================================================================
     if (type === 'EVENTO_FOGO') {
@@ -1184,14 +1251,14 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
         // ============================================================
         pointToLayer: (feature, latlng) => {
             const type = resolveIconType(feature);
-            let badge = '';
-            if (type === 'EVENTO_FOGO') {
-                const indice = Number(feature.properties?.indice_prioridade);
-                if (Number.isFinite(indice) && indice >= 0.7) badge = '★';
-            }
+            const opts = (typeof buildIconOptsForFeature === 'function')
+                ? buildIconOptsForFeature(feature, false)
+                : {};
+
             return L.marker(latlng, {
-                icon: createFeatureIcon(type, { badge }),
+                icon: createFeatureIcon(type, opts),
                 riseOnHover: true,
+                keyboard: true,
                 title: getFeatureDisplayName(feature)
             });
         },
@@ -1251,18 +1318,21 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
             });
 
             // Hover adaptativo: marcador ≠ polígono
-            layer.on('mouseover', function (e) {
+                        layer.on('mouseover', function (e) {
                 const l = e.target;
 
                 // Ponto (L.Marker) → troca ícone para versão com destaque
                 if (l instanceof L.Marker) {
                     const type = resolveIconType(feature);
-                    l.setIcon(createFeatureIcon(type, { emphasis: true }));
+                    const opts = (typeof buildIconOptsForFeature === 'function')
+                        ? buildIconOptsForFeature(feature, true)
+                        : { emphasis: true };
+                    l.setIcon(createFeatureIcon(type, opts));
                     l.setZIndexOffset(1000);
                     return;
                 }
 
-                // Polígono → destaque visual padrão
+                // Polígono → destaque laranja
                 if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
                     l.setStyle({
                         weight: 3,
@@ -1276,10 +1346,12 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
             layer.on('mouseout', function (e) {
                 const l = e.target;
 
-                // Restaura ícone padrão do marcador
                 if (l instanceof L.Marker) {
                     const type = resolveIconType(feature);
-                    l.setIcon(createFeatureIcon(type));
+                    const opts = (typeof buildIconOptsForFeature === 'function')
+                        ? buildIconOptsForFeature(feature, false)
+                        : {};
+                    l.setIcon(createFeatureIcon(type, opts));
                     l.setZIndexOffset(0);
                     return;
                 }

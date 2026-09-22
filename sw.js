@@ -1,6 +1,6 @@
 // sw.js - Service Worker com estratégia Cache-First para assets estáticos
 
-const CACHE_NAME = 'gis-pwa-cache-v1';
+const CACHE_NAME = 'gis-pwa-cache-v3';
 const STATIC_ASSETS = [
     './',
     './index.html',
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
     './data/macrorregioes/macrorregioes.topojson',
     './data/microrregioes/microrregioes.topojson',
     './js/icons.js',
+    './js/chamadas.js',
     './icons/icon-192.png',
     './icons/icon-512.png',
     // Bibliotecas de terceiros (locais)
