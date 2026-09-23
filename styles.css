@@ -1546,3 +1546,26 @@ body {
     text-overflow: ellipsis;
     max-width: 180px;
 }
+
+/* ==========================================================================
+   LEAFLET MARKERCLUSTER — animações críticas (inline; evita dependência externa)
+   Fonte: leaflet.markercluster@1.5.3/dist/MarkerCluster.css
+   O CSS visual (.marker-cluster-small etc.) não é necessário: usamos
+   iconCreateFunction com divIcon customizado em layers.js.
+   ========================================================================== */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+    -webkit-transition: -webkit-transform 0.3s ease-out, opacity 0.3s ease-in;
+    -o-transition: -o-transform 0.3s ease-out, opacity 0.3s ease-in;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}
+.leaflet-cluster-spider-leg {
+    -webkit-transition: -webkit-stroke-dashoffset 0.3s ease-out, -webkit-stroke-opacity 0.3s ease-in;
+    -o-transition: -o-stroke-dashoffset 0.3s ease-out, -o-stroke-opacity 0.3s ease-in;
+    transition: stroke-dashoffset 0.3s ease-out, stroke-opacity 0.3s ease-in;
+}
+/* Neutraliza o estilo default do plugin (que depende do Default.css ausente) */
+.marker-cluster-custom {
+    background: transparent !important;
+    border: none !important;
+}

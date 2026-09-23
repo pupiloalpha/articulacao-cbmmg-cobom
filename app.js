@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v6';
+const DATA_VERSION = 'v7';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -39,13 +39,37 @@ let previousLayerVisibilityBeforeRoute = null;
 // Durante o desenho de uma rota, escondemos as feições (polígonos) para
 // que apenas os pontos permaneçam visíveis, facilitando a interação do
 // mouse com a linha de rota e os marcadores.
+//
+// Em dispositivos móveis, também recolhemos a sidebar automaticamente,
+// ampliando a área útil do mapa durante o traçado.
 // ============================================================
+
+/**
+ * Detecta se a aplicação está sendo usada em uma viewport móvel.
+ * Usa matchMedia para refletir mudanças dinâmicas (rotação, resize).
+ */
+function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
 
 /**
  * Ativa o modo "somente pontos". Salva o estado atual antes de alterar,
  * para possibilitar restauração posterior.
+ *
+ * Em viewports móveis, recolhe a sidebar para liberar espaço de tela.
  */
 async function enterRouteViewMode() {
+    // Recolhe a sidebar em mobile (idempotente: só age se estiver aberta)
+    if (isMobileViewport()) {
+        const sidebar = document.getElementById('sidebar');
+        const showBtn = document.getElementById('sidebarShowBtn');
+        if (sidebar && !sidebar.classList.contains('collapsed')) {
+            sidebar.classList.add('collapsed');
+            if (showBtn) showBtn.classList.remove('hidden');
+        }
+    }
+
+    // Se já estamos em modo "points" (apenas pontos), não recarrega nada.
     if (viewMode === 'points') return;
 
     if (previousViewModeBeforeRoute === null) {
@@ -60,6 +84,8 @@ async function enterRouteViewMode() {
 
 /**
  * Sai do modo "somente pontos", restaurando o modo anterior.
+ * Não reabre a sidebar automaticamente — em mobile o usuário controla
+ * quando mostrar o painel novamente.
  */
 async function exitRouteViewMode() {
     if (previousViewModeBeforeRoute === null) return;
@@ -146,14 +172,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleBtn = document.getElementById('sidebarToggle');
     const resetBtn = document.getElementById('resetBtn');
 
-    // ------------------------------------------------------------
-    // Mobile: inicia com a sidebar recolhida para priorizar o mapa.
-    // ------------------------------------------------------------
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    if (isMobile && sidebar) {
-        sidebar.classList.add('collapsed');
-    }
-
     if (sidebar && showBtn) {
         if (sidebar.classList.contains('collapsed')) {
             showBtn.classList.remove('hidden');
@@ -206,11 +224,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         await reloadLayers();
 
-        showLoading('Carregando Macrorregiões, Microrregiões e Hospitais...');
-        await Promise.all([
-            loadMicroMacroRegions(),
-            loadHospitalsData()
-        ]);
+        showLoading('Carregando Macrorregiões, Microrregiões, Hospitais e Hidrantes...');
+	await Promise.all([
+	    loadMicroMacroRegions(),
+	    loadHospitalsData(),
+	    loadHidrantesData()
+	]);
 
         await reloadLayers();
         zoomToAllFeatures();

@@ -131,17 +131,32 @@ function extractCoordinates(geometry) {
 function zoomToAllFeatures() {
     const bounds = new L.LatLngBounds();
     let hasFeatures = false;
+
     for (const layerId in overlayLayers) {
         const layer = overlayLayers[layerId];
         if (!map.hasLayer(layer)) continue;
-        layer.eachLayer(l => {
-            if (l.feature?.geometry) {
-                extractCoordinates(l.feature.geometry).forEach(c => {
-                    bounds.extend(c);
-                    hasFeatures = true;
-                });
+
+        // Wrapper FeatureGroup (cluster) e L.geoJSON ambos expõem getBounds()
+        if (typeof layer.getBounds === 'function') {
+            const b = layer.getBounds();
+            if (b && b.isValid()) {
+                bounds.extend(b);
+                hasFeatures = true;
+                continue;
             }
-        });
+        }
+
+        // Fallback (não deve ocorrer, mas garante robustez)
+        if (typeof layer.eachLayer === 'function') {
+            layer.eachLayer(l => {
+                if (l.feature?.geometry) {
+                    extractCoordinates(l.feature.geometry).forEach(c => {
+                        bounds.extend(c);
+                        hasFeatures = true;
+                    });
+                }
+            });
+        }
     }
     if (hasFeatures) map.fitBounds(bounds, { padding: [50, 50] });
     else map.setView([-15.7934, -47.8822], 4);

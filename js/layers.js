@@ -168,6 +168,37 @@ async function loadHospitalsData() {
     }
 }
 
+async function loadHidrantesData() {
+    try {
+        const existing = await DB.getLayers();
+        if (existing.some(l => l.name && l.name.toLowerCase().includes('hidrante'))) {
+            console.log('Dados de hidrantes já carregados.');
+            return;
+        }
+        const res = await fetch('./data/hidrantes/hidrantes.geojson');
+        if (!res.ok) throw new Error('Arquivo de hidrantes não encontrado');
+        const geojson = await res.json();
+
+        if (Array.isArray(geojson.features)) {
+            geojson.features.forEach(f => {
+                if (!f.properties) f.properties = {};
+                f.properties._tipo = 'HIDRANTE';
+            });
+        }
+
+        await DB.saveLayer({
+            name: 'Hidrantes',
+            type: 'geojson',
+            order: 35,
+            geojson
+        });
+        console.log(`Camada Hidrantes importada (${geojson.features?.length || 0} feições).`);
+    } catch (e) {
+        console.warn('Erro ao carregar hidrantes:', e);
+    }
+}
+
+
 // ===========================================================================
 // CARREGAMENTO PROGRESSIVO DE LOGRADOUROS
 // ===========================================================================
@@ -460,6 +491,16 @@ function getFeatureClassification(feature) {
     }
 
     if (geomType === 'Point') {
+
+        // Detecta pelo marcador interno, propriedades típicas ou nome da camada
+	if (
+	    props._tipo === 'HIDRANTE' ||
+	    props.numHidrante || props.codigo_hidrante || props.HIDRANTE ||
+	    (props.tipo && /hidrante/i.test(String(props.tipo))) ||
+	    (props.Tipo && /hidrante/i.test(String(props.Tipo)))
+	) {
+	    return 'HIDRANTE';
+	}
         if (props._tipo === 'CHAMADA' || props.numChamada) {
             return 'CHAMADA';
         }
@@ -538,6 +579,35 @@ function formatFeatureTooltip(feature) {
     const props = feature.properties || {};
     const type = getFeatureClassification(feature);
     const coords = getFeatureCoords(feature);
+
+if (type === 'HIDRANTE') {
+    const p = props;
+    const coordsStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '-';
+    const situacao = String(p.situacao || p.Situacao || p.status || 'Ativo').trim();
+    const sn = situacao.toLowerCase();
+    let badgeCls = 'badge-tempo-verde';
+    if (sn.includes('manut'))       badgeCls = 'badge-tempo-amarelo';
+    else if (sn.includes('inativ')) badgeCls = 'badge-tempo-vermelho';
+
+    return `
+        <div class="feature-card-header" style="background: linear-gradient(135deg, #1f618d 0%, #2e86c1 100%);">
+            <h4 class="feature-card-title">🚰 Hidrante ${p.numHidrante || p.codigo || p.id || 's/n'}</h4>
+            <span class="feature-type-tag">${p.tipo || 'Hidrante'}</span>
+        </div>
+        <div class="feature-card-body">
+            <div class="feature-info-grid">
+                ${p.endereco ? `<div class="feature-info-row" style="flex-direction:column;align-items:flex-start;"><span class="feature-info-label">Endereço:</span><span class="feature-info-value" style="text-align:left;font-size:11px;">${p.endereco}</span></div>` : ''}
+                ${(p.municipio || p.Município) ? `<div class="feature-info-row"><span class="feature-info-label">Município:</span><span class="feature-info-value">${p.municipio || p.Município}</span></div>` : ''}
+                ${p.diametro ? `<div class="feature-info-row"><span class="feature-info-label">Diâmetro:</span><span class="feature-info-value">${p.diametro}</span></div>` : ''}
+                ${p.vazao ? `<div class="feature-info-row"><span class="feature-info-label">Vazão:</span><span class="feature-info-value">${p.vazao}</span></div>` : ''}
+                <div class="feature-info-row"><span class="feature-info-label">Situação:</span><span class="feature-info-value"><span class="feature-badge ${badgeCls}">${situacao}</span></span></div>
+                ${p.ultimaManutencao ? `<div class="feature-info-row"><span class="feature-info-label">Últ. manutenção:</span><span class="feature-info-value" style="font-size:11px;">${p.ultimaManutencao}</span></div>` : ''}
+                ${p.responsavel ? `<div class="feature-info-row"><span class="feature-info-label">Responsável:</span><span class="feature-info-value" style="font-size:11px;">${p.responsavel}</span></div>` : ''}
+                <div class="feature-info-row"><span class="feature-info-label">Coordenadas:</span><span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span></div>
+            </div>
+        </div>
+    `;
+}
 
     if (type === 'CHAMADA') {
         const st = (typeof getChamadaSituationStyle === 'function')
@@ -1041,6 +1111,123 @@ function formatFeaturePopup(feature) {
     `;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers internos reaproveitados nos dois caminhos (cluster / tradicional)
+// ---------------------------------------------------------------------------
+function _applyStyle(feature, isStreetLayer) {
+    if (isStreetLayer) {
+        return { color: '#64748b', weight: 1.3, opacity: 0.78, lineCap: 'round', lineJoin: 'round' };
+    }
+    const type = getFeatureClassification(feature);
+    const props = feature.properties || {};
+
+    if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+        if (type === 'EVENTO_FOGO') {
+            const indice  = Number(props.indice_prioridade);
+            const persist = Number(props.persistencia_dias) || 0;
+            let fillColor = '#f39c12', strokeColor = '#b9770e', fillOpacity = 0.22, weight = 1.5;
+            if (Number.isFinite(indice)) {
+                if (indice >= 0.7)      { fillColor = '#c0392b'; strokeColor = '#7b241c'; fillOpacity = 0.35; weight = 2.2; }
+                else if (indice >= 0.4) { fillColor = '#e67e22'; strokeColor = '#a04000'; fillOpacity = 0.28; weight = 1.8; }
+                else                    { fillColor = '#f1c40f'; strokeColor = '#b7950b'; fillOpacity = 0.20; weight = 1.4; }
+            } else if (String(props.status_evento || '').toLowerCase().includes('ativo')) {
+                fillColor = '#e74c3c'; strokeColor = '#922b21'; fillOpacity = 0.30; weight = 2;
+            }
+            if (persist >= 5 && Number.isFinite(indice) && indice >= 0.7) weight = 2.8;
+            return { fillColor, color: strokeColor, weight, opacity: 0.95, fillOpacity };
+        }
+        if (type === 'MICRORREGIAO') return { fillColor: '#27ae60', fillOpacity: 0.18, color: '#1e8449', weight: 1.2, opacity: 0.85 };
+        if (type === 'MACRORREGIAO') return { fillColor: '#8e44ad', fillOpacity: 0.12, color: '#6c3483', weight: 1.8, opacity: 0.9 };
+        return {
+            fillColor: props.fill || '#0288d1',
+            fillOpacity: props['fill-opacity'] !== undefined ? Number(props['fill-opacity']) : 0.3,
+            color: props.stroke || '#0288d1',
+            weight: props['stroke-width'] !== undefined ? Number(props['stroke-width']) : 1.5,
+            opacity: props['stroke-opacity'] !== undefined ? Number(props['stroke-opacity']) : 1
+        };
+    }
+    return {};
+}
+
+function _bindMarkerInteractions(marker, feature) {
+    marker.bindTooltip(formatFeatureTooltip(feature), {
+        sticky: true, className: 'feature-tooltip', direction: 'auto', opacity: 0.98
+    });
+    marker.bindPopup(formatFeaturePopup(feature), {
+        className: 'feature-popup', maxWidth: 360, closeButton: false
+    });
+    marker.on('mouseover', () => {
+        const type = resolveIconType(feature);
+        const opts = (typeof buildIconOptsForFeature === 'function')
+            ? buildIconOptsForFeature(feature, true) : { emphasis: true };
+        marker.setIcon(createFeatureIcon(type, opts));
+        marker.setZIndexOffset(1000);
+    });
+    marker.on('mouseout', () => {
+        const type = resolveIconType(feature);
+        const opts = (typeof buildIconOptsForFeature === 'function')
+            ? buildIconOptsForFeature(feature, false) : {};
+        marker.setIcon(createFeatureIcon(type, opts));
+        marker.setZIndexOffset(0);
+    });
+    marker.on('click', (e) => {
+        if (mapClickMode) { L.DomEvent.stopPropagation(e); handleFeatureClick(e, feature, marker); }
+    });
+}
+
+function _bindPolygonInteractions(layer, feature, getParentGeoJSON) {
+    layer.bindTooltip(formatFeatureTooltip(feature), {
+        sticky: true, className: 'feature-tooltip', direction: 'auto', opacity: 0.98
+    });
+    layer.bindPopup(formatFeaturePopup(feature), {
+        className: 'feature-popup', maxWidth: 360, closeButton: false
+    });
+    layer.on('mouseover', function () {
+        if (layer instanceof L.Marker) return;
+        if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+            layer.setStyle({ weight: 3, color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.4 });
+        }
+    });
+    layer.on('mouseout', function () {
+        // Lazy: só resolve o pai quando o mouse sai — nesse ponto já está atribuído.
+        const parent = typeof getParentGeoJSON === 'function' ? getParentGeoJSON() : null;
+        if (parent) parent.resetStyle(layer);
+    });
+    layer.on('click', (e) => {
+        if (mapClickMode) { L.DomEvent.stopPropagation(e); handleFeatureClick(e, feature, layer); }
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Ícone customizado de cluster (coerente com a paleta institucional)
+// ---------------------------------------------------------------------------
+function _clusterIconCreate(cluster) {
+    const count = cluster.getChildCount();
+    let size = 40, fontSize = 14;
+    if (count >= 100) { size = 60; fontSize = 13; }
+    else if (count >= 10) { size = 50; fontSize = 14; }
+
+    return L.divIcon({
+        html: `<div style="
+            background: rgba(31,97,141,0.92);
+            color:#fff; border-radius:50%;
+            width:${size}px; height:${size}px;
+            display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:${fontSize}px;
+            border:3px solid rgba(255,255,255,0.85);
+            box-shadow:0 3px 8px rgba(0,0,0,0.3);
+            text-shadow:0 1px 2px rgba(0,0,0,0.4);
+        ">${count}</div>`,
+        className: 'marker-cluster-custom',
+        iconSize: L.point(size, size)
+    });
+}
+
+// ---------------------------------------------------------------------------
+// addLayerToMap — única porta de entrada, decide cluster vs. tradicional
+// ---------------------------------------------------------------------------
+const CLUSTER_THRESHOLD = 150;   // acima disso, camadas de pontos usam cluster
+
 function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
     if (!layerData.geojson || !map) return;
 
@@ -1051,200 +1238,127 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
         });
     }
 
-    const geojsonLayer = L.geoJSON(layerData.geojson, {
-        filter: function (feature) {
-            const classification = getFeatureClassification(feature);
-            if (classification === 'MUNICIPIO') return false;
-            if (mode === 'none') return false;
-            if (mode === 'points') return feature.geometry.type === 'Point';
-            return true;
-        },
+    const allFeatures = layerData.geojson.features || [];
+    const pointFeatures    = allFeatures.filter(f => f?.geometry?.type === 'Point');
+    const nonPointFeatures = allFeatures.filter(f => f?.geometry && f.geometry.type !== 'Point');
 
-        style: function (feature) {
-            if (isStreetLayer) {
-                return {
-                    color: '#64748b',
-                    weight: 1.3,
-                    opacity: 0.78,
-                    lineCap: 'round',
-                    lineJoin: 'round'
-                };
+    const useCluster =
+        !isStreetLayer &&
+        typeof L.markerClusterGroup === 'function' &&
+        pointFeatures.length >= CLUSTER_THRESHOLD;
+
+    // =====================================================================
+    // CAMINHO 1 — tradicional (L.geoJSON único) — mantido para compatibilidade
+    // =====================================================================
+    if (!useCluster) {
+        const geojsonLayer = L.geoJSON(layerData.geojson, {
+            filter: function (feature) {
+                const classification = getFeatureClassification(feature);
+                if (classification === 'MUNICIPIO') return false;
+                if (mode === 'none') return false;
+                if (mode === 'points') return feature.geometry.type === 'Point';
+                return true;
+            },
+            style: (feature) => _applyStyle(feature, isStreetLayer),
+            pointToLayer: (feature, latlng) => {
+                const type = resolveIconType(feature);
+                const opts = (typeof buildIconOptsForFeature === 'function')
+                    ? buildIconOptsForFeature(feature, false) : {};
+                return L.marker(latlng, {
+                    icon: createFeatureIcon(type, opts),
+                    riseOnHover: true, keyboard: true,
+                    title: getFeatureDisplayName(feature)
+                });
+            },
+            onEachFeature: (feature, layer) => {
+                if (isStreetLayer) {
+                    const info = getFeatureStreetInfo(feature.properties, layerData.name);
+                    const name = info ? info.fullName : (feature.properties?.NM_LOG || 'Logradouro');
+                    const mun = info ? info.munName : '';
+                    layer.bindTooltip(`<strong>${name}</strong>${mun ? `<br><small>${mun}</small>` : ''}`, {
+                        sticky: true, direction: 'top', opacity: 0.95, className: 'feature-tooltip'
+                    });
+                    layer.bindPopup(`<div style="font-family:sans-serif;font-size:13px;padding:4px 2px;"><strong>🛣️ ${name}</strong>${mun ? `<br><span style="color:#64748b;font-size:12px;">${mun} – MG</span>` : ''}</div>`, { maxWidth: 280 });
+                    layer.on('mouseover', e => e.target.setStyle({ weight: 2.6, color: '#334155', opacity: 1 }));
+                    layer.on('mouseout', e => geojsonLayer.resetStyle(e.target));
+                    return;
+                }
+                if (layer instanceof L.Marker) {
+	            _bindMarkerInteractions(layer, feature);
+	        } else {
+                     _bindPolygonInteractions(layer, feature, () => geojsonLayer);
+	        }
             }
+        });
 
-            const type = getFeatureClassification(feature);
-            const props = feature.properties || {};
+        geojsonLayer.addTo(map);
+        overlayLayers[layerData.id] = geojsonLayer;
+        if (!isStreetLayer) {
+            const hasPoints = pointFeatures.length > 0;
+            if (hasPoints) geojsonLayer.bringToFront();
+        } else {
+            geojsonLayer.bringToBack();
+        }
+        return;
+    }
 
-            if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+    // =====================================================================
+    // CAMINHO 2 — CLUSTERING (camadas de muitos pontos)
+    // =====================================================================
+    const wrapper = L.featureGroup();
 
-                if (type === 'EVENTO_FOGO') {
-                    const indice  = Number(props.indice_prioridade);
-                    const persist = Number(props.persistencia_dias) || 0;
+    // (a) cluster de pontos
+    if (mode !== 'none' && pointFeatures.length > 0) {
+        const clusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 55,
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            zoomToBoundsOnClick: true,
+            removeOutsideVisibleBounds: true,
+            chunkedLoading: true,
+            chunkInterval: 200,          // ms por chunk → evita travar a UI
+            chunkDelay: 50,
+            disableClusteringAtZoom: 17, // a partir daqui, pinos soltos
+            iconCreateFunction: _clusterIconCreate
+        });
 
-                    let fillColor   = '#f39c12';
-                    let strokeColor = '#b9770e';
-                    let fillOpacity = 0.22;
-                    let weight      = 1.5;
-
-                    if (Number.isFinite(indice)) {
-                        if (indice >= 0.7)      { fillColor = '#c0392b'; strokeColor = '#7b241c'; fillOpacity = 0.35; weight = 2.2; }
-                        else if (indice >= 0.4) { fillColor = '#e67e22'; strokeColor = '#a04000'; fillOpacity = 0.28; weight = 1.8; }
-                        else                    { fillColor = '#f1c40f'; strokeColor = '#b7950b'; fillOpacity = 0.20; weight = 1.4; }
-                    } else if (String(props.status_evento || '').toLowerCase().includes('ativo')) {
-                        fillColor = '#e74c3c'; strokeColor = '#922b21'; fillOpacity = 0.30; weight = 2;
-                    }
-
-                    if (persist >= 5 && Number.isFinite(indice) && indice >= 0.7) {
-                        weight = 2.8;
-                    }
-
-                    return { fillColor, color: strokeColor, weight, opacity: 0.95, fillOpacity };
-                }
-
-                if (type === 'MICRORREGIAO') {
-                    return {
-                        fillColor: '#27ae60',
-                        fillOpacity: 0.18,
-                        color: '#1e8449',
-                        weight: 1.2,
-                        opacity: 0.85
-                    };
-                }
-                if (type === 'MACRORREGIAO') {
-                    return {
-                        fillColor: '#8e44ad',
-                        fillOpacity: 0.12,
-                        color: '#6c3483',
-                        weight: 1.8,
-                        opacity: 0.9
-                    };
-                }
-                return {
-                    fillColor: props.fill || '#0288d1',
-                    fillOpacity: props['fill-opacity'] !== undefined ? Number(props['fill-opacity']) : 0.3,
-                    color: props.stroke || '#0288d1',
-                    weight: props['stroke-width'] !== undefined ? Number(props['stroke-width']) : 1.5,
-                    opacity: props['stroke-opacity'] !== undefined ? Number(props['stroke-opacity']) : 1
-                };
-            }
-        },
-
-        pointToLayer: (feature, latlng) => {
+        pointFeatures.forEach(feature => {
+            if (getFeatureClassification(feature) === 'MUNICIPIO') return;
+            const latlng = L.latLng(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
             const type = resolveIconType(feature);
             const opts = (typeof buildIconOptsForFeature === 'function')
-                ? buildIconOptsForFeature(feature, false)
-                : {};
-
-            return L.marker(latlng, {
+                ? buildIconOptsForFeature(feature, false) : {};
+            const marker = L.marker(latlng, {
                 icon: createFeatureIcon(type, opts),
-                riseOnHover: true,
-                keyboard: true,
+                riseOnHover: true, keyboard: true,
                 title: getFeatureDisplayName(feature)
             });
-        },
+            _bindMarkerInteractions(marker, feature);
+            clusterGroup.addLayer(marker);
+        });
 
-        onEachFeature: (feature, layer) => {
-
-            if (isStreetLayer) {
-                const info = getFeatureStreetInfo(feature.properties, layerData.name);
-                const name = info ? info.fullName : (feature.properties?.NM_LOG || 'Logradouro');
-                const mun = info ? info.munName : '';
-
-                layer.bindTooltip(`<strong>${name}</strong>${mun ? `<br><small>${mun}</small>` : ''}`, {
-                    sticky: true,
-                    direction: 'top',
-                    opacity: 0.95,
-                    className: 'feature-tooltip'
-                });
-
-                layer.bindPopup(`
-                    <div style="font-family:sans-serif;font-size:13px;padding:4px 2px;">
-                        <strong>🛣️ ${name}</strong>
-                        ${mun ? `<br><span style="color:#64748b;font-size:12px;">${mun} – MG</span>` : ''}
-                    </div>
-                `, { maxWidth: 280 });
-
-                layer.on('mouseover', function (e) {
-                    e.target.setStyle({ weight: 2.6, color: '#334155', opacity: 1 });
-                });
-                layer.on('mouseout', function (e) {
-                    geojsonLayer.resetStyle(e.target);
-                });
-
-                return;
-            }
-
-            layer.bindTooltip(formatFeatureTooltip(feature), {
-                sticky: true,
-                className: 'feature-tooltip',
-                direction: 'auto',
-                opacity: 0.98
-            });
-
-            layer.bindPopup(formatFeaturePopup(feature), {
-                className: 'feature-popup',
-                maxWidth: 360,
-                closeButton: false
-            });
-
-            layer.on('mouseover', function (e) {
-                const l = e.target;
-
-                if (l instanceof L.Marker) {
-                    const type = resolveIconType(feature);
-                    const opts = (typeof buildIconOptsForFeature === 'function')
-                        ? buildIconOptsForFeature(feature, true)
-                        : { emphasis: true };
-                    l.setIcon(createFeatureIcon(type, opts));
-                    l.setZIndexOffset(1000);
-                    return;
-                }
-
-                if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-                    l.setStyle({
-                        weight: 3,
-                        color: '#f39c12',
-                        fillColor: '#f39c12',
-                        fillOpacity: 0.4
-                    });
-                }
-            });
-
-            layer.on('mouseout', function (e) {
-                const l = e.target;
-
-                if (l instanceof L.Marker) {
-                    const type = resolveIconType(feature);
-                    const opts = (typeof buildIconOptsForFeature === 'function')
-                        ? buildIconOptsForFeature(feature, false)
-                        : {};
-                    l.setIcon(createFeatureIcon(type, opts));
-                    l.setZIndexOffset(0);
-                    return;
-                }
-
-                geojsonLayer.resetStyle(e.target);
-            });
-
-            layer.on('click', (e) => {
-                if (mapClickMode) {
-                    L.DomEvent.stopPropagation(e);
-                    handleFeatureClick(e, feature, layer);
-                }
-            });
-        }
-    });
-
-    geojsonLayer.addTo(map);
-    overlayLayers[layerData.id] = geojsonLayer;
-
-    if (!isStreetLayer) {
-        const hasPoints = layerData.geojson.features.some(f => f.geometry.type === 'Point');
-        if (hasPoints) {
-            geojsonLayer.bringToFront();
-        }
-    } else {
-        geojsonLayer.bringToBack();
+        wrapper.addLayer(clusterGroup);
     }
+
+    // (b) polígonos/linhas seguem L.geoJSON (não entram no cluster)
+    if (nonPointFeatures.length > 0 && mode !== 'none' && mode !== 'points') {
+        const polyGeoJSON = { type: 'FeatureCollection', features: nonPointFeatures };
+        const polyLayer = L.geoJSON(polyGeoJSON, {
+            filter: f => getFeatureClassification(f) !== 'MUNICIPIO',
+            style: (feature) => _applyStyle(feature, isStreetLayer),
+            onEachFeature: (feature, layer) => {
+                // getter preguiçoso — polyLayer é atribuído após o construtor retornar
+                _bindPolygonInteractions(layer, feature, () => polyLayer);
+            }
+        });
+        wrapper.addLayer(polyLayer);
+    }
+
+    wrapper.addTo(map);
+    overlayLayers[layerData.id] = wrapper;
+
+    if (!isStreetLayer) wrapper.bringToFront();
+    else wrapper.bringToBack();
 }
 
 async function renameLayer(layerId) {
@@ -1317,17 +1431,12 @@ function updateLayerListUI() {
                 e.stopPropagation();
                 const lyr = overlayLayers[layer.id];
                 if (!lyr || !map) return;
-                const bounds = L.latLngBounds();
-                lyr.eachLayer(l => {
-                    if (l.feature?.geometry) {
-                        extractCoordinates(l.feature.geometry).forEach(c => bounds.extend(c));
-                    }
-                });
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [40, 40] });
-                } else {
-                    showToast('Camada sem feições visíveis para enquadrar.', 'info');
-                }
+                const bounds = (typeof lyr.getBounds === 'function') ? lyr.getBounds() : null;
+		if (bounds && bounds.isValid()) {
+		    map.fitBounds(bounds, { padding: [40, 40] });
+		} else {
+		    showToast('Camada sem feições visíveis para enquadrar.', 'info');
+		}
             });
 
             const nameSpan = document.createElement('span');

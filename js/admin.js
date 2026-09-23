@@ -438,6 +438,17 @@ const FEATURE_FIELD_SCHEMAS = {
         { key: 'Hospitais_de_Referencia_Macrorregiao', label: 'Hospitais de Referência da Macro (um por linha):', type: 'textarea' },
         { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo):', type: 'textarea' }
     ],
+HIDRANTE: [
+    { key: 'numHidrante',        label: 'Número / Código do Hidrante:', type: 'text' },
+    { key: 'tipo',               label: 'Tipo (Coluna / Subterrâneo / ...):', type: 'text' },
+    { key: 'endereco',           label: 'Endereço completo:', type: 'text' },
+    { key: 'municipio',          label: 'Município:', type: 'text' },
+    { key: 'diametro',           label: 'Diâmetro (mm):', type: 'text' },
+    { key: 'vazao',              label: 'Vazão (L/min):', type: 'text' },
+    { key: 'situacao',           label: 'Situação (Ativo / Inativo / Em manutenção):', type: 'text' },
+    { key: 'ultimaManutencao',   label: 'Última manutenção (AAAA-MM-DD):', type: 'text' },
+    { key: 'responsavel',        label: 'Órgão responsável:', type: 'text' }
+],
     POLYGON: [
         { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text' },
         { key: 'NM_MUN', label: 'Município Sede / Referência:', type: 'text' },

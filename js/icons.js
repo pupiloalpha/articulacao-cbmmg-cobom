@@ -31,6 +31,38 @@ const FEATURE_ICON_CONFIG = {
         description: 'Unidade de Pronto Atendimento',
         size: 36
     },
+HIDRANTE: {
+    // SVG de hidrante de coluna (bonnet + dois braços + base flangeada)
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <!-- Porca superior de operação -->
+        <rect x="13.2" y="2.1" width="5.6" height="2.2" rx="0.7" fill="#0e3d5c"/>
+        <!-- Bonnet (domo) -->
+        <path d="M11.4 9 Q11.4 4.8 16 4.3 Q20.6 4.8 20.6 9 Z" fill="#2e86c1"/>
+        <!-- Anel do bonnet -->
+        <rect x="11.4" y="8.6" width="9.2" height="1.5" fill="#1f618d"/>
+        <!-- Braço esquerdo -->
+        <rect x="6.6" y="13.2" width="5.2" height="3" rx="0.8" fill="#0e3d5c"/>
+        <rect x="6.6" y="13.4" width="1.3" height="2.6" rx="0.4" fill="#1f618d"/>
+        <!-- Braço direito -->
+        <rect x="20.2" y="13.2" width="5.2" height="3" rx="0.8" fill="#0e3d5c"/>
+        <rect x="24.1" y="13.4" width="1.3" height="2.6" rx="0.4" fill="#1f618d"/>
+        <!-- Corpo (coluna) -->
+        <rect x="11.7" y="9.4" width="8.6" height="17" rx="0.4" fill="#1f618d"/>
+        <!-- Hub central -->
+        <circle cx="16" cy="14.6" r="2.1" fill="#2e86c1" stroke="#0e3d5c" stroke-width="0.7"/>
+        <circle cx="16" cy="14.6" r="0.7" fill="#0e3d5c"/>
+        <!-- Flange da base -->
+        <rect x="9.1" y="26" width="13.8" height="3" rx="0.7" fill="#0e3d5c"/>
+        <rect x="9.5" y="26.3" width="13" height="0.6" fill="#2e86c1" opacity="0.55"/>
+        <!-- Realce lateral -->
+        <rect x="12.4" y="10.4" width="1.2" height="15.6" rx="0.3" fill="#5499c7" opacity="0.55"/>
+    </svg>`,
+    bg: '#eaf2f8',            // fundo azul-claro para destacar o hidrante azul
+    border: '#1f618d',
+    label: 'Hidrante',
+    description: 'Hidrante de incêndio urbano',
+    size: 36
+},
     EVENTO_FOGO: {
         emoji: '🔥',
         bg: '#e67e22',
@@ -93,6 +125,25 @@ const FEATURE_ICON_CONFIG = {
 const _iconCache = new Map();
 
 /**
+ * Retorna o conteúdo interno de um "swatch" (bolinha com ícone):
+ * SVG quando cfg.svg existir, senão o emoji.
+ * `pxSize` controla o tamanho do SVG inline (emoji usa font-size).
+ */
+function _swatchInner(cfg, pxSize) {
+    if (cfg.svg) {
+        return `<span style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:${pxSize}px;
+            height:${pxSize}px;
+            line-height:1;
+        ">${cfg.svg}</span>`;
+    }
+    return cfg.emoji || '📍';
+}
+
+/**
  * Retorna o tipo visual correto para uma feição.
  * Detecta UPA vs. Hospital dentro da classificação HOSPITAL.
  */
@@ -141,17 +192,26 @@ function createFeatureIcon(type, opts = {}) {
             ">${badge}</span>`
         : '';
 
-    const html = `
-        <div class="pin-marker" style="
-            --pin-bg: ${bg};
-            --pin-border: ${border};
-            width: ${size}px;
-            height: ${size}px;
-        ">
-            <span class="pin-emoji" style="font-size:${emojiSize}px;">${cfg.emoji}</span>
-            ${badgeHtml}
-        </div>
-    `;
+    const innerHtml = cfg.svg
+    ? `<span class="pin-svg" style="
+            width:${Math.round(size * 0.68)}px;
+            height:${Math.round(size * 0.68)}px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        ">${cfg.svg}</span>`
+    : `<span class="pin-emoji" style="font-size:${emojiSize}px;">${cfg.emoji}</span>`;
+
+const html = `
+    <div class="pin-marker" style="
+        --pin-bg: ${bg};
+        --pin-border: ${border};
+        width: ${size}px;
+        height: ${size}px;
+    ">
+        ${innerHtml}
+        ${badgeHtml}
+    </div>`;
 
     const icon = L.divIcon({
         className: 'feature-pin-wrapper',
@@ -202,22 +262,22 @@ async function renderLegend() {
 
     const types = await collectPresentIconTypes();
     // Ordem preferencial
-    const order = ['UNIDADE_BM', 'HOSPITAL', 'UPA', 'EVENTO_FOGO',
-                   'MACRORREGIAO', 'MICRORREGIAO', 'POLYGON', 'POI', 'DEFAULT'];
+    const order = ['UNIDADE_BM', 'HOSPITAL', 'UPA', 'HIDRANTE', 'EVENTO_FOGO',
+               'MACRORREGIAO', 'MICRORREGIAO', 'POLYGON', 'POI', 'DEFAULT'];
 
     types.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
     ul.innerHTML = types.map(type => {
-        const cfg = FEATURE_ICON_CONFIG[type] || FEATURE_ICON_CONFIG.DEFAULT;
-        return `
-            <li class="legend-item" title="${cfg.description}">
-                <span class="legend-swatch" style="
-                    background:${cfg.bg};
-                    border-color:${cfg.border};
-                ">${cfg.emoji}</span>
-                <span class="legend-label">${cfg.label}</span>
-            </li>
-        `;
+    const cfg = FEATURE_ICON_CONFIG[type] || FEATURE_ICON_CONFIG.DEFAULT;
+    return `
+        <li class="legend-item" title="${cfg.description}">
+            <span class="legend-swatch" style="
+                background:${cfg.bg};
+                border-color:${cfg.border};
+            ">${_swatchInner(cfg, 16)}</span>
+            <span class="legend-label">${cfg.label}</span>
+        </li>
+    `;
     }).join('');
 }
 
@@ -269,10 +329,10 @@ function buildLayerIconHtml(layer, maxVisible = 3) {
     const remaining = types.length - visible.length;
 
     const icons = visible.map(type => {
-        const cfg = FEATURE_ICON_CONFIG[type] || FEATURE_ICON_CONFIG.DEFAULT;
-        return `<span class="layer-icon-badge"
-                      style="--layer-icon-bg:${cfg.bg}; --layer-icon-border:${cfg.border};"
-                      title="${cfg.label}">${cfg.emoji}</span>`;
+    const cfg = FEATURE_ICON_CONFIG[type] || FEATURE_ICON_CONFIG.DEFAULT;
+    return `<span class="layer-icon-badge"
+                  style="--layer-icon-bg:${cfg.bg}; --layer-icon-border:${cfg.border};"
+                  title="${cfg.label}">${_swatchInner(cfg, 14)}</span>`;
     }).join('');
 
     const more = remaining > 0
@@ -284,9 +344,6 @@ function buildLayerIconHtml(layer, maxVisible = 3) {
 
 /**
  * Monta as opções de ícone específicas por tipo de feição.
- * Hoje cobre:
- *  - CHAMADA       → cor por situação operacional
- *  - EVENTO_FOGO   → badge ★ quando prioridade alta
  */
 function buildIconOptsForFeature(feature, emphasis = false) {
     const opts = { emphasis };
