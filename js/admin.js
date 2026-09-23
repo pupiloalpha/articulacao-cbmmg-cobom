@@ -101,6 +101,21 @@ function setupFloatingSearch() {
     // Estado inicial (caso o campo já venha preenchido, ex.: autofill)
     syncClearVisibility();
 
+    // =========================================================
+    // Limpa o dropdown sempre que o estado da sidebar mudar.
+    // Evita "resultados fantasma" ao reabrir a barra em mobile.
+    // =========================================================
+    const sidebarEl = document.getElementById('sidebar');
+    if (sidebarEl && typeof MutationObserver !== 'undefined') {
+        const sidebarObserver = new MutationObserver(() => {
+            closeResults();
+        });
+        sidebarObserver.observe(sidebarEl, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+
     // Fecha ao clicar fora do container
     document.addEventListener('click', (e) => {
         if (!wrapper.contains(e.target)) closeResults();

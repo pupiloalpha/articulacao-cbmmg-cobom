@@ -1752,6 +1752,37 @@ body {
     }
 }
 
+@media (min-width: 769px) {
+    /* Centraliza a busca sobre a área do mapa, não da viewport inteira */
+    #sidebar:not(.collapsed) ~ #floatingSearch {
+        left: calc(50% + 170px); /* metade da largura da sidebar */
+        transition: left 0.25s ease;
+    }
+}
+
+/* =========================================================
+   Mobile: oculta a busca flutuante quando o drawer lateral
+   está aberto — segue o padrão "um overlay por vez".
+   ========================================================= */
+@media (max-width: 768px) {
+    #sidebar:not(.collapsed) ~ #floatingSearch {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translate(-50%, -12px);
+        transition: opacity 0.2s ease, transform 0.25s ease, visibility 0s linear 0.2s;
+    }
+}
+
+/* Safe area (iOS com notch / Dynamic Island) */
+.floating-search {
+    padding-top: env(safe-area-inset-top, 0);
+}
+
+.sidebar-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0));
+}
+
 /* ==========================================================================
    POPUP DE BRIEFING DA ORIGEM (enriquecido)
    ========================================================================== */
