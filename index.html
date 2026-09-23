@@ -120,7 +120,7 @@
     </div>
 </div>
 
-<!-- NOVO: Legenda dinâmica de ícones -->
+<!-- Legenda dinâmica de ícones -->
 <div id="legendSection">
     <h3>Legenda</h3>
     <ul id="legendUl" class="legend-list"></ul>
@@ -129,6 +129,21 @@
 
     <!-- Mapa -->
     <div id="map"></div>
+
+<!-- Busca flutuante no topo do mapa -->
+<div id="floatingSearch" class="floating-search">
+    <div class="floating-search-box" id="floatingSearchBox">
+        <span class="floating-search-icon">🔍</span>
+        <input type="text" id="floatingSearchInput"
+               placeholder="Pesquisar endereço, local ou coordenada..."
+               autocomplete="off" spellcheck="false">
+        <button type="button" id="floatingSearchClear" class="btn-clear"
+                title="Limpar busca" aria-label="Limpar busca">✕</button>
+        <button type="button" id="floatingSearchBtn" class="btn-buscar"
+                title="Buscar">Buscar</button>
+    </div>
+    <div id="floatingSearchResults" class="floating-search-results hidden"></div>
+</div>
 
 <!-- Overlay de carregamento (spinner central) -->
 <div id="map-loading-overlay" class="map-loading-overlay">

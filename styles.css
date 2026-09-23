@@ -1548,24 +1548,355 @@ body {
 }
 
 /* ==========================================================================
-   LEAFLET MARKERCLUSTER — animações críticas (inline; evita dependência externa)
-   Fonte: leaflet.markercluster@1.5.3/dist/MarkerCluster.css
-   O CSS visual (.marker-cluster-small etc.) não é necessário: usamos
-   iconCreateFunction com divIcon customizado em layers.js.
+   CAIXA DE BUSCA FLUTUANTE SOBRE O MAPA (topo-centro)
    ========================================================================== */
-.leaflet-cluster-anim .leaflet-marker-icon,
-.leaflet-cluster-anim .leaflet-marker-shadow {
-    -webkit-transition: -webkit-transform 0.3s ease-out, opacity 0.3s ease-in;
-    -o-transition: -o-transform 0.3s ease-out, opacity 0.3s ease-in;
-    transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+.floating-search {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1500;
+    width: calc(100% - 24px);
+    max-width: 540px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
 }
-.leaflet-cluster-spider-leg {
-    -webkit-transition: -webkit-stroke-dashoffset 0.3s ease-out, -webkit-stroke-opacity 0.3s ease-in;
-    -o-transition: -o-stroke-dashoffset 0.3s ease-out, -o-stroke-opacity 0.3s ease-in;
-    transition: stroke-dashoffset 0.3s ease-out, stroke-opacity 0.3s ease-in;
+
+.floating-search-box {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 26px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.20),
+                0 1px 3px rgba(0, 0, 0, 0.10);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    pointer-events: auto;
+    transition: box-shadow 0.2s;
 }
-/* Neutraliza o estilo default do plugin (que depende do Default.css ausente) */
-.marker-cluster-custom {
-    background: transparent !important;
-    border: none !important;
+
+.floating-search-box:focus-within {
+    box-shadow: 0 8px 26px rgba(41, 128, 185, 0.30),
+                0 0 0 3px rgba(41, 128, 185, 0.15);
+}
+
+.floating-search-icon {
+    padding: 0 8px 0 16px;
+    font-size: 15px;
+    color: #95a5a6;
+    user-select: none;
+    line-height: 1;
+}
+
+.floating-search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 13px 4px;
+    font-size: 14px;
+    background: transparent;
+    color: var(--text-color);
+    min-width: 0;
+}
+
+.floating-search-box input::placeholder {
+    color: #95a5a6;
+}
+
+/* Botão limpar (X) — só aparece quando há texto digitado */
+.floating-search-box .btn-clear {
+    display: none;
+    background: transparent;
+    color: #95a5a6;
+    border: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-right: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+
+.floating-search-box .btn-clear:hover {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+
+.floating-search-box.has-text .btn-clear {
+    display: inline-flex;
+}
+
+/* Botão Buscar (pill integrado) */
+.floating-search-box .btn-buscar {
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    padding: 0 22px;
+    height: 100%;
+    min-height: 46px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, letter-spacing 0.15s;
+    border-left: 1px solid rgba(0, 0, 0, 0.06);
+    flex-shrink: 0;
+}
+
+.floating-search-box .btn-buscar:hover {
+    background: var(--primary-dark);
+    letter-spacing: 0.6px;
+}
+
+.floating-search-box .btn-buscar:active {
+    background: #4a0d0d;
+}
+
+/* =========================================================
+   Resultados do dropdown flutuante
+   ========================================================= */
+.floating-search-results {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+    max-height: 360px;
+    overflow-y: auto;
+    pointer-events: auto;
+    padding: 6px;
+    animation: floating-results-in 0.18s ease-out;
+}
+
+.floating-search-results.hidden {
+    display: none;
+}
+
+@keyframes floating-results-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar mais discreta no dropdown */
+.floating-search-results::-webkit-scrollbar { width: 6px; }
+.floating-search-results::-webkit-scrollbar-thumb { background: #d5dbdb; border-radius: 3px; }
+.floating-search-results::-webkit-scrollbar-thumb:hover { background: #aab7b8; }
+
+/* Itens do resultado — layout mais espaçado dentro do dropdown */
+.floating-search-results .search-result-item {
+    margin: 0 0 4px 0;
+    padding: 9px 11px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+.floating-search-results .search-result-item:last-child {
+    margin-bottom: 0;
+}
+.floating-search-results .search-result-item:hover {
+    background: #f0f7fb;
+    border-color: var(--accent-color);
+    transform: none;
+}
+.floating-search-results .search-status-msg {
+    margin: 4px;
+}
+
+/* Botão "Rota" embutido em cada resultado */
+.btn-result-route {
+    background: var(--accent-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 3px 9px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+    margin-left: auto;
+}
+
+.btn-result-route:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.btn-result-route:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+    .floating-search {
+        width: calc(100% - 100px);
+        left: calc(50% + 20px);
+    }
+    .floating-search-box .btn-buscar {
+        padding: 0 14px;
+        font-size: 12px;
+        min-height: 42px;
+    }
+}
+
+/* ==========================================================================
+   POPUP DE BRIEFING DA ORIGEM (enriquecido)
+   ========================================================================== */
+.feature-popup.origin-brief-popup .leaflet-popup-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+}
+
+.origin-brief {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    color: #2c3e50;
+    min-width: 300px;
+    max-width: 380px;
+}
+
+.origin-brief-header {
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #c0392b 0%, #7b241c 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-radius: 6px 6px 0 0;
+}
+
+.origin-brief-header-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.origin-brief-header-coords {
+    font-size: 10.5px;
+    font-family: monospace;
+    opacity: 0.85;
+}
+
+.origin-brief-body {
+    padding: 4px 12px 10px;
+    background: #fff;
+    border-radius: 0 0 6px 6px;
+}
+
+.origin-brief-loading {
+    padding: 14px 12px;
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    background: #fff;
+    border-radius: 0 0 6px 6px;
+    font-size: 12px;
+}
+
+.origin-brief-row {
+    display: flex;
+    gap: 9px;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f2f5;
+    align-items: flex-start;
+}
+.origin-brief-row:last-child {
+    border-bottom: none;
+}
+
+.origin-brief-icon {
+    font-size: 16px;
+    line-height: 1.2;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+    user-select: none;
+}
+
+.origin-brief-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.origin-brief-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+}
+
+.origin-brief-value-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.origin-brief-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2c3e50;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.origin-brief-distance {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-color);
+    font-family: monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Botão compacto de rota dentro das linhas do briefing */
+.btn-brief-route {
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 4px;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn-brief-route:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.btn-brief-route:active {
+    transform: translateY(0);
+}
+
+.origin-brief-muted {
+    color: #95a5a6;
+    font-style: italic;
+    font-weight: 500;
 }

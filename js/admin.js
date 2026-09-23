@@ -26,6 +26,87 @@ function setupAuth() {
     }
 }
 
+function setupFloatingSearch() {
+    const input   = document.getElementById('floatingSearchInput');
+    const btn     = document.getElementById('floatingSearchBtn');
+    const clear   = document.getElementById('floatingSearchClear');
+    const box     = document.getElementById('floatingSearchBox');
+    const results = document.getElementById('floatingSearchResults');
+    const wrapper = document.getElementById('floatingSearch');
+    if (!input || !btn || !results || !wrapper) return;
+
+    let debounceTimer = null;
+
+    const syncClearVisibility = () => {
+        if (!box) return;
+        if (input.value.trim().length > 0) box.classList.add('has-text');
+        else                                box.classList.remove('has-text');
+    };
+
+    const closeResults = () => {
+        results.classList.add('hidden');
+        results.innerHTML = '';
+    };
+
+    const runSearch = () => {
+        const q = input.value.trim();
+        if (q.length < 3) { closeResults(); return; }
+        results.classList.remove('hidden');
+        searchAddress(q, 'floatingSearchResults');
+    };
+
+    btn.addEventListener('click', runSearch);
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+    });
+
+    input.addEventListener('input', () => {
+        syncClearVisibility();
+        clearTimeout(debounceTimer);
+        const q = input.value.trim();
+        if (!q) { closeResults(); return; }
+        if (q.length >= 3) {
+            debounceTimer = setTimeout(() => {
+                results.classList.remove('hidden');
+                searchAddress(q, 'floatingSearchResults');
+            }, 400);
+        }
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeResults(); input.blur(); }
+    });
+
+        if (clear) {
+        clear.addEventListener('click', async () => {
+            // 1) Limpa o próprio input flutuante (resetAll não o conhece)
+            input.value = '';
+            syncClearVisibility();
+            closeResults();
+
+            // 2) Executa a mesma rotina do botão "🗑️ Limpar Pesquisa"
+            if (typeof window.resetAll === 'function') {
+                try {
+                    await window.resetAll();
+                } catch (e) {
+                    console.warn('Falha ao limpar seleção via botão ✕:', e);
+                }
+            }
+
+            input.focus();
+        });
+    }
+
+    // Estado inicial (caso o campo já venha preenchido, ex.: autofill)
+    syncClearVisibility();
+
+    // Fecha ao clicar fora do container
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) closeResults();
+    });
+}
+
 async function sha256(str) {
     try {
         const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));

@@ -202,19 +202,308 @@ async function checkPolygonContainment(lat, lng) {
     return containingPolygons;
 }
 
+// Token de cancelamento — evita recomputar briefing em drags/GPS sucessivos
+let _originBriefingToken = 0;
+
+/**
+ * Constrói o "briefing operacional" da origem:
+ *  - Responsabilidade BM (polígono de articulação)
+ *  - Unidade BM mais próxima (ponto)
+ *  - Macrorregião / Microrregião de Saúde (polígonos)
+ *  - Hospital/UPA de referência mais próxima
+ *  - Hidrante mais próximo
+ *  - Evento de fogo mais próximo (centroide do polígono)
+ */
+async function buildOriginBriefing(lat, lng) {
+    const originPoint = turf.point([lng, lat]);
+
+    // --- Polígonos que contêm o ponto ---
+    const containing = await checkPolygonContainment(lat, lng);
+
+    const bmArticulation = containing.find(p =>
+        p.layerName && (
+            p.layerName.toLowerCase().includes('articula') ||
+            p.layerName.toLowerCase().includes('cbmmg') ||
+            p.layerName.toLowerCase().includes('bombeiro')
+        )
+    ) || null;
+
+    const macroRegion = containing.find(p => p.classification === 'MACRORREGIAO') || null;
+    const microRegion = containing.find(p => p.classification === 'MICRORREGIAO') || null;
+
+    // --- Vizinhos mais próximos (uma passada única) ---
+    let nearestUnit     = null;  // UNIDADE_BM
+    let nearestHospital = null;  // HOSPITAL / UPA
+    let nearestHidrante = null;  // HIDRANTE
+    let nearestFogo     = null;  // EVENTO_FOGO
+
+    const classify = (typeof getFeatureClassification === 'function')
+        ? getFeatureClassification
+        : () => 'OTHER';
+    const checkUpa = (typeof isUPA === 'function')
+        ? isUPA
+        : () => false;
+
+    const allLayers = await DB.getLayers();
+
+    for (const layer of allLayers) {
+        if (!layer?.geojson?.features) continue;
+
+        for (const f of layer.geojson.features) {
+            const classification = classify(f);
+            if (classification === 'OTHER' || classification === 'MUNICIPIO') continue;
+
+            // Só consideramos UNIDADE_BM / HOSPITAL / HIDRANTE via ponto,
+            // EVENTO_FOGO via centroide do polígono.
+            let coord = null;
+            if (f.geometry?.type === 'Point') {
+                coord = { lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] };
+            } else if (classification === 'EVENTO_FOGO' &&
+                       (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon')) {
+                try {
+                    const c = turf.center(f);
+                    coord = { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+                } catch (_) { /* ignora */ }
+            }
+            if (!coord) continue;
+
+            const distKm = turf.distance(originPoint,
+                turf.point([coord.lng, coord.lat]),
+                { units: 'kilometers' });
+
+            if (classification === 'UNIDADE_BM') {
+                if (!nearestUnit || distKm < nearestUnit.distance) {
+                    nearestUnit = {
+                        distance: distKm,
+                        coord,
+                        name: f.properties?.name
+                            || f.properties?.['Nome da Unidade']
+                            || 'Unidade BM',
+                        ueop: f.properties?.UEOP || f.properties?.['BBM / CIA IND'] || '',
+                        layerName: layer.name
+                    };
+                }
+            } else if (classification === 'HOSPITAL') {
+                if (!nearestHospital || distKm < nearestHospital.distance) {
+                    const upa = checkUpa(f);
+                    nearestHospital = {
+                        distance: distKm,
+                        coord,
+                        isUpa: upa,
+                        name: f.properties?.['Nome do Hospital']
+                            || f.properties?.name
+                            || (upa ? 'UPA' : 'Hospital'),
+                        municipio: f.properties?.Município
+                            || f.properties?.Municipio
+                            || ''
+                    };
+                }
+            } else if (classification === 'HIDRANTE') {
+                if (!nearestHidrante || distKm < nearestHidrante.distance) {
+                    nearestHidrante = {
+                        distance: distKm,
+                        coord,
+                        name: f.properties?.numHidrante
+                            || f.properties?.codigo_hidrante
+                            || f.properties?.codigo
+                            || 's/n',
+                        tipo: f.properties?.tipo || 'Hidrante',
+                        endereco: f.properties?.endereco || ''
+                    };
+                }
+            } else if (classification === 'EVENTO_FOGO') {
+                if (!nearestFogo || distKm < nearestFogo.distance) {
+                    nearestFogo = {
+                        distance: distKm,
+                        coord,
+                        id: f.properties?.id_evento,
+                        status: f.properties?.status_evento || '',
+                        municipio: f.properties?.municipio || ''
+                    };
+                }
+            }
+        }
+    }
+
+    return {
+        bmArticulation,
+        macroRegion,
+        microRegion,
+        nearestUnit,
+        nearestHospital,
+        nearestHidrante,
+        nearestFogo
+    };
+}
+
+function _fmtDistance(km) {
+    if (km == null || !Number.isFinite(km)) return '';
+    if (km < 1) return `${Math.round(km * 1000)} m`;
+    if (km < 10) return `${km.toFixed(2)} km`;
+    return `${km.toFixed(1)} km`;
+}
+
+function _briefRow(icon, label, value, distanceText = '', extraClass = '', route = null) {
+    if (!value) return '';
+    const dist = distanceText
+        ? `<span class="origin-brief-distance">${distanceText}</span>`
+        : '';
+
+    let routeBtn = '';
+    if (route && route.coord) {
+        const safeName = String(route.name || 'Destino').replace(/'/g, "\\'");
+        const reverse = !!route.reverseRoute;
+        routeBtn = `
+            <button type="button" class="btn-brief-route"
+                    title="Calcular rota até aqui"
+                    onclick="event.stopPropagation(); if (typeof window.routeToFeature === 'function') window.routeToFeature(${route.coord.lng}, ${route.coord.lat}, '${safeName}', ${reverse});">
+                🚗
+            </button>`;
+    }
+
+    return `
+        <div class="origin-brief-row">
+            <div class="origin-brief-icon">${icon}</div>
+            <div class="origin-brief-text">
+                <div class="origin-brief-label">${label}</div>
+                <div class="origin-brief-value-row">
+                    <span class="origin-brief-value ${extraClass}">${value}</span>
+                    ${dist}
+                    ${routeBtn}
+                </div>
+            </div>
+        </div>`;
+}
+
 async function updateOriginPopup(lat, lng, description) {
-    const containingPolygons = await checkPolygonContainment(lat, lng);
-    let popupContent = `<b>Origem:</b> ${description}<br>`;
-    if (containingPolygons.length > 0) {
-        popupContent += `<b>Dentro de:</b> ${containingPolygons.map(p => p.featureName).join(', ')}<br>`;
+    if (!originMarker) return;
+
+    const token = ++_originBriefingToken;
+    const safeDesc = (typeof escapeHtml === 'function')
+        ? escapeHtml(description || 'Origem')
+        : (description || 'Origem');
+
+    // 1) Estado "carregando" imediato
+    originMarker.setPopupContent(`
+        <div class="origin-brief">
+            <div class="origin-brief-header">
+                <div class="origin-brief-header-title">📍 ${safeDesc}</div>
+                <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+            </div>
+            <div class="origin-brief-loading">⏳ Analisando entorno operacional...</div>
+        </div>
+    `);
+    originMarker.openPopup();
+
+    // 2) Cálculo assíncrono
+    let briefing;
+    try {
+        briefing = await buildOriginBriefing(lat, lng);
+    } catch (e) {
+        console.warn('Falha ao montar briefing da origem:', e);
+        briefing = null;
+    }
+
+    // Descarta se outro cálculo mais recente foi disparado (drag/GPS)
+    if (token !== _originBriefingToken) return;
+    if (!originMarker) return;
+
+    const esc = (typeof escapeHtml === 'function')
+        ? escapeHtml
+        : (s => String(s == null ? '' : s));
+
+    let html = `<div class="origin-brief">
+        <div class="origin-brief-header">
+            <div class="origin-brief-header-title">📍 ${safeDesc}</div>
+            <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+        </div>
+        <div class="origin-brief-body">`;
+
+    if (!briefing) {
+        html += `<div class="origin-brief-muted" style="padding:10px 0;">Não foi possível analisar o entorno.</div>`;
     } else {
-        popupContent += 'Não está dentro de nenhum polígono.<br>';
+        // Responsabilidade territorial BM
+        if (briefing.bmArticulation) {
+            html += _briefRow('🚒', 'Responsabilidade BM',
+                esc(briefing.bmArticulation.featureName),
+                esc(briefing.bmArticulation.layerName || ''));
+        } else {
+            html += _briefRow('🚒', 'Responsabilidade BM',
+                'Fora de polígonos mapeados', '', 'origin-brief-muted');
+        }
+
+        // Unidade BM mais próxima  → rota Unidade → origem (reverseRoute = true)
+        if (briefing.nearestUnit) {
+            html += _briefRow('🚨', 'Unidade BM mais próxima',
+                esc(briefing.nearestUnit.name),
+                _fmtDistance(briefing.nearestUnit.distance),
+                '',
+                {
+                    coord: briefing.nearestUnit.coord,
+                    name: briefing.nearestUnit.name,
+                    reverseRoute: true
+                });
+        }
+
+        // Hospital / UPA mais próxima → rota origem → hospital (reverseRoute = false)
+        if (briefing.nearestHospital) {
+            const tipo = briefing.nearestHospital.isUpa ? 'UPA' : 'Hospital';
+            html += _briefRow('🏥', `${tipo} de referência mais próxima`,
+                esc(briefing.nearestHospital.name),
+                _fmtDistance(briefing.nearestHospital.distance),
+                '',
+                {
+                    coord: briefing.nearestHospital.coord,
+                    name: briefing.nearestHospital.name,
+                    reverseRoute: false
+                });
+        }
+
+        // Hidrante mais próximo
+        if (briefing.nearestHidrante) {
+            html += _briefRow('💧', 'Hidrante mais próximo',
+                `Hidrante ${esc(briefing.nearestHidrante.name)}`,
+                _fmtDistance(briefing.nearestHidrante.distance),
+                '',
+                {
+                    coord: briefing.nearestHidrante.coord,
+                    name: `Hidrante ${briefing.nearestHidrante.name}`,
+                    reverseRoute: false
+                });
+        }
+
+        // Evento de fogo mais próximo
+        if (briefing.nearestFogo) {
+            html += _briefRow('🔥', 'Evento de fogo mais próximo',
+                `Evento #${esc(briefing.nearestFogo.id ?? '-')}` +
+                (briefing.nearestFogo.status ? ` • ${esc(briefing.nearestFogo.status)}` : ''),
+                _fmtDistance(briefing.nearestFogo.distance),
+                '',
+                {
+                    coord: briefing.nearestFogo.coord,
+                    name: `Evento #${briefing.nearestFogo.id ?? '-'}`,
+                    reverseRoute: false
+                });
+        } else {
+            html += _briefRow('🔥', 'Evento de fogo mais próximo',
+                'Nenhum evento em MG', '', 'origin-brief-muted');
+        }
+
+        // Regiões de saúde
+        if (briefing.macroRegion) {
+            html += _briefRow('🩺', 'Macrorregião de Saúde',
+                esc(briefing.macroRegion.featureName));
+        }
+        if (briefing.microRegion) {
+            html += _briefRow('🩺', 'Microrregião de Saúde',
+                esc(briefing.microRegion.featureName));
+        }
     }
-    popupContent += 'Arraste para ajustar.';
-    if (originMarker) {
-        originMarker.setPopupContent(popupContent);
-        originMarker.openPopup();
-    }
+
+    html += `</div></div>`;
+
+    originMarker.setPopupContent(html);
+    originMarker.openPopup();
 }
 
 function setOrigin(lat, lng, description) {
@@ -225,7 +514,18 @@ function setOrigin(lat, lng, description) {
         icon: window.originIcon
     }).addTo(map);
 
-    originMarker.bindPopup(`<b>Origem:</b> ${description}<br>Arraste para ajustar.`).openPopup();
+    originMarker.bindPopup(
+        `<b>Origem:</b> ${description}<br>Arraste para ajustar.`,
+        {
+            className: 'feature-popup origin-brief-popup',
+            maxWidth: 420,
+            minWidth: 300,
+            maxHeight: 420,
+            closeButton: true,
+            autoPanPadding: [40, 60]
+        }
+    ).openPopup();
+
     updateOriginPopup(lat, lng, description);
 
     originMarker.on('dragend', () => {

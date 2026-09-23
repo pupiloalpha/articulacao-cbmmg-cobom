@@ -253,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupGpsTracking();
     setupTileDownload();
     initEditFeatureModalListeners();
+    setupFloatingSearch();
 
     // ============================================================
     // 2. Botão "Definir origem no mapa"

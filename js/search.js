@@ -284,8 +284,8 @@ function streetNameScore(candidate, queryTokens) {
  * BUSCA ONLINE (prioritária quando conectado)
  * ============================================================
  */
-async function searchAddressOnline(rawQuery, parsed) {
-    const resultsDiv = document.getElementById('searchResults');
+async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults') {
+    const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
@@ -294,7 +294,6 @@ async function searchAddressOnline(rawQuery, parsed) {
         let data = [];
         const seenPlaceIds = new Set();
 
-        // Viewbox aproximado de Minas Gerais (left, top, right, bottom)
         const viewbox = '-51.0,-14.0,-39.5,-23.0';
 
         const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
@@ -302,7 +301,7 @@ async function searchAddressOnline(rawQuery, parsed) {
         const isIncomplete = !hasClearStreet || parsed.isIntersection ||
             (parsed.streetPart || '').split(/\s+/).filter(Boolean).length <= 2;
 
-        // ---------- 1. Structured (quando temos rua clara) ----------
+        // ---------- 1. Structured ----------
         if (hasClearStreet) {
             const streetParam = hasNumber
                 ? `${parsed.streetPart} ${parsed.number}`.trim()
@@ -327,9 +326,7 @@ async function searchAddressOnline(rawQuery, parsed) {
             const response = await fetch(url, {
                 method: 'GET',
                 mode: 'cors',
-                headers: {
-                    'Accept': 'application/json'
-                },
+                headers: { 'Accept': 'application/json' },
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -346,7 +343,7 @@ async function searchAddressOnline(rawQuery, parsed) {
             }
         }
 
-        // ---------- 2. Free-form (sempre poderoso para queries incompletas / interseções) ----------
+        // ---------- 2. Free-form ----------
         if (data.length < 4 || isIncomplete || parsed.isIntersection) {
             const freeParams = new URLSearchParams({
                 format: 'json',
@@ -382,7 +379,7 @@ async function searchAddressOnline(rawQuery, parsed) {
             }
         }
 
-        // ---------- 3. Fallback extra sem city ----------
+        // ---------- 3. Fallback extra ----------
         if (data.length === 0 && parsed.city && hasClearStreet) {
             const streetParam = hasNumber
                 ? `${parsed.streetPart} ${parsed.number}`.trim()
@@ -424,12 +421,10 @@ async function searchAddressOnline(rawQuery, parsed) {
         }
 
         if (!Array.isArray(data) || data.length === 0) {
-            // Não encontrou online → permite fallback offline
             resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Nada encontrado online. Verificando base local...</div>';
             return false;
         }
 
-        // Scoring e mapeamento
         const onlineResults = data.map(item => {
             let score = 55;
             const addr = item.address || {};
@@ -451,7 +446,6 @@ async function searchAddressOnline(rawQuery, parsed) {
             }
             if (parsed.isIntersection) score += 12;
 
-            // Bônus se o display_name contém partes da query original
             const displayNorm = normalizeStr(item.display_name || '');
             const queryTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
                 .split(/\s+/)
@@ -475,11 +469,10 @@ async function searchAddressOnline(rawQuery, parsed) {
         });
 
         onlineResults.sort((a, b) => b.score - a.score);
-        displaySearchResults(onlineResults.slice(0, 12));
+        displaySearchResults(onlineResults.slice(0, 12), targetId);  // ← passa targetId
 
     } catch (error) {
         console.error('Erro na busca online:', error);
-        // Retorna false para o caller fazer fallback offline
         resultsDiv.innerHTML = '<div class="search-status-msg">⚠️ Busca online indisponível (CORS/rede). Tentando base local...</div>';
         return false;
     }
@@ -491,8 +484,8 @@ async function searchAddressOnline(rawQuery, parsed) {
  * BUSCA OFFLINE (somente quando não há conexão)
  * ============================================================
  */
-async function searchAddressOffline(rawQuery, parsed) {
-    const resultsDiv = document.getElementById('searchResults');
+async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults') {
+    const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
     resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
@@ -692,16 +685,21 @@ async function searchAddressOffline(rawQuery, parsed) {
                         const resultKey = `${name}__${layer.name}`;
                         if (!seenAddresses.has(resultKey)) {
                             seenAddresses.add(resultKey);
-                            matchedResults.push({
-                                title: name,
-                                munBadge: layer.name,
-                                address: `${name} (${layer.name})`,
-                                subtitle: `Feição na camada ${layer.name}`,
-                                lat: coords.lat,
-                                lng: coords.lng,
-                                source: 'offline_layer',
-                                score: normName === (parsed.streetPart || '') ? 90 : 30
-                            });
+                            const featClass = (typeof getFeatureClassification === 'function')
+			    ? getFeatureClassification(feature)
+			    : 'OTHER';
+
+			matchedResults.push({
+			    title: name,
+			    munBadge: layer.name,
+			    address: `${name} (${layer.name})`,
+			    subtitle: `Feição na camada ${layer.name}`,
+			    lat: coords.lat,
+			    lng: coords.lng,
+			    source: 'offline_layer',
+			    score: normName === (parsed.streetPart || '') ? 90 : 30,
+			    classification: featClass
+			});
                         }
                     }
                 }
@@ -725,17 +723,13 @@ async function searchAddressOffline(rawQuery, parsed) {
  * Função principal de entrada da busca.
  * Decide automaticamente entre online (prioritário) e offline.
  */
-async function searchAddress(query) {
-    const resultsDiv = document.getElementById('searchResults');
+async function searchAddress(query, targetId = 'searchResults') {
+    const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
     const rawQuery = String(query).trim();
-    if (!rawQuery) {
-        resultsDiv.innerHTML = '';
-        return;
-    }
+    if (!rawQuery) { resultsDiv.innerHTML = ''; return; }
 
-    // Evita disparar busca online com termos muito curtos (reduz spam no Nominatim)
     if (rawQuery.length < 3) {
         resultsDiv.innerHTML = '<div class="search-status-msg">Digite pelo menos 3 caracteres...</div>';
         return;
@@ -744,29 +738,26 @@ async function searchAddress(query) {
     const parsed = parseAddressQueryWithCity(rawQuery);
 
     if (navigator.onLine) {
-        // ===== ONLINE PRIORITÁRIO, com fallback automático para offline =====
         try {
-            const onlineOk = await searchAddressOnline(rawQuery, parsed);
-            // searchAddressOnline retorna false quando falhou (CORS/rede/vazio)
+            const onlineOk = await searchAddressOnline(rawQuery, parsed, targetId);
             if (onlineOk === false) {
-                console.warn('Busca online indisponível (CORS/rede). Alternando para base local...');
-                await searchAddressOffline(rawQuery, parsed);
+                console.warn('Busca online indisponível. Alternando para base local...');
+                await searchAddressOffline(rawQuery, parsed, targetId);
             }
         } catch (err) {
             console.warn('Falha na busca online, usando offline:', err);
-            await searchAddressOffline(rawQuery, parsed);
+            await searchAddressOffline(rawQuery, parsed, targetId);
         }
     } else {
-        // ===== OFFLINE SOMENTE =====
-        await searchAddressOffline(rawQuery, parsed);
+        await searchAddressOffline(rawQuery, parsed, targetId);
     }
 }
 
 /**
  * Exibe resultados e, no clique de resultado ONLINE, pré-carrega a malha do município.
  */
-function displaySearchResults(results) {
-    const resultsDiv = document.getElementById('searchResults');
+function displaySearchResults(results, targetId = 'searchResults') {
+    const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
     resultsDiv.innerHTML = '';
 
@@ -778,7 +769,7 @@ function displaySearchResults(results) {
         if (result.isIntersection) {
             extraBadge = `<span class="search-result-mun-badge" style="background:#fef3c7;color:#92400e;">🔀 Esquina</span>`;
         } else if (result.usedInterpolation || result.interpolationFailed) {
-            extraBadge = `<span class="search-result-mun-badge" style="background:#e8f4f8;color:#1a5276;">Busca realizada offline. Posição aproximada.</span>`;
+            extraBadge = `<span class="search-result-mun-badge" style="background:#e8f4f8;color:#1a5276;">aprox.</span>`;
         } else if (result.source === 'online_osm' && result.houseNumber) {
             extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">Nº ${escapeHtml(result.houseNumber)}</span>`;
         }
@@ -796,30 +787,27 @@ function displaySearchResults(results) {
             setOrigin(result.lat, result.lng, result.address);
             if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
+
+            if (targetId === 'floatingSearchResults') {
+                resultsDiv.classList.add('hidden');
+            }
+
             calculateDistancesToAllFeatures(result.lat, result.lng);
 
-            // ===== NOVO: pré-carregamento de malha quando o resultado é online =====
             if (result.source === 'online_osm' && navigator.onLine) {
-                // Extrai município do badge ou do endereço
                 let munToLoad = null;
                 if (result.munBadge && result.munBadge !== 'Online (OSM)') {
                     munToLoad = result.munBadge;
                 } else if (result.address) {
-                    // Tenta extrair do display_name (ex.: "... Belo Horizonte, Minas Gerais, Brasil")
                     const parts = result.address.split(',').map(p => p.trim());
-                    // Procura o município conhecido na lista IBGE
                     const allMuns = Object.values(IBGE_MUNICIPALITIES || {});
                     for (const part of parts) {
                         const found = allMuns.find(m => normalizeStr(m) === normalizeStr(part));
-                        if (found) {
-                            munToLoad = found;
-                            break;
-                        }
+                        if (found) { munToLoad = found; break; }
                     }
                 }
 
                 if (munToLoad && typeof ensureStreetDataForMunicipality === 'function') {
-                    // Background – não bloqueia a UI
                     ensureStreetDataForMunicipality(munToLoad)
                         .then(ok => {
                             if (ok) {
@@ -829,7 +817,6 @@ function displaySearchResults(results) {
                         })
                         .catch(e => console.warn('Pré-carregamento de malha falhou:', e));
                 } else if (typeof loadStreetDataFromGitHub === 'function') {
-                    // Fallback: usa a query original / título
                     loadStreetDataFromGitHub(result.title || result.address)
                         .catch(e => console.warn('Pré-carregamento via query falhou:', e));
                 }
