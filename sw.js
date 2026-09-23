@@ -1,6 +1,7 @@
 // sw.js - Service Worker com estratégia Cache-First para assets estáticos
 
-const CACHE_NAME = 'gis-pwa-cache-v4';
+const CACHE_NAME = 'gis-pwa-cache-v6'; // ⚠️ Bump aqui sempre que alterar arquivos estáticos OU dados iniciais.
+                                       // Manter sincronizado com DATA_VERSION em app.js.
 const STATIC_ASSETS = [
     './',
     './index.html',
@@ -39,55 +40,69 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('Cache aberto');
+                console.log('[SW] Cache aberto:', CACHE_NAME);
                 return cache.addAll(STATIC_ASSETS);
             })
             .then(() => self.skipWaiting())
     );
 });
 
-// Ativação: limpa caches antigos
+// Ativação: limpa caches antigos e notifica os clients
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) {
+        caches.keys()
+            .then(cacheNames => Promise.all(
+                cacheNames
+                    .filter(cacheName => cacheName !== CACHE_NAME)
+                    .map(cacheName => {
+                        console.log('[SW] Removendo cache antigo:', cacheName);
                         return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+                    })
+            ))
+            .then(() => self.clients.claim())
+            .then(() => self.clients.matchAll({ includeUncontrolled: true }))
+            .then(clients => {
+                // Notifica os clientes sobre a nova versão ativa.
+                // app.js poderá comparar com DATA_VERSION e limpar o IndexedDB.
+                clients.forEach(client => {
+                    client.postMessage({
+                        type: 'SW_ACTIVATED',
+                        version: CACHE_NAME
+                    });
+                });
+            })
     );
 });
 
-// Estratégia: Cache-First com fallback para rede (exceto para tiles que são tratados pelo aplicativo)
+// Estratégia: Cache-First com fallback para rede
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
-    
-    // Ignora requisições de tiles OSM (serão tratadas pelo IndexedDB no app)
+
+    // Ignora requisições de tiles OSM (tratadas pelo IndexedDB no app)
     if (url.hostname.includes('tile.openstreetmap.org')) {
-        return; // Não intercepta, deixando a requisição seguir normalmente
+        return;
     }
-    
-    // Ignora requisições para Nominatim (API de geocodificação) se quiser cachear, pode incluir, mas vamos deixar passar
+
+    // Ignora Nominatim (geocodificação online)
     if (url.hostname.includes('nominatim.openstreetmap.org')) {
         return;
     }
-    
+
+    // Ignora OSRM (rotas)
+    if (url.hostname.includes('router.project-osrm.org')) {
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request)
             .then(cachedResponse => {
                 if (cachedResponse) {
                     return cachedResponse;
                 }
-                // Se não estiver no cache, busca na rede
                 return fetch(event.request).then(response => {
-                    // Verifica se a resposta é válida
                     if (!response || response.status !== 200 || response.type !== 'basic') {
                         return response;
                     }
-                    // Clona a resposta para armazenar no cache
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, responseToCache);
@@ -96,7 +111,6 @@ self.addEventListener('fetch', event => {
                 });
             })
             .catch(() => {
-                // Fallback offline para navegação
                 if (event.request.mode === 'navigate') {
                     return caches.match('./index.html');
                 }

@@ -38,9 +38,6 @@ class OfflineTileLayer extends L.TileLayer {
 function initMap() {
     map = L.map('map', { center: [-15.7934, -47.8822], zoom: 4, zoomControl: false });
 
-    // ------------------------------------------------------------------
-    // Ícones offline (SVG data-URL) – funcionam sem internet
-    // ------------------------------------------------------------------
     const originIconSvg = encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
   <path fill="#c0392b" stroke="#7b241c" stroke-width="1.2" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.3 21.7 0 14 0z"/>
@@ -69,11 +66,9 @@ function initMap() {
         popupAnchor: [0, -36]
     });
 
-    // Expõe globalmente para uso em setOrigin / focusOnFeature / drawStraightLine
     window.originIcon = originIcon;
     window.destIcon = destIcon;
 
-    // Fallback para qualquer outro marcador que ainda use o default do Leaflet
     L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -240,7 +235,6 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     const unitResults = [];
     const hospitalResults = [];
 
-    // ===== SEMPRE usa TODAS as camadas do banco (independente de visibilidade) =====
     const allLayers = await DB.getLayers();
     for (const layerData of allLayers) {
         if (!layerData?.geojson?.features) continue;
@@ -279,10 +273,8 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     const topUnits = unitResults.slice(0, 10);          // 10 unidades
     const topHospitals = hospitalResults.slice(0, 3);  // 3 hospitais
 
-    // ===== HTML do painel =====
     let html = '<div class="dispatch-panel">';
 
-    // Jurisdição
     let jurisdictionHtml = '';
     if (containingPolygons.length > 0) {
         jurisdictionHtml = containingPolygons.map(p => {
@@ -318,6 +310,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         </div>`;
 
     // ===== Unidades BM (Top 10) =====
+    // Direção da rota: Unidade → Local pesquisado (a viatura sai da Unidade)
     html += `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
             <span style="font-size:12px; font-weight:700; color:#2c3e50;">🚒 Unidades BM mais próximas (Top 10)</span>
@@ -335,9 +328,10 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
                 ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando...</span>`
                 : `<span class="eta-badge-straight">➡️ ${straightKm} km (reta)</span>`;
 
+            // reverseRoute = true → rota Unidade → origem
             html += `
                 <div class="dispatch-unit-card" id="dispatch-unit-card-${i}"
-                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
+                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, true)">
                     <div class="dispatch-unit-header">
                         <div class="dispatch-unit-name">
                             <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
@@ -353,6 +347,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     html += `</div>`;
 
     // ===== Hospitais (Top 3) =====
+    // Direção da rota: Local pesquisado → Hospital (paciente/vítima é transportado até o hospital)
     html += `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
             <span style="font-size:12px; font-weight:700; color:#2c3e50;">🏥 Hospitais de Referência (Top 3)</span>
@@ -366,9 +361,10 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         topHospitals.forEach((res, i) => {
             const straightKm = res.distanceKm.toFixed(2);
             const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
+            // reverseRoute = false → rota origem → Hospital
             html += `
                 <div class="dispatch-unit-card" id="dispatch-hosp-card-${i}"
-                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm})">
+                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, false)">
                     <div class="dispatch-unit-header">
                         <div class="dispatch-unit-name">
                             <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
@@ -385,23 +381,45 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
     distanceContainer.innerHTML = html;
 
-    // Dispara cálculo de rotas apenas para Top 3 BM + Top 3 Hospitais
     if (topUnits.length > 0 || topHospitals.length > 0) {
         fetchTopRoutesAsync(originLat, originLng, topUnits.slice(0, 3), topHospitals, reqId);
     }
 }
 
+/**
+ * Calcula ETA por via para as Top 3 Unidades BM e Top 3 Hospitais.
+ *
+ * IMPORTANTE — direção correta das rotas:
+ *   • Unidade BM: viatura parte da UNIDADE → vai ao LOCAL PESQUISADO.
+ *   • Hospital/UPA: paciente/vítima parte do LOCAL PESQUISADO → vai ao HOSPITAL.
+ */
 async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals, reqId) {
     const allCandidates = [
         ...topUnits.map((cand, index) => ({ type: 'unit', index, cand })),
         ...topHospitals.map((cand, index) => ({ type: 'hosp', index, cand }))
     ];
 
-    const routePromises = allCandidates.map(({ type, index, cand }) =>
-        getRouteDistance(originLat, originLng, cand.destination[1], cand.destination[0])
+    const routePromises = allCandidates.map(({ type, index, cand }) => {
+        // Determina ponto de partida e chegada conforme o tipo:
+        //  - Unidade BM:  Unidade → origem pesquisada  (reverseRoute = true)
+        //  - Hospital:    origem pesquisada → Hospital (reverseRoute = false)
+        let fromLat, fromLng, toLat, toLng;
+        if (type === 'unit') {
+            fromLat = cand.destination[1];  // lat da Unidade
+            fromLng = cand.destination[0];  // lng da Unidade
+            toLat   = originLat;            // lat do endereço pesquisado
+            toLng   = originLng;            // lng do endereço pesquisado
+        } else {
+            fromLat = originLat;            // endereço pesquisado
+            fromLng = originLng;
+            toLat   = cand.destination[1];  // Hospital
+            toLng   = cand.destination[0];
+        }
+
+        return getRouteDistance(fromLat, fromLng, toLat, toLng)
             .then(route => ({ type, index, cand, route }))
-            .catch(err => ({ type, index, cand, error: err }))
-    );
+            .catch(err => ({ type, index, cand, error: err }));
+    });
 
     const settled = await Promise.allSettled(routePromises);
     if (reqId !== currentRouteRequestId) return;
@@ -436,7 +454,6 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
         }
     });
 
-    // Destaque melhor ETA – Unidades
     if (bestUnitIndex >= 0) {
         const bestCard = document.getElementById(`dispatch-unit-card-${bestUnitIndex}`);
         const bestContainer = document.getElementById(`eta-container-unit-${bestUnitIndex}`);
@@ -445,11 +462,10 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
             const r = topUnits[bestUnitIndex].route;
             const durMin = Math.round(r.duration / 60);
             const distKm = (r.distance / 1000).toFixed(1);
-            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
+            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápida: ~${durMin} min (${distKm} km)</span>`;
         }
     }
 
-    // Destaque melhor ETA – Hospitais
     if (bestHospIndex >= 0) {
         const bestCard = document.getElementById(`dispatch-hosp-card-${bestHospIndex}`);
         const bestContainer = document.getElementById(`eta-container-hosp-${bestHospIndex}`);
@@ -484,7 +500,6 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
             clearTimeout(timeoutId);
         }
     }
-    // Fallback linha reta
     const from = turf.point([originLng, originLat]);
     const to = turf.point([destLng, destLat]);
     const straight = turf.distance(from, to, { units: 'kilometers' }) * 1000;
@@ -492,13 +507,9 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
 }
 
 // ============================================================
-// Rota Offline Aproximada (Janela Dinâmica) – versão melhorada
+// Rota Offline Aproximada (Janela Dinâmica)
 // ============================================================
 
-/**
- * Reverse geocode (Nominatim) para descobrir o município de um ponto.
- * Retorna o nome do município ou null.
- */
 async function reverseGeocodeCity(lat, lng) {
     if (!navigator.onLine) return null;
     try {
@@ -513,7 +524,6 @@ async function reverseGeocodeCity(lat, lng) {
         if (!res.ok) return null;
         const data = await res.json();
         const addr = data.address || {};
-        // Prioridade: city > town > municipality > county (comum em MG)
         const city = addr.city || addr.town || addr.municipality || addr.county || null;
         return city ? String(city).trim() : null;
     } catch (e) {
@@ -522,22 +532,15 @@ async function reverseGeocodeCity(lat, lng) {
     }
 }
 
-/**
- * Garante que as malhas de logradouros dos municípios da origem e do destino
- * estejam no IndexedDB. Só tenta baixar se estiver online.
- * Também reforça o núcleo RMBH.
- */
 async function ensureStreetsAroundPoints(originLat, originLng, destLat, destLng) {
-    // Sempre tenta o núcleo RMBH (já tem lógica de “já carregado”)
     if (typeof loadRMBHCoreStreets === 'function') {
         try { await loadRMBHCoreStreets(); } catch (_) {}
     }
 
-    if (!navigator.onLine) return; // offline → não há o que baixar
+    if (!navigator.onLine) return;
 
     const municipalities = new Set();
 
-    // Reverse geocode em paralelo
     const [cityOrigin, cityDest] = await Promise.all([
         reverseGeocodeCity(originLat, originLng),
         reverseGeocodeCity(destLat, destLng)
@@ -546,18 +549,15 @@ async function ensureStreetsAroundPoints(originLat, originLng, destLat, destLng)
     if (cityOrigin) municipalities.add(cityOrigin);
     if (cityDest) municipalities.add(cityDest);
 
-    // Também tenta extrair de possíveis polígonos de articulação já carregados
     try {
         const containing = await checkPolygonContainment(originLat, originLng);
         containing.forEach(p => {
             if (p.featureName && p.featureName.length > 3) {
-                // Pode ser nome de município em polígonos de articulação
                 municipalities.add(p.featureName);
             }
         });
     } catch (_) {}
 
-    // Baixa cada município encontrado
     for (const mun of municipalities) {
         if (typeof ensureStreetDataForMunicipality === 'function') {
             try {
@@ -568,16 +568,11 @@ async function ensureStreetsAroundPoints(originLat, originLng, destLat, destLng)
         }
     }
 
-    // Invalida índice de ruas para a próxima busca offline
     if (typeof invalidateStreetIndex === 'function') {
         invalidateStreetIndex();
     }
 }
 
-/**
- * Coleta segmentos de logradouro que intersectam o bbox.
- * Retorna array de { coords: [[lng,lat], ...], length }
- */
 async function collectStreetSegmentsInBbox(bbox) {
     const layers = await DB.getLayers();
     const segments = [];
@@ -591,7 +586,6 @@ async function collectStreetSegmentsInBbox(bbox) {
             const geom = feature.geometry;
             if (!geom || (geom.type !== 'LineString' && geom.type !== 'MultiLineString')) continue;
 
-            // Bbox rápido da feature
             let fMinLng = Infinity, fMinLat = Infinity, fMaxLng = -Infinity, fMaxLat = -Infinity;
             const processCoords = (c) => {
                 const lng = c[0], lat = c[1];
@@ -607,10 +601,8 @@ async function collectStreetSegmentsInBbox(bbox) {
                 geom.coordinates.forEach(line => line.forEach(processCoords));
             }
 
-            // Intersecta com o bbox da janela?
             if (fMaxLng < minLng || fMinLng > maxLng || fMaxLat < minLat || fMinLat > maxLat) continue;
 
-            // Extrai as linhas
             const lines = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
             for (const line of lines) {
                 if (line.length < 2) continue;
@@ -629,12 +621,8 @@ async function collectStreetSegmentsInBbox(bbox) {
     return segments;
 }
 
-/**
- * Constrói grafo simples a partir dos segmentos.
- * Nós identificados por chave "lng.toFixed(5),lat.toFixed(5)"
- */
 function buildStreetGraph(segments, maxEdges = 1500) {
-    const nodes = new Map(); // key → {lng, lat, edges: [{to, weight}]}
+    const nodes = new Map();
     let edgeCount = 0;
 
     const getKey = (lng, lat) => `${lng.toFixed(5)},${lat.toFixed(5)}`;
@@ -647,7 +635,6 @@ function buildStreetGraph(segments, maxEdges = 1500) {
         return key;
     };
 
-    // 1. Arestas ao longo de cada segmento
     for (const seg of segments) {
         if (edgeCount >= maxEdges) break;
         const coords = seg.coords;
@@ -658,14 +645,13 @@ function buildStreetGraph(segments, maxEdges = 1500) {
             const k1 = addNode(lng1, lat1);
             const k2 = addNode(lng2, lat2);
             const w = turf.distance(turf.point([lng1, lat1]), turf.point([lng2, lat2]), { units: 'meters' });
-            if (w < 0.5) continue; // ignora pontos quase idênticos
+            if (w < 0.5) continue;
             nodes.get(k1).edges.push({ to: k2, weight: w });
             nodes.get(k2).edges.push({ to: k1, weight: w });
             edgeCount += 2;
         }
     }
 
-    // 2. Conexões entre nós próximos (< 18 m) – une ruas diferentes
     const nodeKeys = Array.from(nodes.keys());
     for (let i = 0; i < nodeKeys.length && edgeCount < maxEdges; i++) {
         const n1 = nodes.get(nodeKeys[i]);
@@ -687,16 +673,13 @@ function buildStreetGraph(segments, maxEdges = 1500) {
     return { nodes, edgeCount };
 }
 
-/**
- * Dijkstra simples (retorna array de [lng, lat] ou null)
- */
 function dijkstra(graph, startKey, endKey) {
     const { nodes } = graph;
     if (!nodes.has(startKey) || !nodes.has(endKey)) return null;
 
     const dist = new Map();
     const prev = new Map();
-    const pq = []; // [distance, key]
+    const pq = [];
 
     for (const key of nodes.keys()) {
         dist.set(key, Infinity);
@@ -722,7 +705,6 @@ function dijkstra(graph, startKey, endKey) {
 
     if (!prev.has(endKey) && startKey !== endKey) return null;
 
-    // Reconstrói caminho
     const path = [];
     let cur = endKey;
     while (cur) {
@@ -734,9 +716,6 @@ function dijkstra(graph, startKey, endKey) {
     return path.length >= 2 ? path : null;
 }
 
-/**
- * Encontra o nó mais próximo de um ponto
- */
 function findNearestNode(graph, lng, lat) {
     let bestKey = null;
     let bestDist = Infinity;
@@ -754,24 +733,19 @@ function findNearestNode(graph, lng, lat) {
     return { key: bestKey, dist: bestDist };
 }
 
-/**
- * Função principal – Janela Dinâmica (melhorada)
- * Retorna { path: [[lng,lat],...], distanceMeters, attempts } ou null
- */
 async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
     const startTime = performance.now();
-    const TIMEOUT = 2800; // ms (aumentado)
+    const TIMEOUT = 2800;
     const MAX_EDGES = 1500;
 
-    // 1. Garante malhas dos municípios envolvidos (só baixa se online)
     try {
         await ensureStreetsAroundPoints(originLat, originLng, destLat, destLng);
     } catch (e) {
         console.warn('ensureStreetsAroundPoints:', e);
     }
 
-    let bufferKm = 0.5; // buffer inicial maior
-    const expansions = [0.7, 0.8, 1.0, 1.2]; // expansões mais generosas
+    let bufferKm = 0.5;
+    const expansions = [0.7, 0.8, 1.0, 1.2];
 
     for (let attempt = 0; attempt <= expansions.length; attempt++) {
         if (performance.now() - startTime > TIMEOUT) {
@@ -779,7 +753,6 @@ async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
             return null;
         }
 
-        // BBOX da linha origem-destino expandido
         const line = turf.lineString([[originLng, originLat], [destLng, destLat]]);
         const buffered = turf.buffer(line, bufferKm, { units: 'kilometers' });
         const bbox = turf.bbox(buffered);
@@ -801,7 +774,6 @@ async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
         const startSnap = findNearestNode(graph, originLng, originLat);
         const endSnap = findNearestNode(graph, destLng, destLat);
 
-        // Snap máximo aumentado para 180 m
         if (!startSnap.key || !endSnap.key || startSnap.dist > 180 || endSnap.dist > 180) {
             if (attempt < expansions.length) bufferKm += expansions[attempt];
             continue;
@@ -828,17 +800,12 @@ async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
     return null;
 }
 
-/**
- * Desenha a rota offline encontrada
- */
 function drawOfflineRoute(originPos, path, name, distanceMeters) {
     if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
     if (window.distanceMarker) { map.removeLayer(window.distanceMarker); window.distanceMarker = null; }
     if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
 
-    // Converte path [[lng,lat]] → [[lat,lng]] para Leaflet
     const latlngs = path.map(c => [c[1], c[0]]);
-    // Inclui origem e destino reais
     latlngs.unshift([originPos.lat, originPos.lng]);
     latlngs.push([path[path.length - 1][1], path[path.length - 1][0]]);
 
@@ -873,9 +840,10 @@ function drawOfflineRoute(originPos, path, name, distanceMeters) {
 }
 
 /**
- * Substitui a função drawStraightLine original
+ * Desenha linha reta entre origem e destino.
+ * O parâmetro reverseRoute apenas altera o rótulo (o traçado geométrico é idêntico).
  */
-function drawStraightLine(originPos, lat, lng, name, distance) {
+function drawStraightLine(originPos, lat, lng, name, distance, reverseRoute = false) {
     if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
     if (window.distanceMarker) { map.removeLayer(window.distanceMarker); window.distanceMarker = null; }
     if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
@@ -890,9 +858,13 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
 
     const distText = distance.toFixed(2);
 
+    const routeLabel = reverseRoute
+        ? `Viatura de <b>${name}</b> → local pesquisado`
+        : `Local pesquisado → <b>${name}</b>`;
+
     const popupContent = `
         <div style="font-family:sans-serif; max-width:280px;">
-            <b style="color:#c0392b; font-size:13px;">${name}</b><br>
+            <b style="color:#c0392b; font-size:13px;">${routeLabel}</b><br>
             <div style="margin-top:6px; font-size:12px; line-height:1.45;">
                 <b>Rota offline (linha reta)</b><br>
                 Distância aproximada: <b>${distText} km</b><br>
@@ -914,7 +886,6 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
 
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
 
-    // Listener do botão (depois que o popup abre)
     setTimeout(() => {
         const btn = document.getElementById('btnCalcOfflineRoute');
         if (btn) {
@@ -953,13 +924,37 @@ function drawStraightLine(originPos, lat, lng, name, distance) {
     showToast(`Rota offline: linha reta aproximada (${distText} km).`, 'warning', 4500);
 }
 
-async function focusOnFeature(lng, lat, name, distance) {
+/**
+ * Desenha a rota entre origem e a feição.
+ * @param {number}  lng
+ * @param {number}  lat
+ * @param {string}  name
+ * @param {number}  distance   distância em linha reta (km)
+ * @param {boolean} reverseRoute  true → rota feição → origem (Unidades BM);
+ *                                false → rota origem → feição (Hospitais)
+ */
+async function focusOnFeature(lng, lat, name, distance, reverseRoute = false) {
     if (!originMarker) return;
+
+    // 👇 Esconde feições (polígonos) durante a rota; restaura ao sair do modo rota.
+    if (typeof window.enterRouteViewMode === 'function') {
+        await window.enterRouteViewMode();
+    }
+
     const originPos = originMarker.getLatLng();
 
     if (window.distanceLine) { map.removeLayer(window.distanceLine); window.distanceLine = null; }
     if (window.distanceMarker) { map.removeLayer(window.distanceMarker); window.distanceMarker = null; }
     if (window.routingControl) { map.removeControl(window.routingControl); window.routingControl = null; }
+
+    const fromLat = reverseRoute ? lat : originPos.lat;
+    const fromLng = reverseRoute ? lng : originPos.lng;
+    const toLat   = reverseRoute ? originPos.lat : lat;
+    const toLng   = reverseRoute ? originPos.lng : lng;
+
+    const routeLabel = reverseRoute
+        ? `Viatura de <b>${name}</b> → local pesquisado`
+        : `Local pesquisado → <b>${name}</b>`;
 
     if (navigator.onLine) {
         const tempMarker = L.marker([lat, lng], {
@@ -968,10 +963,10 @@ async function focusOnFeature(lng, lat, name, distance) {
             .bindPopup(`<b>${name}</b><br>🚗 Carregando traçado da rota...`).openPopup();
 
         try {
-            const route = await getRouteDistance(originPos.lat, originPos.lng, lat, lng);
+            const route = await getRouteDistance(fromLat, fromLng, toLat, toLng);
             if (route && route.source !== 'straight') {
                 window.routingControl = L.Routing.control({
-                    waypoints: [L.latLng(originPos.lat, originPos.lng), L.latLng(lat, lng)],
+                    waypoints: [L.latLng(fromLat, fromLng), L.latLng(toLat, toLng)],
                     routeWhileDragging: false,
                     showAlternatives: false,
                     addWaypoints: false,
@@ -990,7 +985,7 @@ async function focusOnFeature(lng, lat, name, distance) {
                     }).addTo(map)
                         .bindPopup(`
                             <div style="font-family:sans-serif;">
-                                <b style="color:#c0392b; font-size:13px;">${name}</b><br>
+                                <b style="color:#c0392b; font-size:13px;">${routeLabel}</b><br>
                                 <div style="margin-top:4px; font-size:12px;">
                                     <b>Tempo estimado:</b> ~${dur} min<br>
                                     <b>Distância por via:</b> ${dist} km
@@ -1000,19 +995,19 @@ async function focusOnFeature(lng, lat, name, distance) {
 
                 window.routingControl.on('routingerror', () => {
                     map.removeLayer(tempMarker);
-                    drawStraightLine(originPos, lat, lng, name, distance);
+                    drawStraightLine(originPos, lat, lng, name, distance, reverseRoute);
                 });
                 return;
             } else {
                 map.removeLayer(tempMarker);
-                drawStraightLine(originPos, lat, lng, name, distance);
+                drawStraightLine(originPos, lat, lng, name, distance, reverseRoute);
             }
         } catch (e) {
             if (tempMarker) map.removeLayer(tempMarker);
-            drawStraightLine(originPos, lat, lng, name, distance);
+            drawStraightLine(originPos, lat, lng, name, distance, reverseRoute);
         }
     } else {
-        drawStraightLine(originPos, lat, lng, name, distance);
+        drawStraightLine(originPos, lat, lng, name, distance, reverseRoute);
     }
 }
 
@@ -1025,7 +1020,11 @@ window.setOriginFromFeature = function (lat, lng, name) {
     }
 };
 
-window.routeToFeature = function (lng, lat, name) {
+/**
+ * Rota até a feição. Passar reverseRoute = true quando a feição é uma
+ * Unidade BM (semântica: viatura sai da Unidade em direção à origem).
+ */
+window.routeToFeature = function (lng, lat, name, reverseRoute = false) {
     if (!originMarker) {
         showToast('Defina primeiro um ponto de origem.', 'warning');
         return;
@@ -1036,7 +1035,7 @@ window.routeToFeature = function (lng, lat, name) {
         turf.point([lng, lat]),
         { units: 'kilometers' }
     );
-    focusOnFeature(lng, lat, name, distance);
+    focusOnFeature(lng, lat, name, distance, reverseRoute);
 };
 
 window.copyFeatureCoords = function (lat, lng) {

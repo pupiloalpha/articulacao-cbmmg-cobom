@@ -82,26 +82,60 @@ async function fetchEventosMG() {
     }
 }
 
+/**
+ * Busca os índices de prioridade dos eventos para MG.
+ *
+ * O endpoint /eventos/prioridades historicamente rejeitou o parâmetro `bbox`
+ * com HTTP 400. Como /eventos?sigla_estado=MG é o filtro já validado para o
+ * endpoint principal, replicamos aqui esse mesmo padrão como primeira
+ * tentativa e mantemos fallbacks progressivos.
+ *
+ * Em caso de falha total, retorna null — o app segue funcionando, apenas
+ * sem o enriquecimento de prioridade (badge ★, coloração por criticidade).
+ */
 async function fetchPrioridadesMG() {
-    const url = `${EVENTOS_API_BASE}/eventos/prioridades?limite=500&bbox=${EVENTOS_MG_BBOX}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const attempts = [
+        // 1. Mesmo filtro do endpoint principal (alta probabilidade de sucesso)
+        `${EVENTOS_API_BASE}/eventos/prioridades?sigla_estado=${EVENTOS_UF}`,
+        // 2. Com sigla_estado + limite
+        `${EVENTOS_API_BASE}/eventos/prioridades?sigla_estado=${EVENTOS_UF}&limite=500`,
+        // 3. Sem nenhum parâmetro (endpoint pode ter default)
+        `${EVENTOS_API_BASE}/eventos/prioridades`
+    ];
 
-    try {
-        const res = await fetch(url, {
-            method: 'GET',
-            mode: 'cors',
-            headers: { 'Accept': 'application/json' },
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return Array.isArray(data) ? data : null;
-    } catch (e) {
-        console.warn('[Eventos] Falha em prioridades:', e.message);
-        return null;
+    for (let i = 0; i < attempts.length; i++) {
+        const url = attempts[i];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        try {
+            const res = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+                console.warn(`[Eventos] prioridades tentativa ${i + 1} falhou (HTTP ${res.status}) → ${url}`);
+                continue;
+            }
+
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                console.log(`[Eventos] prioridades carregadas na tentativa ${i + 1} (${data.length} registros).`);
+                return data;
+            }
+            console.warn(`[Eventos] prioridades tentativa ${i + 1} retornou formato inesperado:`, typeof data);
+        } catch (e) {
+            clearTimeout(timeoutId);
+            console.warn(`[Eventos] prioridades tentativa ${i + 1} erro: ${e.message}`);
+        }
     }
+
+    console.warn('[Eventos] Todas as tentativas de carregar prioridades falharam. Prosseguindo sem enriquecimento.');
+    return null;
 }
 
 // ---------------------------------------------------------------------------

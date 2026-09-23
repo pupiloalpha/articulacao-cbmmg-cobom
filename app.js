@@ -1,5 +1,15 @@
 // app.js - Entrada e Orquestração Principal da Aplicação
 
+// ============================================================
+// VERSÃO DOS DADOS
+// ------------------------------------------------------------
+// Deve ser incrementada SEMPRE em conjunto com CACHE_NAME em sw.js.
+// Ao detectar mudança (localStorage × DATA_VERSION), todas as camadas
+// do IndexedDB são limpas, forçando o recarregamento das informações
+// atualizadas do repositório.
+// ============================================================
+const DATA_VERSION = 'v6';
+
 // Variáveis de estado global compartilhadas entre módulos
 let map;
 let mapClickMode = false;
@@ -19,9 +29,64 @@ let layerVisibility = {};
 let previousViewModeBeforeOrigin = null;
 let previousLayerVisibilityBeforeOrigin = null;
 
+// Guarda o estado de visualização anterior para restaurar ao sair do modo "rota"
+let previousViewModeBeforeRoute = null;
+let previousLayerVisibilityBeforeRoute = null;
+
+// ============================================================
+// MODO "VISUALIZAÇÃO DE ROTA"
+// ------------------------------------------------------------
+// Durante o desenho de uma rota, escondemos as feições (polígonos) para
+// que apenas os pontos permaneçam visíveis, facilitando a interação do
+// mouse com a linha de rota e os marcadores.
+// ============================================================
+
+/**
+ * Ativa o modo "somente pontos". Salva o estado atual antes de alterar,
+ * para possibilitar restauração posterior.
+ */
+async function enterRouteViewMode() {
+    if (viewMode === 'points') return;
+
+    if (previousViewModeBeforeRoute === null) {
+        previousViewModeBeforeRoute = viewMode;
+        previousLayerVisibilityBeforeRoute = { ...layerVisibility };
+    }
+
+    viewMode = 'points';
+    syncViewCheckboxes('points');
+    await reloadLayers();
+}
+
+/**
+ * Sai do modo "somente pontos", restaurando o modo anterior.
+ */
+async function exitRouteViewMode() {
+    if (previousViewModeBeforeRoute === null) return;
+
+    viewMode = previousViewModeBeforeRoute;
+    syncViewCheckboxes(viewMode);
+
+    if (previousLayerVisibilityBeforeRoute) {
+        layerVisibility = { ...previousLayerVisibilityBeforeRoute };
+    }
+
+    clearRouteViewState();
+    await reloadLayers();
+}
+
+/**
+ * Limpa o estado salvo do modo rota (sem restaurar a visualização).
+ * Usado quando o usuário muda manualmente o modo de visualização ou
+ * quando o app é reiniciado.
+ */
+function clearRouteViewState() {
+    previousViewModeBeforeRoute = null;
+    previousLayerVisibilityBeforeRoute = null;
+}
+
 /**
  * Sai do modo "definir origem no mapa".
- * @param {boolean} restore - se true, restaura o modo de visualização e a visibilidade das camadas anteriores.
  */
 function exitMapOriginMode(restore = true) {
     mapClickMode = false;
@@ -31,14 +96,12 @@ function exitMapOriginMode(restore = true) {
     if (map) map.getContainer().style.cursor = '';
 
     if (restore) {
-        // Restaura o modo de visualização anterior (ou 'all' como fallback)
         const modeToRestore = previousViewModeBeforeOrigin !== null ? previousViewModeBeforeOrigin : 'all';
         setViewMode(modeToRestore);
         syncViewCheckboxes(modeToRestore);
 
         if (previousLayerVisibilityBeforeOrigin) {
             layerVisibility = { ...previousLayerVisibilityBeforeOrigin };
-            // reloadLayers respeita layerVisibility
             reloadLayers();
         }
     }
@@ -47,8 +110,33 @@ function exitMapOriginMode(restore = true) {
     previousLayerVisibilityBeforeOrigin = null;
 }
 
+// ============================================================
+// VERIFICAÇÃO DE VERSÃO DOS DADOS (limpa IndexedDB se necessário)
+// ============================================================
+async function checkDataVersion() {
+    const storedDataVersion = localStorage.getItem('appDataVersion');
+
+    if (storedDataVersion !== null && storedDataVersion !== DATA_VERSION) {
+        try {
+            console.log(`[App] Versão dos dados alterada (${storedDataVersion} → ${DATA_VERSION}). Limpando camadas do IndexedDB...`);
+            await db.layers.clear();
+            console.log('[App] Camadas limpas. Serão recarregadas do repositório.');
+        } catch (e) {
+            console.warn('[App] Erro ao limpar camadas do IndexedDB:', e);
+        }
+    }
+
+    localStorage.setItem('appDataVersion', DATA_VERSION);
+}
+
 // Configuração e Inicialização Principal ao carregar o DOM
 document.addEventListener('DOMContentLoaded', async () => {
+
+    // ------------------------------------------------------------
+    // ETAPA 0: Verifica/invalida camadas do IndexedDB se a versão mudou.
+    // ------------------------------------------------------------
+    await checkDataVersion();
+
     initMap();
     updateOnlineStatus();
 
@@ -57,6 +145,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showBtn = document.getElementById('sidebarShowBtn');
     const toggleBtn = document.getElementById('sidebarToggle');
     const resetBtn = document.getElementById('resetBtn');
+
+    // ------------------------------------------------------------
+    // Mobile: inicia com a sidebar recolhida para priorizar o mapa.
+    // ------------------------------------------------------------
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (isMobile && sidebar) {
+        sidebar.classList.add('collapsed');
+    }
 
     if (sidebar && showBtn) {
         if (sidebar.classList.contains('collapsed')) {
@@ -87,56 +183,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================================
-// 1. Carregamento harmônico das camadas + spinner central
-// ============================================================
-const loadingOverlay = document.getElementById('map-loading-overlay');
-const loadingText = document.getElementById('loading-status-text');
+    // 1. Carregamento harmônico das camadas + spinner central
+    // ============================================================
+    const loadingOverlay = document.getElementById('map-loading-overlay');
+    const loadingText = document.getElementById('loading-status-text');
 
-function showLoading(msg) {
-    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-    if (loadingText) loadingText.textContent = msg || 'Carregando...';
-}
+    function showLoading(msg) {
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        if (loadingText) loadingText.textContent = msg || 'Carregando...';
+    }
 
-function hideLoading() {
-    if (loadingOverlay) loadingOverlay.classList.add('hidden');
-}
+    function hideLoading() {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
 
-showLoading('Inicializando mapa e dados operacionais...');
+    showLoading('Inicializando mapa e dados operacionais...');
 
-try {
-    // Etapa A – Dados essenciais (Unidades BM + Articulação)
-    showLoading('Carregando Unidades BM e Articulação CBMMG...');
-    await seedInitialData();
-    await cleanupMunicipioFeatures();
+    try {
+        showLoading('Carregando Unidades BM e Articulação CBMMG...');
+        await seedInitialData();
+        await cleanupMunicipioFeatures();
 
-    // Mostra imediatamente o que já temos (feedback visual rápido)
-    await reloadLayers();
+        await reloadLayers();
 
-    // Etapa B – Dados de Saúde (paralelo)
-    showLoading('Carregando Macrorregiões, Microrregiões e Hospitais...');
-    await Promise.all([
-        loadMicroMacroRegions(),
-        loadHospitalsData()
-    ]);
+        showLoading('Carregando Macrorregiões, Microrregiões e Hospitais...');
+        await Promise.all([
+            loadMicroMacroRegions(),
+            loadHospitalsData()
+        ]);
 
-    // Atualiza o mapa com tudo (exceto ruas – lazy)
-    await reloadLayers();
-    zoomToAllFeatures();
+        await reloadLayers();
+        zoomToAllFeatures();
 
-    showLoading('Pronto!');
-    setTimeout(hideLoading, 500);
+        showLoading('Pronto!');
+        setTimeout(hideLoading, 500);
 
-} catch (err) {
-    console.warn('Falha parcial no carregamento inicial:', err);
-    if (map) map.setView([-15.7934, -47.8822], 4);
-    showLoading('Erro parcial no carregamento. Mapa disponível.');
-    setTimeout(hideLoading, 1800);
-}
+    } catch (err) {
+        console.warn('Falha parcial no carregamento inicial:', err);
+        if (map) map.setView([-15.7934, -47.8822], 4);
+        showLoading('Erro parcial no carregamento. Mapa disponível.');
+        setTimeout(hideLoading, 1800);
+    }
 
-// Eventos de fogo (Painel do Fogo/CENSIPAM) — atualização a cada 2h
-initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:', e));
+    initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:', e));
 
-    // Restante da inicialização
     setupAuth();
     initAdminAuthListeners();
     setupFileUpload();
@@ -146,17 +236,15 @@ initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:',
     initEditFeatureModalListeners();
 
     // ============================================================
-    // 2. Botão "Definir origem no mapa" – oculta feições temporariamente
+    // 2. Botão "Definir origem no mapa"
     // ============================================================
     const mapOriginBtn = document.getElementById('mapOriginBtn');
     if (mapOriginBtn) {
         mapOriginBtn.addEventListener('click', () => {
             if (mapClickMode) {
-                // Cancelar → restaura
                 exitMapOriginMode(true);
                 showToast('Marcação de origem cancelada.', 'info');
             } else {
-                // Entrar no modo: salva estado e oculta feições
                 previousViewModeBeforeOrigin = viewMode;
                 previousLayerVisibilityBeforeOrigin = { ...layerVisibility };
 
@@ -171,7 +259,7 @@ initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:',
         });
     }
 
-    // Controle da busca por endereço e autocomplete debounce
+    // Controle da busca por endereço
     const searchInputEl = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
     let searchDebounceTimer = null;
@@ -205,9 +293,16 @@ initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:',
         });
     }
 
-    // Checkboxes de modo de visualização (Todas, Pontos, Limpo)
+    // ============================================================
+    // Checkboxes de modo de visualização
+    // ------------------------------------------------------------
+    // Mudança manual pelo usuário sai do "modo rota" (se ativo).
+    // ============================================================
     document.querySelectorAll('.view-checkbox').forEach(cb => {
-        cb.addEventListener('change', function() {
+        cb.addEventListener('change', function () {
+            // Se o usuário mudou o modo manualmente, abandona o modo rota
+            clearRouteViewState();
+
             if (this.checked) {
                 document.querySelectorAll('.view-checkbox').forEach(other => {
                     if (other !== this) other.checked = false;
@@ -226,28 +321,34 @@ initEventosMG().catch(e => console.warn('Falha ao inicializar eventos de fogo:',
 
     syncViewCheckboxes(viewMode);
 
-// Atualiza camadas de logradouro quando a conexão muda
-window.addEventListener('online', () => {
-    updateOnlineStatus();
-    reloadLayers();          // esconde logradouros
-    showToast('Conexão restaurada. Tiles online disponíveis.', 'success', 2500);
-});
-window.addEventListener('offline', () => {
-    updateOnlineStatus();
-    reloadLayers();          // mostra logradouros já carregados
-    showToast('Modo offline. Malha de logradouros exibida como referência.', 'warning', 3500);
-});
+    // Online / Offline
+    window.addEventListener('online', () => {
+        updateOnlineStatus();
+        reloadLayers();
+        showToast('Conexão restaurada. Tiles online disponíveis.', 'success', 2500);
+    });
+    window.addEventListener('offline', () => {
+        updateOnlineStatus();
+        reloadLayers();
+        showToast('Modo offline. Malha de logradouros exibida como referência.', 'warning', 3500);
+    });
 
     // Registro do Service Worker PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
                 .then(registration => {
-                    console.log('Service Worker registrado com sucesso:', registration.scope);
+                    console.log('[App] Service Worker registrado:', registration.scope);
                 })
                 .catch(error => {
-                    console.error('Falha ao registrar Service Worker:', error);
+                    console.error('[App] Falha ao registrar Service Worker:', error);
                 });
+        });
+
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'SW_ACTIVATED') {
+                console.log('[App] Novo Service Worker ativado:', event.data.version);
+            }
         });
     }
 });
@@ -262,27 +363,23 @@ async function resetAll() {
     if (distanceResults) distanceResults.innerHTML = '';
     if (searchInput) searchInput.value = '';
 
-    // Sai do modo origem (se estiver ativo)
+    // Sai do "modo rota" e limpa o estado salvo
+    clearRouteViewState();
+
     if (mapClickMode) {
-        exitMapOriginMode(false); // limpa flags sem restaurar ainda
+        exitMapOriginMode(false);
     }
 
-    // Sempre volta para o modo padrão "all"
     viewMode = 'all';
     syncViewCheckboxes('all');
-
-    // Limpa qualquer sobrescrita de visibilidade individual
     layerVisibility = {};
 
-    // Aguarda o recarregamento completo das camadas
     await reloadLayers();
 
-    // Remove marcador de origem
     if (originMarker && map) {
         map.removeLayer(originMarker);
         originMarker = null;
     }
-    // Remove linhas e marcadores de distância
     if (window.distanceLine && map) {
         map.removeLayer(window.distanceLine);
         window.distanceLine = null;
@@ -291,7 +388,6 @@ async function resetAll() {
         map.removeLayer(window.distanceMarker);
         window.distanceMarker = null;
     }
-    // Remove controle de roteamento
     if (window.routingControl && map) {
         map.removeControl(window.routingControl);
         window.routingControl = null;
@@ -299,7 +395,6 @@ async function resetAll() {
 
     currentOrigin = null;
 
-    // Agora sim enquadra nas feições (já estão no mapa)
     if (map) {
         zoomToAllFeatures();
     }
@@ -308,5 +403,8 @@ async function resetAll() {
 }
 window.resetAll = resetAll;
 
-// Exporta a função de saída do modo origem para uso em map.js / layers.js
+// Exporta funções para uso em map.js / layers.js
 window.exitMapOriginMode = exitMapOriginMode;
+window.enterRouteViewMode = enterRouteViewMode;
+window.exitRouteViewMode = exitRouteViewMode;
+window.clearRouteViewState = clearRouteViewState;
