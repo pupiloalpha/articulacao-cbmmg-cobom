@@ -535,15 +535,20 @@ const FEATURE_FIELD_SCHEMAS = {
         { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo):', type: 'textarea' }
     ],
 HIDRANTE: [
-    { key: 'numHidrante',        label: 'Número / Código do Hidrante:', type: 'text' },
-    { key: 'tipo',               label: 'Tipo (Coluna / Subterrâneo / ...):', type: 'text' },
-    { key: 'endereco',           label: 'Endereço completo:', type: 'text' },
-    { key: 'municipio',          label: 'Município:', type: 'text' },
-    { key: 'diametro',           label: 'Diâmetro (mm):', type: 'text' },
-    { key: 'vazao',              label: 'Vazão (L/min):', type: 'text' },
-    { key: 'situacao',           label: 'Situação (Ativo / Inativo / Em manutenção):', type: 'text' },
-    { key: 'ultimaManutencao',   label: 'Última manutenção (AAAA-MM-DD):', type: 'text' },
-    { key: 'responsavel',        label: 'Órgão responsável:', type: 'text' }
+    { key: 'id',            label: 'ID do Hidrante (CBMMG):', type: 'text' },
+    { key: 'nReds',         label: 'REDS (nº da vistoria):', type: 'text' },
+    { key: 'unidade',       label: 'Unidade BM responsável:', type: 'text' },
+    { key: 'logradouro',    label: 'Logradouro:', type: 'text' },
+    { key: 'numero',        label: 'Número:', type: 'text' },
+    { key: 'bairro',        label: 'Bairro:', type: 'text' },
+    { key: 'cidade',        label: 'Cidade / Município:', type: 'text' },
+    { key: 'referencia',    label: 'Referência (ponto de apoio):', type: 'text' },
+    { key: 'data',          label: 'Data da última vistoria (DD-MM-AAAA):', type: 'text' },
+    { key: 'situacao',      label: 'Situação (Ativo / Inativo / Em manutenção):', type: 'text' },
+    { key: 'tipo',          label: 'Tipo (Coluna / Subterrâneo / …):', type: 'text' },
+    { key: 'diametro',      label: 'Diâmetro (mm):', type: 'text' },
+    { key: 'vazao',         label: 'Vazão (L/min):', type: 'text' },
+    { key: 'responsavel',   label: 'Órgão / Responsável:', type: 'text' }
 ],
     POLYGON: [
         { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text' },

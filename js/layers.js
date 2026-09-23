@@ -582,8 +582,44 @@ function formatFeatureTooltip(feature) {
 
 if (type === 'HIDRANTE') {
     const p = props;
-    const coordsStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : '-';
-    const situacao = String(p.situacao || p.Situacao || p.status || 'Ativo').trim();
+
+    const coordsStr = coords
+        ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+        : '-';
+
+    // ---------- Identificação ----------
+    // Aceita tanto o esquema CBMMG (id/nReds/logradouro/...)
+    // quanto o esquema "clássico" (numHidrante/tipo/endereco/...).
+    const hidranteId  = p.numHidrante || p.codigo || p.id || 's/n';
+    const tipoLabel   = p.tipo || p.Tipo || 'Hidrante';
+
+    // ---------- Endereço ----------
+    const logradouro  = p.logradouro || p.Logradouro || '';
+    const numero      = p.numero     || p.Numero     || '';
+    const bairro      = p.bairro     || p.Bairro     || '';
+    const cidade      = p.cidade || p.Cidade || p.municipio || p.Município || '';
+    const referencia  = p.referencia || p.Referencia || '';
+
+    const enderecoCompleto = p.endereco || p.Endereço ||
+        [logradouro, numero].filter(Boolean).join(', ');
+
+    // ---------- Vistoria / responsável ----------
+    const dataRaw    = p.data || p.ultimaManutencao || p.data_vistoria || '';
+    const nReds      = p.nReds || p.numREDS || p.REDS || '';
+    const unidade    = p.unidade || p.Unidade || '';
+    const responsavel = p.responsavel || p['Órgão responsável'] || '';
+
+    // Normaliza DD-MM-AAAA → DD/MM/AAAA (mantém ISO intacto)
+    let dataFmt = dataRaw;
+    if (dataRaw && /^\d{2}-\d{2}-\d{4}$/.test(dataRaw)) {
+        const [d, m, y] = dataRaw.split('-');
+        dataFmt = `${d}/${m}/${y}`;
+    }
+
+    // ---------- Situação (badge) ----------
+    const situacao = String(
+        p.situacao || p.Situacao || p.status || p.Status || 'Ativo'
+    ).trim();
     const sn = situacao.toLowerCase();
     let badgeCls = 'badge-tempo-verde';
     if (sn.includes('manut'))       badgeCls = 'badge-tempo-amarelo';
@@ -591,19 +627,85 @@ if (type === 'HIDRANTE') {
 
     return `
         <div class="feature-card-header" style="background: linear-gradient(135deg, #1f618d 0%, #2e86c1 100%);">
-            <h4 class="feature-card-title">🚰 Hidrante ${p.numHidrante || p.codigo || p.id || 's/n'}</h4>
-            <span class="feature-type-tag">${p.tipo || 'Hidrante'}</span>
+            <h4 class="feature-card-title">🚰 Hidrante ${hidranteId}</h4>
+            <span class="feature-type-tag">${tipoLabel}</span>
         </div>
         <div class="feature-card-body">
             <div class="feature-info-grid">
-                ${p.endereco ? `<div class="feature-info-row" style="flex-direction:column;align-items:flex-start;"><span class="feature-info-label">Endereço:</span><span class="feature-info-value" style="text-align:left;font-size:11px;">${p.endereco}</span></div>` : ''}
-                ${(p.municipio || p.Município) ? `<div class="feature-info-row"><span class="feature-info-label">Município:</span><span class="feature-info-value">${p.municipio || p.Município}</span></div>` : ''}
-                ${p.diametro ? `<div class="feature-info-row"><span class="feature-info-label">Diâmetro:</span><span class="feature-info-value">${p.diametro}</span></div>` : ''}
-                ${p.vazao ? `<div class="feature-info-row"><span class="feature-info-label">Vazão:</span><span class="feature-info-value">${p.vazao}</span></div>` : ''}
-                <div class="feature-info-row"><span class="feature-info-label">Situação:</span><span class="feature-info-value"><span class="feature-badge ${badgeCls}">${situacao}</span></span></div>
-                ${p.ultimaManutencao ? `<div class="feature-info-row"><span class="feature-info-label">Últ. manutenção:</span><span class="feature-info-value" style="font-size:11px;">${p.ultimaManutencao}</span></div>` : ''}
-                ${p.responsavel ? `<div class="feature-info-row"><span class="feature-info-label">Responsável:</span><span class="feature-info-value" style="font-size:11px;">${p.responsavel}</span></div>` : ''}
-                <div class="feature-info-row"><span class="feature-info-label">Coordenadas:</span><span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span></div>
+
+                ${enderecoCompleto ? `
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Endereço:</span>
+                    <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;color:#2c3e50;">
+                        ${enderecoCompleto}${bairro ? ' — ' + bairro : ''}
+                    </span>
+                </div>` : (bairro ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Bairro:</span>
+                    <span class="feature-info-value">${bairro}</span>
+                </div>` : '')}
+
+                ${cidade ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Município:</span>
+                    <span class="feature-info-value">${cidade}</span>
+                </div>` : ''}
+
+                ${referencia ? `
+                <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                    <span class="feature-info-label">Referência:</span>
+                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;color:#34495e;">
+                        ${referencia}
+                    </span>
+                </div>` : ''}
+
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Situação:</span>
+                    <span class="feature-info-value">
+                        <span class="feature-badge ${badgeCls}">${situacao}</span>
+                    </span>
+                </div>
+
+                ${dataFmt ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Última vistoria:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${dataFmt}</span>
+                </div>` : ''}
+
+                ${nReds ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">REDS:</span>
+                    <span class="feature-info-value" style="font-size:10.5px;font-family:monospace;color:#34495e;">${nReds}</span>
+                </div>` : ''}
+
+                ${unidade ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Unidade BM:</span>
+                    <span class="feature-info-value">${unidade}</span>
+                </div>` : ''}
+
+                ${p.diametro ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Diâmetro:</span>
+                    <span class="feature-info-value">${p.diametro}</span>
+                </div>` : ''}
+
+                ${p.vazao ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Vazão:</span>
+                    <span class="feature-info-value">${p.vazao}</span>
+                </div>` : ''}
+
+                ${responsavel ? `
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Responsável:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${responsavel}</span>
+                </div>` : ''}
+
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Coordenadas:</span>
+                    <span class="feature-info-value" style="font-size:11px;font-family:monospace;">${coordsStr}</span>
+                </div>
             </div>
         </div>
     `;
