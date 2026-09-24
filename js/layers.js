@@ -771,102 +771,140 @@ if (type === 'HIDRANTE') {
     }
 
     if (type === 'EVENTO_FOGO') {
-        const fmtDate = (d) => d ? new Date(d).toLocaleString('pt-BR') : '-';
-        const num = (v, dec = 2) =>
-            (v == null || isNaN(v)) ? '-' :
-            Number(v).toLocaleString('pt-BR', {
-                minimumFractionDigits: dec,
-                maximumFractionDigits: dec
-            });
+    const fmtDate = (d) => d ? new Date(d).toLocaleString('pt-BR') : '-';
+    const num = (v, dec = 2) =>
+        (v == null || isNaN(v)) ? '-' :
+        Number(v).toLocaleString('pt-BR', {
+            minimumFractionDigits: dec,
+            maximumFractionDigits: dec
+        });
 
-        const status  = props.status_evento || 'Evento';
-        const area    = num(props.area_total_evento, 2);
-        const persist = props.persistencia_dias ?? '-';
-        const dtMin   = fmtDate(props.dt_minima);
-        const dtMax   = fmtDate(props.dt_maxima);
-        const dtVisto = fmtDate(props.dt_ultima_visao);
-        const mun     = props.municipio || '-';
-        const pais    = props.pais || 'Brasil';
-        const dominio = props.dominio || '-';
-        const ti      = props.terra_indigena || '-';
-        const uc      = props.unidade_conservacao || '-';
-        const quil    = props.quilombola || '-';
-        const pa      = props.projeto_assentamento || '-';
+    const status  = props.status_evento || 'Evento';
+    const area    = num(props.area_total_evento, 2);
+    const persist = props.persistencia_dias ?? '-';
+    const dtMin   = fmtDate(props.dt_minima);
+    const dtMax   = fmtDate(props.dt_maxima);
+    const dtVisto = fmtDate(props.dt_ultima_visao);
+    const mun     = props.municipio || '-';
+    const pais    = props.pais || 'Brasil';
+    const dominio = props.dominio || '-';
+    const ti      = props.terra_indigena || '-';
+    const uc      = props.unidade_conservacao || '-';
+    const quil    = props.quilombola || '-';
+    const pa      = props.projeto_assentamento || '-';
 
-        const indice   = props.indice_prioridade != null ? Number(props.indice_prioridade) : null;
-        const variacao = props.indice_variacao   != null ? Number(props.indice_variacao)   : null;
+    // ---------- Coordenadas (pedido 2) ----------
+    // Prioriza latitude/longitude enviadas pela API (mais fiéis ao evento);
+    // fallback no centroide geométrico (turf.center).
+    const evLat = (props.latitude  != null && props.latitude  !== '') ? Number(props.latitude)  : (coords ? coords.lat : null);
+    const evLng = (props.longitude != null && props.longitude !== '') ? Number(props.longitude) : (coords ? coords.lng : null);
+    const hasCoords = Number.isFinite(evLat) && Number.isFinite(evLng);
+    const coordsStr = hasCoords ? `${evLat.toFixed(5)}, ${evLng.toFixed(5)}` : '-';
+    const copyBtn = hasCoords
+        ? `<button type="button" class="btn-copy-coords-inline"
+                   title="Copiar coordenadas do evento"
+                   aria-label="Copiar coordenadas"
+                   onclick="event.stopPropagation(); event.preventDefault(); window.copyFeatureCoords(${evLat}, ${evLng});">📋</button>`
+        : '';
 
-        const isAtivo = String(status).toLowerCase().includes('ativo');
-        const headerClass = isAtivo ? 'header-unidade' : 'header-micro';
-        const icon = isAtivo ? '🚨' : '👀';
+    // ---------- Índice de prioridade ----------
+    const indice      = props.indice_prioridade  != null ? Number(props.indice_prioridade)  : null;
+    const variacao    = props.indice_variacao    != null ? Number(props.indice_variacao)    : null;
+    const indiceRef   = props.indice_referencia  != null ? Number(props.indice_referencia)  : null;
+    const dtIndiceMax = props.indice_dt_maxima ? fmtDate(props.indice_dt_maxima) : null;
 
-        let prioridadeBadge = '<span class="feature-badge badge-tempo-neutro">sem índice</span>';
-        if (indice != null && Number.isFinite(indice)) {
-            const cls = indice >= 0.7 ? 'badge-cob'
-                      : indice >= 0.4 ? 'badge-zona'
-                      : 'badge-tempo-verde';
-            const seta = variacao > 0 ? '▲' : (variacao < 0 ? '▼' : '■');
-            prioridadeBadge = `<span class="feature-badge ${cls}">${seta} ${indice.toFixed(2)}</span>`;
-        }
+    const isAtivo = String(status).toLowerCase().includes('ativo');
+    const headerClass = isAtivo ? 'header-unidade' : 'header-micro';
+    const icon = isAtivo ? '🚨' : '👀';
 
-        return `
-            <div class="feature-card-header ${headerClass}">
-                <h4 class="feature-card-title">${icon} Evento #${props.id_evento ?? '-'}</h4>
-                <span class="feature-type-tag">${status}</span>
-            </div>
-            <div class="feature-card-body">
-                <div class="feature-info-grid">
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Prioridade:</span>
-                        <span class="feature-info-value">${prioridadeBadge}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Área total:</span>
-                        <span class="feature-info-value"><b>${area} km²</b></span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Persistência:</span>
-                        <span class="feature-info-value">${persist} dias</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">1ª detecção:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${dtMin}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Última detecção:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${dtMax}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Última visão:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${dtVisto}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Município:</span>
-                        <span class="feature-info-value">${mun}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Domínio:</span>
-                        <span class="feature-info-value">${dominio} • ${pais}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Terra Indígena:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${ti}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Unid. Conservação:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${uc}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Quilombola:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${quil}</span>
-                    </div>
-                    <div class="feature-info-row">
-                        <span class="feature-info-label">Assentamento:</span>
-                        <span class="feature-info-value" style="font-size:11px;">${pa}</span>
-                    </div>
-                </div>
-            </div>`;
+    let prioridadeBadge = '<span class="feature-badge badge-tempo-neutro">sem índice</span>';
+    if (indice != null && Number.isFinite(indice)) {
+        const cls = indice >= 0.7 ? 'badge-cob'
+                  : indice >= 0.4 ? 'badge-zona'
+                  : 'badge-tempo-verde';
+        const seta = variacao > 0 ? '▲' : (variacao < 0 ? '▼' : '■');
+        const varTxt = (variacao != null && Number.isFinite(variacao))
+            ? ` <small>(${variacao >= 0 ? '+' : ''}${variacao.toFixed(2)})</small>`
+            : '';
+        prioridadeBadge = `<span class="feature-badge ${cls}">${seta} ${indice.toFixed(2)}${varTxt}</span>`;
     }
+
+    const refInfo = (indiceRef != null && Number.isFinite(indiceRef))
+        ? `<div class="feature-info-row">
+               <span class="feature-info-label">Índice anterior:</span>
+               <span class="feature-info-value" style="font-size:11px;">
+                   ${indiceRef.toFixed(2)}${dtIndiceMax ? ' • ' + dtIndiceMax : ''}
+               </span>
+           </div>`
+        : '';
+
+    return `
+        <div class="feature-card-header ${headerClass}">
+            <h4 class="feature-card-title">${icon} Evento #${props.id_evento ?? '-'}</h4>
+            <span class="feature-type-tag">${status}</span>
+        </div>
+        <div class="feature-card-body">
+            <div class="feature-info-grid">
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Prioridade:</span>
+                    <span class="feature-info-value">${prioridadeBadge}</span>
+                </div>
+                ${refInfo}
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Área total:</span>
+                    <span class="feature-info-value"><b>${area} km²</b></span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Persistência:</span>
+                    <span class="feature-info-value">${persist} dias</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">1ª detecção:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${dtMin}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Última detecção:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${dtMax}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Última visão:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${dtVisto}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Município:</span>
+                    <span class="feature-info-value">${mun}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Domínio:</span>
+                    <span class="feature-info-value">${dominio} • ${pais}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Terra Indígena:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${ti}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Unid. Conservação:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${uc}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Quilombola:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${quil}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Assentamento:</span>
+                    <span class="feature-info-value" style="font-size:11px;">${pa}</span>
+                </div>
+                <div class="feature-info-row">
+                    <span class="feature-info-label">Coordenadas:</span>
+                    <span class="feature-info-value"
+                          style="font-size:11px;font-family:monospace;display:inline-flex;align-items:center;gap:4px;">
+                        ${coordsStr}
+                        ${copyBtn}
+                    </span>
+                </div>
+            </div>
+        </div>`;
+}
 
     if (type === 'HOSPITAL') {
         const isUpa = isUPA(feature);
@@ -1163,6 +1201,7 @@ function formatFeaturePopup(feature) {
     const props = feature.properties || {};
     const name = getFeatureDisplayName(feature).replace(/'/g, "\\'");
     const isPoint = feature.geometry && feature.geometry.type === 'Point';
+    const classification = getFeatureClassification(feature);
 
     const closeBtnHtml = `
         <button type="button" class="btn-popup-close"
@@ -1170,34 +1209,59 @@ function formatFeaturePopup(feature) {
                 title="Fechar popup">×</button>
     `;
 
+    const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
+    const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
+
+    const editBtnHtml =
+        layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
+            ? `<button class="btn-popup-action btn-popup-edit"
+                       onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
+                   ✏️ Editar Dados
+               </button>`
+            : '';
+
     let actionsHtml = '';
+
     if (isPoint && coords) {
-        const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
-        const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
-
-        const editBtnHtml =
-            layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
-                ? `
-            <button class="btn-popup-action btn-popup-edit" onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
-                ✏️ Editar Dados
-            </button>
-        `
-                : '';
-
-        // Define direção da rota conforme classificação da feição
-        const classification = getFeatureClassification(feature);
+        // ---------- Pontos (comportamento original) ----------
         const reverseRoute = classification === 'UNIDADE_BM';
+        actionsHtml = `
+            <div class="feature-popup-actions">
+                <button class="btn-popup-action btn-popup-origin"
+                        onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
+                    🎯 Definir Origem
+                </button>
+                <button class="btn-popup-action btn-popup-route"
+                        onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}', ${reverseRoute})">
+                    🚗 Rota até Aqui
+                </button>
+                <button class="btn-popup-action btn-popup-copy"
+                        onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
+                    📋 Copiar Coord.
+                </button>
+                ${editBtnHtml}
+            </div>
+        `;
+    } else if (coords) {
+        // ---------- Polígonos (eventos de fogo, macro/micro, articulação) ----------
+        const evLat = (props.latitude  != null && props.latitude  !== '') ? Number(props.latitude)  : coords.lat;
+        const evLng = (props.longitude != null && props.longitude !== '') ? Number(props.longitude) : coords.lng;
+        const isEvent = classification === 'EVENTO_FOGO';
+        const copyLabel = isEvent ? '📋 Copiar Coord. do Evento' : '📋 Copiar Coord. (centro)';
 
         actionsHtml = `
             <div class="feature-popup-actions">
-                <button class="btn-popup-action btn-popup-origin" onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
+                <button class="btn-popup-action btn-popup-origin"
+                        onclick="window.setOriginFromFeature(${evLat}, ${evLng}, '${name}')">
                     🎯 Definir Origem
                 </button>
-                <button class="btn-popup-action btn-popup-route" onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}', ${reverseRoute})">
+                <button class="btn-popup-action btn-popup-route"
+                        onclick="window.routeToFeature(${evLng}, ${evLat}, '${name}', false)">
                     🚗 Rota até Aqui
                 </button>
-                <button class="btn-popup-action btn-popup-copy" onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
-                    📋 Copiar Coord.
+                <button class="btn-popup-action btn-popup-copy"
+                        onclick="window.copyFeatureCoords(${evLat}, ${evLng})">
+                    ${copyLabel}
                 </button>
                 ${editBtnHtml}
             </div>
@@ -1278,12 +1342,22 @@ function _bindMarkerInteractions(marker, feature) {
 }
 
 function _bindPolygonInteractions(layer, feature, getParentGeoJSON) {
+    const classification = getFeatureClassification(feature);
+    // Eventos de fogo: tooltip não-sticky, para que o botão copiar
+    // dentro dele permaneça ancorado e clicável.
+    const isEvent = classification === 'EVENTO_FOGO';
+
     layer.bindTooltip(formatFeatureTooltip(feature), {
-        sticky: true, className: 'feature-tooltip', direction: 'auto', opacity: 0.98
+        sticky: !isEvent,
+        className: 'feature-tooltip',
+        direction: 'auto',
+        opacity: 0.98
     });
+
     layer.bindPopup(formatFeaturePopup(feature), {
         className: 'feature-popup', maxWidth: 360, closeButton: false
     });
+
     layer.on('mouseover', function () {
         if (layer instanceof L.Marker) return;
         if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
@@ -1291,7 +1365,6 @@ function _bindPolygonInteractions(layer, feature, getParentGeoJSON) {
         }
     });
     layer.on('mouseout', function () {
-        // Lazy: só resolve o pai quando o mouse sai — nesse ponto já está atribuído.
         const parent = typeof getParentGeoJSON === 'function' ? getParentGeoJSON() : null;
         if (parent) parent.resetStyle(layer);
     });

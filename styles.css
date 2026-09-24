@@ -673,6 +673,34 @@ body {
     width: 100%;
 }
 
+/* ==========================================================================
+   Botão inline de copiar coordenadas dentro dos tooltips de feição
+   ========================================================================== */
+.feature-tooltip .btn-copy-coords-inline {
+    /* Leaflet define pointer-events:none em .leaflet-tooltip;
+       habilitamos apenas neste botão para torná-lo clicável. */
+    pointer-events: auto;
+    cursor: pointer;
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #2c3e50;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.feature-tooltip .btn-copy-coords-inline:hover {
+    background: #d5dbdb;
+    border-color: #95a5a6;
+}
+
+.feature-tooltip .btn-copy-coords-inline:active {
+    transform: scale(0.96);
+}
+
 /* =========================================================
    Tooltip e Popup – refinamentos
    ========================================================= */

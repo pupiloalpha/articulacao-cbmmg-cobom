@@ -1336,17 +1336,64 @@ window.setOriginFromFeature = function (lat, lng, name) {
 };
 
 /**
- * Rota até a feição. Passar reverseRoute = true quando a feição é uma
- * Unidade BM (semântica: viatura sai da Unidade em direção à origem).
+ * Garante que exista uma origem para cálculo de rota.
+ * Ordem de preferência:
+ *   1) origem já definida no mapa (marker existente)
+ *   2) GPS atual do dispositivo
+ *   3) aviso ao usuário
+ *
+ * Retorna { lat, lng } em caso de sucesso, ou null.
  */
-window.routeToFeature = function (lng, lat, name, reverseRoute = false) {
-    if (!originMarker) {
-        showToast('Defina primeiro um ponto de origem.', 'warning');
-        return;
+async function ensureOriginAvailable() {
+    // 1) Já existe
+    if (originMarker) {
+        const pos = originMarker.getLatLng();
+        return { lat: pos.lat, lng: pos.lng };
     }
-    const originPos = originMarker.getLatLng();
+
+    // 2) GPS
+    if ('geolocation' in navigator) {
+        showToast('Sem origem definida. Obtendo sua localização atual...', 'info', 2500);
+
+        const gps = await new Promise(resolve => {
+            navigator.geolocation.getCurrentPosition(
+                p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                () => resolve(null),
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+            );
+        });
+
+        if (gps) {
+            setOrigin(gps.lat, gps.lng, 'Localização atual (GPS)');
+            calculateDistancesToAllFeatures(gps.lat, gps.lng);
+            showToast('📍 Origem definida via GPS.', 'success', 2500);
+            return gps;
+        }
+    }
+
+    // 3) Sem sucesso
+    showToast(
+        'Defina uma origem: use GPS, pesquise um endereço/coordenada ou clique no mapa.',
+        'warning',
+        4500
+    );
+    return null;
+}
+window.ensureOriginAvailable = ensureOriginAvailable;
+
+
+/**
+ * Rota até a feição.
+ *  - Se já há origem no mapa, usa-a.
+ *  - Caso contrário, tenta GPS. Só avisa se ambos falharem.
+ *  - reverseRoute = true para Unidades BM (viatura sai da Unidade → origem).
+ */
+window.routeToFeature = async function (lng, lat, name, reverseRoute = false) {
+    const origin = await ensureOriginAvailable();
+    if (!origin) return;
+
     const distance = turf.distance(
-        turf.point([originPos.lng, originPos.lat]),
+        turf.point([origin.lng, origin.lat]),
         turf.point([lng, lat]),
         { units: 'kilometers' }
     );

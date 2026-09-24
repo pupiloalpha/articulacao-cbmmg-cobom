@@ -428,3 +428,4 @@ window.exitMapOriginMode = exitMapOriginMode;
 window.enterRouteViewMode = enterRouteViewMode;
 window.exitRouteViewMode = exitRouteViewMode;
 window.clearRouteViewState = clearRouteViewState;
+window.ensureOriginAvailable = ensureOriginAvailable;

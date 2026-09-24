@@ -719,6 +719,84 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
     }
 }
 
+
+/**
+ * ============================================================
+ * DETECÇÃO DE COORDENADAS NA BUSCA
+ * ------------------------------------------------------------
+ * Aceita:
+ *   -19.9167, -43.9345         (decimal, vírgula)
+ *   -19.9167 -43.9345          (decimal, espaço)
+ *   -19,9167; -43,9345         (decimal, padrão BR)
+ *   lat: -19.9167 lng: -43.9345
+ *   19°55'00"S, 43°56'04"W     (DMS)
+ *   https://.../@-19.9167,-43.9345,15z   (URL Google Maps)
+ *
+ * Retorna { lat, lng, source } ou null.
+ * ============================================================
+ */
+function isValidLatLngPair(lat, lng) {
+    return Number.isFinite(lat) && Number.isFinite(lng)
+        && lat >= -90  && lat <= 90
+        && lng >= -180 && lng <= 180
+        && !(lat === 0 && lng === 0);
+}
+
+function tryParseCoordinates(rawQuery) {
+    if (!rawQuery) return null;
+    const q = String(rawQuery).trim();
+    if (q.length < 6) return null;
+
+    // ---------- 1) URL estilo Google Maps ----------
+    const urlMatch = q.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (urlMatch) {
+        const lat = parseFloat(urlMatch[1]);
+        const lng = parseFloat(urlMatch[2]);
+        if (isValidLatLngPair(lat, lng)) {
+            return { lat, lng, source: 'url' };
+        }
+    }
+
+    // ---------- 2) Pares decimais ----------
+    const cleaned = q
+        .replace(/\blat(?:itude)?\s*[:=]\s*/gi, '')
+        .replace(/\bl(?:ng|on(?:gitude)?)\s*[:=]\s*/gi, '')
+        .replace(/\bcoordenadas?\s*[:=]?\s*/gi, '')
+        .trim();
+
+    const decimalRe = /^(-?\d{1,3}(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:[.,]\d+)?)$/;
+    const decMatch = cleaned.match(decimalRe);
+    if (decMatch) {
+        const a = parseFloat(decMatch[1].replace(',', '.'));
+        const b = parseFloat(decMatch[2].replace(',', '.'));
+        if (isValidLatLngPair(a, b)) return { lat: a, lng: b, source: 'decimal' };
+        if (isValidLatLngPair(b, a)) return { lat: b, lng: a, source: 'decimal' };
+    }
+
+    // ---------- 3) DMS — 19°55'00"S, 43°56'04"W ----------
+    const dmsRe = /(-?\d+)\s*°\s*(\d+)?\s*['′]?\s*(\d+(?:\.\d+)?)?\s*["″]?\s*([NSEW])/gi;
+    const parts = [];
+    let m;
+    while ((m = dmsRe.exec(q)) !== null) {
+        const deg = parseInt(m[1], 10);
+        const min = parseInt(m[2] || '0', 10);
+        const sec = parseFloat(m[3] || '0');
+        const hemi = m[4].toUpperCase();
+        let val = Math.abs(deg) + min / 60 + sec / 3600;
+        if (hemi === 'S' || hemi === 'W') val = -val;
+        parts.push({ val, hemi });
+    }
+    if (parts.length === 2) {
+        const latPart = parts.find(p => p.hemi === 'N' || p.hemi === 'S');
+        const lngPart = parts.find(p => p.hemi === 'E' || p.hemi === 'W');
+        if (latPart && lngPart && isValidLatLngPair(latPart.val, lngPart.val)) {
+            return { lat: latPart.val, lng: lngPart.val, source: 'dms' };
+        }
+    }
+
+    return null;
+}
+
 /**
  * Função principal de entrada da busca.
  * Decide automaticamente entre online (prioritário) e offline.
@@ -729,6 +807,28 @@ async function searchAddress(query, targetId = 'searchResults') {
 
     const rawQuery = String(query).trim();
     if (!rawQuery) { resultsDiv.innerHTML = ''; return; }
+
+    // ============================================================
+    // ATALHO: a query é uma coordenada? Define a origem diretamente,
+    // sem ida à rede. Isso resolve colar coordenada na barra de busca.
+    // ============================================================
+    const parsedCoords = tryParseCoordinates(rawQuery);
+    if (parsedCoords) {
+        const { lat, lng } = parsedCoords;
+        const label = `Coordenadas ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+        resultsDiv.innerHTML = '';
+        if (targetId === 'floatingSearchResults') {
+            resultsDiv.classList.add('hidden');
+        }
+
+        setOrigin(lat, lng, label);
+        if (map) map.setView([lat, lng], 16);
+        calculateDistancesToAllFeatures(lat, lng);
+
+        showToast(`📍 Origem definida: ${label}`, 'success', 3000);
+        return;
+    }
 
     if (rawQuery.length < 3) {
         resultsDiv.innerHTML = '<div class="search-status-msg">Digite pelo menos 3 caracteres...</div>';
