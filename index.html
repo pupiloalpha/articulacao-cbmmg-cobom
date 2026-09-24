@@ -48,7 +48,10 @@
             <h2>COBOM-BH<br>
                  Articulação CBMMG
             </h2>
-            <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir">☰</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <button id="themeToggleBtn" class="btn-icon" title="Modo Noturno (COBOM) / Diurno" aria-label="Alternar Tema">🌙</button>
+                <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir">☰</button>
+            </div>
         </div>
         <div id="status-indicator" class="status-indicator offline">Offline</div>
         <div id="auth-section">
@@ -57,13 +60,13 @@
         </div>
         <div class="search-container">
                     <div class="search-input-group">
-                        <input type="text" id="searchInput" placeholder="Pesquisar endereço, local ou coordenada...">
-                        <button id="searchBtn" class="btn" title="Buscar Endereço">🔍</button>
+                        <input type="text" id="searchInput" placeholder="Pesquisar endereço ou coordenada... [F2]">
+                        <button id="searchBtn" class="btn" title="Buscar Endereço (Enter)">🔍</button>
                     </div>
 
                     <!-- Grid de Ações Rápidas de Origem -->
                     <div class="btn-grid-actions">
-                        <button id="useMyLocationBtn" class="btn" title="Usar localização GPS">📍 GPS Atual</button>
+                        <button id="useMyLocationBtn" class="btn" title="Usar localização GPS (Alt+G)">📍 GPS Atual</button>
                         <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">🎯 Ponto no Mapa</button>
                     </div>
                     
@@ -89,6 +92,7 @@
             <button id="importBackupBtn" class="btn">Importar Backup</button>
             <input type="file" id="importFileInput" accept=".json" hidden>
             <button id="downloadTilesBtn" class="btn">Baixar Tiles Offline</button>
+            <button id="clearRoutesBtn" class="btn">Limpar Cache de Rotas</button>
             <!-- Modal para configurar download de tiles -->
             <div id="tileModal" class="modal hidden">
                 <div class="modal-content">
@@ -125,6 +129,10 @@
     <h3>Legenda</h3>
     <ul id="legendUl" class="legend-list"></ul>
 </div>
+
+<div class="sidebar-footer">
+    <button id="shortcutsBtn" class="btn-footer-link" title="Ver lista de atalhos de teclado operacionais">⌨️ Atalhos Operacionais (193)</button>
+</div>
     </div>
 
     <!-- Mapa -->
@@ -135,7 +143,7 @@
     <div class="floating-search-box" id="floatingSearchBox">
         <span class="floating-search-icon">🔍</span>
         <input type="text" id="floatingSearchInput"
-               placeholder="Pesquisar endereço, local ou coordenada..."
+               placeholder="Pesquisar endereço, local ou coordenada... [F2]"
                autocomplete="off" spellcheck="false">
         <button type="button" id="floatingSearchClear" class="btn-clear"
                 title="Limpar busca" aria-label="Limpar busca">✕</button>
@@ -204,6 +212,27 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal de Atalhos Operacionais (COBOM 193) -->
+    <div id="shortcutsModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 440px;">
+            <span class="close-modal" id="closeShortcutsModal">&times;</span>
+            <h3 style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                ⌨️ Atalhos Operacionais – Despacho 193
+            </h3>
+            <div class="shortcuts-grid">
+                <div class="shortcut-item"><span>Focar busca de endereço/coordenada</span><div><kbd>F2</kbd> ou <kbd>/</kbd></div></div>
+                <div class="shortcut-item"><span>Executar pesquisa no campo de busca</span><div><kbd>Enter</kbd></div></div>
+                <div class="shortcut-item"><span>Definir origem via GPS da viatura</span><div><kbd>Alt</kbd> + <kbd>G</kbd></div></div>
+                <div class="shortcut-item"><span>Despacho rápido para Unidade #1</span><div><kbd>Alt</kbd> + <kbd>1</kbd></div></div>
+                <div class="shortcut-item"><span>Alternar Modo Noturno (COBOM)</span><div><kbd>Alt</kbd> + <kbd>N</kbd></div></div>
+                <div class="shortcut-item"><span>Limpar rota ativa / fechar janelas</span><div><kbd>Esc</kbd></div></div>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 14px; text-align: center; line-height: 1.4;">
+                Dica: Operadores em despacho podem manter as mãos no teclado para maior agilidade no atendimento.
+            </p>
         </div>
     </div>
 

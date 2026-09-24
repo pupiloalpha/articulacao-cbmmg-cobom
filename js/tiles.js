@@ -48,11 +48,13 @@ function setupTileDownload() {
 
             const tilesToFetch = [];
 
+            const subdomains = ['a', 'b', 'c'];
             for (let z = minZoom; z <= maxZoom; z++) {
                 const { minX, maxX, minY, maxY } = getTileBoundsForZoom(bounds, z);
                 for (let x = minX; x <= maxX; x++) {
                     for (let y = minY; y <= maxY; y++) {
-                        const url = `https://a.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+                        const s = subdomains[(x + y) % subdomains.length];
+                        const url = `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
                         const key = `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png_${z}_${x}_${y}`;
                         tilesToFetch.push({ url, key });
                     }
@@ -66,28 +68,47 @@ function setupTileDownload() {
             }
 
             startTileDownload.disabled = true;
-            let downloaded = 0;
-            showToast(`Iniciando download de ${totalTiles} tiles...`, 'info');
+            let completed = 0;
+            let saved = 0;
+            showToast(`Iniciando download paralelo de ${totalTiles} tiles...`, 'info');
 
-            for (const tileItem of tilesToFetch) {
-                try {
-                    const existing = await DB.getTile(tileItem.key);
-                    if (!existing) {
-                        const resp = await fetch(tileItem.url);
-                        if (resp.ok) {
-                            const blob = await resp.blob();
-                            await DB.saveTile(tileItem.key, blob);
+            // Pool concorrente com 6 requisições simultâneas
+            const CONCURRENCY = 6;
+            let currentIndex = 0;
+
+            async function downloadWorker() {
+                while (currentIndex < tilesToFetch.length) {
+                    const idx = currentIndex++;
+                    const tileItem = tilesToFetch[idx];
+                    try {
+                        const existing = await DB.getTile(tileItem.key);
+                        if (!existing) {
+                            const resp = await fetch(tileItem.url);
+                            if (resp.ok) {
+                                const blob = await resp.blob();
+                                await DB.saveTile(tileItem.key, blob);
+                                saved++;
+                            }
                         }
+                    } catch (e) {
+                        console.warn('Erro ao baixar tile:', tileItem.url, e);
                     }
-                } catch (e) {
-                    console.warn('Erro ao baixar tile:', tileItem.url, e);
+                    completed++;
+                    if (completed % 4 === 0 || completed === totalTiles) {
+                        const pct = Math.round((completed / totalTiles) * 100);
+                        tileProgress.innerHTML = `Progresso: <b>${completed}</b> / ${totalTiles} tiles (${pct}%) — <i>${saved} novos</i>`;
+                    }
                 }
-                downloaded++;
-                tileProgress.innerHTML = `Progresso: ${downloaded} / ${totalTiles} tiles (${Math.round((downloaded / totalTiles) * 100)}%)`;
             }
 
+            const workers = Array.from(
+                { length: Math.min(CONCURRENCY, tilesToFetch.length) },
+                () => downloadWorker()
+            );
+            await Promise.all(workers);
+
             startTileDownload.disabled = false;
-            tileProgress.innerHTML = `✅ Download concluído: <b>${downloaded}</b> tiles salvos offline!`;
+            tileProgress.innerHTML = `✅ Concluído: <b>${saved}</b> novos tiles salvos (total verificado: ${completed})`;
             showToast('Download de tiles concluído com sucesso!', 'success');
         });
     }

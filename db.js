@@ -2,13 +2,16 @@
 
 const db = new Dexie('GisPwaDB');
 
-// Schema versão 3: apenas layers + tiles
+// Schema versão 4: layers + tiles + routes (cache de rotas OSRM)
 db.version(3).stores({
     layers: '++id, name, type, order, created, updated',
     tiles: 'key, blob, timestamp'
-}).upgrade(tx => {
-    // Migração silenciosa de versões anteriores (remove stores antigas se existirem)
-    return Promise.resolve();
+});
+
+db.version(4).stores({
+    layers: '++id, name, type, order, created, updated',
+    tiles: 'key, blob, timestamp',
+    routes: 'key, distance, duration, timestamp'
 });
 
 // Funções para Camadas
@@ -61,6 +64,28 @@ async function saveTile(key, blob) {
 
 async function clearTiles() {
     await db.tiles.clear();
+}
+
+// Funções para Rotas (cache offline no IndexedDB)
+async function getCachedRoute(key) {
+    try {
+        const record = await db.routes.get(key);
+        return record || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+async function saveCachedRoute(key, distance, duration) {
+    try {
+        await db.routes.put({ key, distance, duration, timestamp: new Date() });
+    } catch (_) {}
+}
+
+async function clearRoutes() {
+    try {
+        await db.routes.clear();
+    } catch (_) {}
 }
 
 // Exportação / Importação de Backup (somente layers)
@@ -124,6 +149,9 @@ window.DB = {
     getTile,
     saveTile,
     clearTiles,
+    getCachedRoute,
+    saveCachedRoute,
+    clearRoutes,
     exportBackup,
     importBackup
 };

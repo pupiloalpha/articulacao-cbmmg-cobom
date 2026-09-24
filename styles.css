@@ -11,10 +11,32 @@
     --text-muted: #7f8c8d;
     --sidebar-bg: #ffffff;
     --card-border: #e2e8f0;
+    --card-bg: #ffffff;
+    --card-hover-bg: #f8fafc;
+    --input-bg: #ffffff;
+    --input-border: #cbd5e1;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
     --radius-sm: 6px;
     --radius-md: 8px;
+}
+
+body.dark-theme {
+    --primary-color: #a82323;
+    --primary-dark: #5c1010;
+    --accent-color: #38bdf8;
+    --accent-hover: #0284c7;
+    --bg-color: #0b1120;
+    --text-color: #f1f5f9;
+    --text-muted: #94a3b8;
+    --sidebar-bg: #1e293b;
+    --card-border: #334155;
+    --card-bg: #1e293b;
+    --card-hover-bg: #334155;
+    --input-bg: #0f172a;
+    --input-border: #475569;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
 }
 
 * {
@@ -189,6 +211,11 @@ body {
     gap: 6px;
 }
 
+.btn-grid-actions .btn {
+    min-height: 42px;
+    font-size: 0.85rem;
+}
+
 .btn {
     display: inline-flex;
     align-items: center;
@@ -215,11 +242,12 @@ body {
 }
 
 #resetBtn {
-    background: #e74c3c !important;
+    background: #475569 !important;
     color: white !important;
+    min-height: 38px;
 }
 #resetBtn:hover {
-    background: #c0392b !important;
+    background: #334155 !important;
 }
 
 .hidden {
@@ -304,7 +332,7 @@ body {
 
 #layersUl li {
     padding: 8px 10px;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: var(--radius-sm);
     display: flex;
@@ -313,6 +341,7 @@ body {
     font-size: 0.85rem;
     font-weight: 500;
     box-shadow: var(--shadow-sm);
+    color: var(--text-color);
 }
 
 #layersUl li .btn-icon {
@@ -322,13 +351,14 @@ body {
     height: 26px;
 }
 #layersUl li .btn-icon:hover {
-    background: #f1f5f9;
+    background: var(--card-hover-bg);
 }
 
 /* Modos de Visualização */
 #viewControls {
     padding: 12px;
-    background: #ffffff;
+    background: transparent;
+    border-bottom: 1px solid var(--card-border);
 }
 
 #viewControls .checkbox-group {
@@ -344,7 +374,7 @@ body {
     user-select: none;
     padding: 6px 8px;
     border-radius: var(--radius-sm);
-    background: #f1f5f9;
+    background: var(--card-hover-bg);
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-color);
@@ -1043,11 +1073,30 @@ body {
 .dispatch-jurisdiction-title {
     font-size: 12px;
     font-weight: 700;
-    color: #2c3e50;
+    color: var(--text-color);
     margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.dispatch-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 5px;
+}
+
+.dispatch-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.dispatch-section-hint {
+    font-size: 10px;
+    color: var(--text-muted);
 }
 
 .dispatch-jurisdiction-list {
@@ -1179,6 +1228,48 @@ body {
 .dispatch-unit-card.card-best-eta:hover {
     border-color: #219653;
     background: #eafaf1;
+}
+
+.dispatch-unit-card.card-top-rec {
+    border: 1.5px solid #059669;
+    background: #ecfdf5;
+}
+
+.dispatch-unit-card.card-top-rec:hover {
+    border-color: #10b981;
+    background: #d1fae5;
+}
+
+.dispatch-badge-rec {
+    background: #059669;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    display: inline-block;
+}
+
+.btn-external-nav {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.btn-external-nav:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
 }
 
 .dispatch-unit-header {
@@ -1415,7 +1506,7 @@ body {
    ========================================================================== */
 #legendSection {
     padding: 12px;
-    background: #ffffff;
+    background: transparent;
     border-top: 1px solid var(--card-border);
 }
 
@@ -1443,7 +1534,7 @@ body {
     gap: 10px;
     padding: 6px 8px;
     border-radius: var(--radius-sm);
-    background: #f8fafc;
+    background: var(--card-hover-bg);
     border: 1px solid var(--card-border);
     transition: background 0.15s ease;
     font-size: 0.82rem;
@@ -1451,7 +1542,7 @@ body {
 }
 
 .legend-item:hover {
-    background: #eef2f7;
+    background: var(--card-border);
 }
 
 .legend-swatch {
@@ -1958,4 +2049,1263 @@ body {
     color: #95a5a6;
     font-style: italic;
     font-weight: 500;
+}
+
+/* ==========================================================================
+   ESTILOS OPERACIONAIS DE DESPACHO E MODO ESCURO (COBOM)
+   ========================================================================== */
+
+/* Badge de Recomendação Top 1 */
+.dispatch-badge-rec {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #fef08a;
+    color: #854d0e;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+}
+
+body.dark-theme .dispatch-badge-rec {
+    background: #854d0e;
+    color: #fef08a;
+}
+
+/* Botão de Navegação GPS Externo (Google Maps / Waze) */
+.btn-external-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #334155;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn-external-nav:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+}
+
+body.dark-theme .btn-external-nav {
+    background: #475569;
+}
+body.dark-theme .btn-external-nav:hover {
+    background: #64748b;
+}
+
+/* Regras do Modo Escuro Geral */
+body.dark-theme {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+body.dark-theme .sidebar {
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--card-border);
+}
+
+body.dark-theme .search-container {
+    background-color: var(--sidebar-bg);
+    border-color: var(--card-border);
+}
+
+body.dark-theme .search-container input[type="text"] {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--input-border);
+}
+
+body.dark-theme .search-container input[type="text"]:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+body.dark-theme .floating-search-box {
+    background-color: var(--sidebar-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .floating-search-box input {
+    color: var(--text-color);
+}
+
+body.dark-theme .floating-search-results {
+    background-color: var(--sidebar-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .search-result-item {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+    color: var(--text-color);
+}
+
+body.dark-theme .search-result-item:hover {
+    background-color: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .search-result-name {
+    color: var(--text-color);
+}
+
+body.dark-theme .dispatch-jurisdiction-card {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+}
+
+body.dark-theme .dispatch-jurisdiction-title {
+    color: var(--text-color);
+}
+
+body.dark-theme .dispatch-section-title {
+    color: var(--text-color);
+}
+
+body.dark-theme .dispatch-section-hint {
+    color: var(--text-muted);
+}
+
+body.dark-theme .jurisdiction-item {
+    background-color: #1e293b;
+    border-color: var(--card-border);
+}
+
+body.dark-theme .jurisdiction-name {
+    color: var(--text-color);
+}
+
+body.dark-theme .jurisdiction-layer {
+    color: var(--text-muted);
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-bm {
+    background: linear-gradient(135deg, rgba(153, 27, 27, 0.45) 0%, rgba(185, 28, 28, 0.25) 100%);
+    border-left-color: #ef4444;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-bm .jurisdiction-name {
+    color: #fca5a5;
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-bm .jurisdiction-layer {
+    color: #fecaca;
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-empty {
+    background: rgba(220, 38, 38, 0.25);
+    border-left-color: #ef4444;
+}
+
+body.dark-theme .dispatch-unit-card {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+}
+
+body.dark-theme .dispatch-unit-card:hover {
+    background-color: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .dispatch-unit-name {
+    color: var(--text-color);
+}
+
+body.dark-theme .dispatch-unit-rank {
+    color: var(--accent-color);
+}
+
+body.dark-theme .dispatch-unit-details {
+    color: var(--text-muted);
+}
+
+/* Unidade recomendada (#1) e melhor ETA (mais rápida / mais próximo) no Dark Theme */
+body.dark-theme .dispatch-unit-card.card-top-rec,
+body.dark-theme .dispatch-unit-card.card-best-eta {
+    border: 1.5px solid #10b981 !important;
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(6, 95, 70, 0.35) 100%) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-theme .dispatch-unit-card.card-top-rec:hover,
+body.dark-theme .dispatch-unit-card.card-best-eta:hover {
+    border-color: #34d399 !important;
+    background: linear-gradient(135deg, rgba(6, 95, 70, 0.75) 0%, rgba(4, 120, 87, 0.5) 100%) !important;
+}
+
+body.dark-theme .dispatch-badge-rec {
+    background: #059669;
+    color: #ffffff;
+}
+
+body.dark-theme .btn-external-nav {
+    background: #1e293b;
+    border-color: #475569;
+    color: #38bdf8;
+}
+
+body.dark-theme .btn-external-nav:hover {
+    background: #334155;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+body.dark-theme .eta-badge-loading {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+}
+
+body.dark-theme .eta-badge-ready {
+    background: rgba(14, 116, 144, 0.35);
+    color: #38bdf8;
+    border: 1px solid #0e7490;
+}
+
+body.dark-theme .eta-badge-best {
+    background: rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    border: 1px solid #059669;
+}
+
+body.dark-theme .eta-badge-straight {
+    color: #94a3b8;
+}
+
+/* ============================================================
+   Popups e Tooltips do Leaflet (Dark Theme)
+   ============================================================ */
+body.dark-theme .leaflet-tooltip.feature-tooltip {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.7) !important;
+}
+
+body.dark-theme .leaflet-popup-content-wrapper {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.8) !important;
+    border-radius: 8px !important;
+}
+
+body.dark-theme .leaflet-popup-tip {
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-theme .feature-card-body {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-theme .feature-info-label {
+    color: #94a3b8 !important;
+}
+
+body.dark-theme .feature-info-value {
+    color: #f1f5f9 !important;
+}
+
+body.dark-theme .feature-info-row {
+    border-color: #334155;
+}
+
+body.dark-theme .feature-popup-actions {
+    background: #1e293b !important;
+    border-top: 1px solid #334155 !important;
+}
+
+body.dark-theme .feature-tooltip .btn-copy-coords-inline {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+    color: #38bdf8 !important;
+}
+
+body.dark-theme .feature-tooltip .btn-copy-coords-inline:hover {
+    background: #334155 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .btn-popup-close {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .btn-popup-close:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.dark-theme .leaflet-container a.leaflet-popup-close-button {
+    color: #cbd5e1 !important;
+}
+
+body.dark-theme .leaflet-container a.leaflet-popup-close-button:hover {
+    color: #ffffff !important;
+}
+
+/* Badges dentro de Tooltips e Popups no Dark Theme */
+body.dark-theme .badge-tempo-verde { background: rgba(30, 132, 73, 0.35); color: #6ee7b7; border: 1px solid #059669; }
+body.dark-theme .badge-tempo-amarelo { background: rgba(185, 119, 14, 0.35); color: #fde047; border: 1px solid #d97706; }
+body.dark-theme .badge-tempo-vermelho { background: rgba(146, 43, 33, 0.35); color: #fca5a5; border: 1px solid #dc2626; }
+body.dark-theme .badge-tempo-neutro { background: rgba(93, 109, 126, 0.35); color: #cbd5e1; border: 1px solid #64748b; }
+body.dark-theme .badge-ueop { background: rgba(26, 82, 118, 0.35); color: #7dd3fc; border: 1px solid #0284c7; }
+body.dark-theme .badge-cob { background: rgba(146, 43, 33, 0.35); color: #fca5a5; border: 1px solid #dc2626; }
+body.dark-theme .badge-zona { background: rgba(185, 119, 14, 0.35); color: #fde047; border: 1px solid #d97706; }
+body.dark-theme .badge-macro { background: rgba(108, 52, 131, 0.35); color: #d8b4fe; border: 1px solid #9333ea; }
+body.dark-theme .badge-micro { background: rgba(30, 132, 73, 0.35); color: #6ee7b7; border: 1px solid #059669; }
+body.dark-theme .badge-hospital { background: rgba(26, 82, 118, 0.35); color: #7dd3fc; border: 1px solid #0284c7; }
+body.dark-theme .badge-upa { background: rgba(14, 102, 85, 0.35); color: #5eead4; border: 1px solid #0d9488; }
+
+body.dark-theme #auth-section {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+}
+
+body.dark-theme #adminTools {
+    background-color: var(--sidebar-bg);
+    border-color: var(--card-border);
+}
+
+body.dark-theme .drop-zone {
+    background-color: #0f172a;
+    border-color: var(--input-border);
+    color: var(--text-muted);
+}
+
+body.dark-theme .modal-content {
+    background-color: var(--sidebar-bg);
+    color: var(--text-color);
+    border: 1px solid var(--card-border);
+}
+
+body.dark-theme .origin-brief-body {
+    background-color: var(--sidebar-bg);
+    color: var(--text-color);
+}
+
+body.dark-theme .origin-brief-row {
+    border-color: var(--card-border);
+}
+
+body.dark-theme .origin-brief-value {
+    color: var(--text-color);
+}
+
+/* Sidebar Scrollbar no Dark Theme */
+body.dark-theme .sidebar::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+body.dark-theme .sidebar::-webkit-scrollbar-thumb {
+    background: #334155;
+}
+body.dark-theme .sidebar::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* ============================================================
+   Camadas no Painel Lateral (Dark Theme)
+   ============================================================ */
+body.dark-theme #layerList {
+    background-color: transparent;
+    border-color: var(--card-border);
+}
+
+body.dark-theme #layerList h3 {
+    color: var(--text-muted);
+}
+
+body.dark-theme #layersUl li {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+    color: var(--text-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme #layersUl li:hover {
+    background-color: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme #layersUl li .layer-name {
+    color: var(--text-color);
+}
+
+body.dark-theme #layersUl li .btn-icon {
+    color: var(--text-color);
+}
+
+body.dark-theme #layersUl li .btn-icon:hover {
+    background-color: #334155;
+    color: #ffffff;
+}
+
+body.dark-theme .layer-icon-badge {
+    border-color: #0f172a;
+    box-shadow: 0 0 0 1px var(--layer-icon-border, #475569), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .layer-icon-more {
+    background-color: #334155;
+    color: #e2e8f0;
+    border-color: var(--card-border);
+}
+
+/* ============================================================
+   Controles de Visualização no Painel Lateral (Dark Theme)
+   ============================================================ */
+body.dark-theme #viewControls {
+    background-color: transparent;
+    border-color: var(--card-border);
+}
+
+body.dark-theme #viewControls h3 {
+    color: var(--text-muted);
+}
+
+body.dark-theme #viewControls label {
+    background-color: #0f172a;
+    border: 1px solid var(--card-border);
+    color: var(--text-color);
+}
+
+body.dark-theme #viewControls label:hover {
+    background-color: #1e293b;
+    border-color: var(--accent-color);
+    color: #ffffff;
+}
+
+body.dark-theme #viewControls label:has(input:checked) {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body.dark-theme #viewControls label:has(input:checked):hover {
+    background-color: var(--accent-hover);
+    color: #ffffff;
+}
+
+/* ============================================================
+   Legenda Dinâmica no Painel Lateral (Dark Theme)
+   ============================================================ */
+body.dark-theme #legendSection {
+    background-color: transparent;
+    border-color: var(--card-border);
+}
+
+body.dark-theme #legendSection h3 {
+    color: var(--text-muted);
+}
+
+body.dark-theme .legend-item {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+    color: var(--text-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .legend-item:hover {
+    background-color: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .legend-swatch {
+    border-color: #0f172a;
+    box-shadow: 0 0 0 1.5px currentColor, 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .legend-label {
+    color: var(--text-color);
+}
+
+/* Inputs numéricos e selects gerais no Dark Theme */
+body.dark-theme input[type="number"],
+body.dark-theme textarea,
+body.dark-theme select {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--input-border);
+}
+
+/* Inversão noturna suave nos tiles OSM para não ofuscar operadores */
+body.dark-theme #map .leaflet-tile-pane {
+    filter: brightness(0.65) invert(1) contrast(2.6) hue-rotate(200deg) saturate(0.35) brightness(0.75);
+}
+
+/* ============================================================
+   Indicador de Status Online / Offline Enriquecido
+   ============================================================ */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    margin: 4px 0 10px 0;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.status-indicator.online {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.status-indicator.online .status-dot {
+    background-color: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    animation: statusPulse 2s infinite;
+}
+
+.status-indicator.offline {
+    background-color: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.status-indicator.offline .status-dot {
+    background-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+@keyframes statusPulse {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+    100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+body.dark-theme .status-indicator.online {
+    background-color: rgba(6, 78, 59, 0.45);
+    color: #6ee7b7;
+    border-color: #065f46;
+}
+
+body.dark-theme .status-indicator.offline {
+    background-color: rgba(120, 53, 15, 0.45);
+    color: #fcd34d;
+    border-color: #78350f;
+}
+
+/* ============================================================
+   Rodapé da Sidebar e Botão de Atalhos
+   ============================================================ */
+.sidebar-footer {
+    padding: 12px 14px;
+    border-top: 1px solid var(--card-border);
+    margin-top: auto;
+    text-align: center;
+}
+
+.btn-footer-link {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--input-border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-footer-link:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+    color: var(--text-color);
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .btn-footer-link:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================
+   Modal de Atalhos de Teclado (COBOM 193)
+   ============================================================ */
+.shortcuts-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.shortcut-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.shortcut-item kbd {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    border-bottom: 2px solid #94a3b8;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+body.dark-theme .shortcut-item {
+    background-color: #0f172a;
+    border-color: var(--card-border);
+}
+
+body.dark-theme .shortcut-item kbd {
+    background-color: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+    border-bottom-color: #64748b;
+}
+
+
+/* --------------------------------------------------------------------------
+   BADGE DE DISTÂNCIA EM LINHA RETA
+   -------------------------------------------------------------------------- */
+.eta-badge-straight {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #eaecee;
+    color: #5d6d7e;
+    border: 1px solid #d5dbdb;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+body.dark-theme .eta-badge-straight {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+}
+
+/* --------------------------------------------------------------------------
+   POPUPS DE ORIENTAÇÃO DE ROTA
+   -------------------------------------------------------------------------- */
+.route-popup {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 300px;
+    line-height: 1.4;
+}
+
+.route-popup-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #c0392b;
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+
+.route-popup-title.route-popup-title-info {
+    color: #1a5276;
+}
+
+.route-popup-title b {
+    font-weight: 800;
+}
+
+.route-popup-body {
+    font-size: 12px;
+    line-height: 1.45;
+    color: #2c3e50;
+}
+
+.route-popup-body b {
+    color: #1e293b;
+}
+
+.route-popup-muted {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #7f8c8d;
+    line-height: 1.35;
+}
+
+.route-popup-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 10px;
+    background: #1a5276;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.route-popup-btn:hover    { background: #2471a3; }
+.route-popup-btn:active   { transform: scale(0.98); }
+.route-popup-btn:disabled {
+    background: #5d6d7e;
+    cursor: wait;
+    opacity: 0.85;
+}
+
+/* --- Variante dark theme --- */
+body.dark-theme .route-popup-title          { color: #fca5a5; }
+body.dark-theme .route-popup-title.route-popup-title-info { color: #7dd3fc; }
+body.dark-theme .route-popup-body           { color: #e2e8f0; }
+body.dark-theme .route-popup-body b         { color: #f1f5f9; }
+body.dark-theme .route-popup-muted          { color: #94a3b8; }
+
+body.dark-theme .route-popup-btn            { background: #0369a1; }
+body.dark-theme .route-popup-btn:hover      { background: #0284c7; }
+body.dark-theme .route-popup-btn:disabled   { background: #475569; opacity: 0.7; }
+
+/* --------------------------------------------------------------------------
+   CARD DE STATUS DA BUSCA
+   -------------------------------------------------------------------------- */
+.search-status-msg {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin: 4px 0;
+    line-height: 1.4;
+}
+
+body.dark-theme .search-status-msg {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+/* --------------------------------------------------------------------------
+   BADGES/CARDS DE MUNICÍPIO NOS RESULTADOS DE BUSCA
+   -------------------------------------------------------------------------- */
+.search-result-title {
+    color: var(--text-color);
+    font-weight: 700;
+}
+
+.search-result-sub {
+    color: var(--text-muted);
+}
+
+.search-result-mun-badge {
+    font-size: 9px;
+    font-weight: 700;
+    background: #e8f4f8;
+    color: #2980b9;
+    border: 1px solid #d4e6f1;
+    padding: 1px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+body.dark-theme .search-result-mun-badge {
+    background: #1e3a5f;
+    color: #7dd3fc;
+    border-color: #0369a1;
+}
+
+/* Variantes coloridas usadas via style="" inline em search.js
+   (precisam de !important por causa da especificidade inline) */
+body.dark-theme .search-result-mun-badge[style*="fef3c7"] {
+    background: #78350f !important;
+    color: #fde047 !important;
+    border-color: #b45309 !important;
+}
+body.dark-theme .search-result-mun-badge[style*="e8f4f8"] {
+    background: #1e3a5f !important;
+    color: #7dd3fc !important;
+    border-color: #0369a1 !important;
+}
+body.dark-theme .search-result-mun-badge[style*="d5f5e3"] {
+    background: #14532d !important;
+    color: #86efac !important;
+    border-color: #166534 !important;
+}
+
+/* --------------------------------------------------------------------------
+   INPUTS — edição de feição, criação de ponto/polígono, login admin
+   -------------------------------------------------------------------------- */
+body.dark-theme input[type="text"],
+body.dark-theme input[type="password"],
+body.dark-theme input[type="number"],
+body.dark-theme input[type="email"],
+body.dark-theme input[type="search"],
+body.dark-theme input[type="tel"],
+body.dark-theme input[type="url"],
+body.dark-theme textarea,
+body.dark-theme select {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--input-border) !important;
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+    color: #64748b;
+    opacity: 1;
+}
+
+/* Inputs específicos com estilo inline (targetLayerSelect, newLayerNameInput,
+   editFeatureJsonTextarea, custom-props, coords) */
+body.dark-theme #targetLayerSelect,
+body.dark-theme #newLayerNameInput,
+body.dark-theme #editFeatureJsonTextarea,
+body.dark-theme #editProp_coordLat,
+body.dark-theme #editProp_coordLng,
+body.dark-theme .custom-prop-row input,
+body.dark-theme .form-group-edit input,
+body.dark-theme .form-group-edit select,
+body.dark-theme .form-group-edit textarea,
+body.dark-theme #pinInput,
+body.dark-theme #minZoom,
+body.dark-theme #maxZoom {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--input-border) !important;
+}
+
+/* Rótulos e subtítulos do modal de edição */
+body.dark-theme .form-group-edit label,
+body.dark-theme .modal-edit-feature label {
+    color: var(--text-color);
+}
+
+body.dark-theme .edit-feature-subtitle {
+    color: var(--text-muted);
+    border-bottom-color: var(--card-border);
+}
+
+body.dark-theme #editFeatureFieldsContainer h4 {
+    color: var(--text-muted) !important;
+}
+
+/* Modais auxiliares (login admin, tiles) */
+body.dark-theme #loginModal .modal-content,
+body.dark-theme #tileModal .modal-content {
+    background-color: var(--sidebar-bg);
+    color: var(--text-color);
+    border: 1px solid var(--card-border);
+}
+
+body.dark-theme #loginModal .modal-content h3,
+body.dark-theme #tileModal .modal-content h3 {
+    color: var(--text-color);
+}
+
+body.dark-theme #loginError {
+    color: #f87171 !important;
+}
+
+/* Login: dá um mínimo de estilo ao input (não existia antes) */
+#loginModal input[type="password"] {
+    width: 100%;
+    padding: 9px 12px;
+    margin: 10px 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   PAINEL DE ITINERÁRIO DO LEAFLET ROUTING MACHINE — Dark Theme
+   Painel gerado automaticamente pela lib ao calcular a rota com sucesso.
+   Contém a lista de instruções passo-a-passo ("Head north on...", etc.).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Container principal do painel
+   -------------------------------------------------------------------------- */
+.leaflet-routing-container {
+    background-color: #ffffff;
+    color: #2c3e50;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    max-width: 340px;
+    max-height: 55vh;
+    overflow-y: auto;
+}
+
+body.dark-theme .leaflet-routing-container {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.75) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Cabeçalho (nome da rota: "Avenida Afonso Pena, Rua da Bahia")
+   -------------------------------------------------------------------------- */
+.leaflet-routing-container h2,
+.leaflet-routing-container h3 {
+    color: #1a5276;
+    font-weight: 700;
+    padding: 8px 10px;
+    margin: 0;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8fafc;
+}
+
+.leaflet-routing-container h2 { font-size: 12.5px; }
+.leaflet-routing-container h3 { font-size: 11.5px; }
+
+body.dark-theme .leaflet-routing-container h2,
+body.dark-theme .leaflet-routing-container h3 {
+    background: #1e293b !important;
+    color: #7dd3fc !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Bloco de rota (.leaflet-routing-alt) — lista "2.5 km, 4 min"
+   -------------------------------------------------------------------------- */
+.leaflet-routing-alt {
+    background: #ffffff;
+    padding: 4px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.leaflet-routing-alt:last-child {
+    border-bottom: none;
+}
+
+body.dark-theme .leaflet-routing-alt {
+    background: #0f172a !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Tabela de instruções (linhas "Head north on Rua Maranhão 80 m", ...)
+   -------------------------------------------------------------------------- */
+.leaflet-routing-container table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+}
+
+.leaflet-routing-container tr {
+    background: #ffffff;
+    color: #2c3e50;
+    transition: background 0.12s ease;
+}
+
+.leaflet-routing-container tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.leaflet-routing-container tr:hover {
+    background: #eef6fb;
+}
+
+.leaflet-routing-container td {
+    padding: 5px 6px;
+    vertical-align: middle;
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: #2c3e50;
+    border: none;
+}
+
+/* Coluna de distância (ex.: "80 m", "1 km") */
+.leaflet-routing-container td.leaflet-routing-alt-distance,
+.leaflet-routing-container td:last-child {
+    text-align: right;
+    white-space: nowrap;
+    color: #7f8c8d;
+    font-size: 10.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Coluna do ícone direcional */
+.leaflet-routing-container td.leaflet-routing-alt-icon,
+.leaflet-routing-container td:first-child {
+    width: 22px;
+    text-align: center;
+    padding-left: 8px;
+}
+
+/* --- Dark theme --- */
+body.dark-theme .leaflet-routing-container table {
+    background: transparent !important;
+}
+
+body.dark-theme .leaflet-routing-container tr {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-theme .leaflet-routing-container tr:nth-child(even) {
+    background: #111c33 !important;
+}
+
+body.dark-theme .leaflet-routing-container tr:hover {
+    background: #1e293b !important;
+}
+
+body.dark-theme .leaflet-routing-container td {
+    color: #e2e8f0 !important;
+    border: none !important;
+}
+
+body.dark-theme .leaflet-routing-container td.leaflet-routing-alt-distance,
+body.dark-theme .leaflet-routing-container td:last-child {
+    color: #94a3b8 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Ícones direcionais (sprites PNG da lib) — dão contraste no dark
+   -------------------------------------------------------------------------- */
+body.dark-theme .leaflet-routing-icon {
+    filter: invert(1) brightness(1.4) contrast(0.9);
+}
+
+/* --------------------------------------------------------------------------
+   Cabeçalho com o resumo da distância/tempo ("2.5 km, 4 min")
+   -------------------------------------------------------------------------- */
+.leaflet-routing-container .leaflet-routing-alt h2,
+.leaflet-routing-container .leaflet-routing-alt h3 {
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8fafc;
+}
+
+.leaflet-routing-container .leaflet-routing-alt:first-child h2,
+.leaflet-routing-container .leaflet-routing-alt:first-child h3 {
+    border-top: none;
+}
+
+body.dark-theme .leaflet-routing-container .leaflet-routing-alt h2,
+body.dark-theme .leaflet-routing-container .leaflet-routing-alt h3 {
+    background: #1e293b !important;
+    color: #7dd3fc !important;
+    border-top: 1px solid #334155 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Inputs de origem / destino (topo do painel)
+   -------------------------------------------------------------------------- */
+.leaflet-routing-geocoders {
+    background: #ffffff;
+    border-bottom: 1px solid #e9ecef;
+    padding: 6px;
+}
+
+.leaflet-routing-geocoder {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.leaflet-routing-geocoder:last-child {
+    margin-bottom: 0;
+}
+
+.leaflet-routing-geocoder input {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 11.5px;
+    background: #ffffff;
+    color: #2c3e50;
+}
+
+.leaflet-routing-geocoder input:focus {
+    outline: none;
+    border-color: #2980b9;
+    box-shadow: 0 0 0 2px rgba(41, 128, 185, 0.15);
+}
+
+.leaflet-routing-geocoder-result {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-routing-geocoder-result table tr:hover,
+.leaflet-routing-geocoder-result table tr.leaflet-routing-geocoder-selected {
+    background: #eef6fb;
+}
+
+/* --- Dark theme --- */
+body.dark-theme .leaflet-routing-geocoders {
+    background: #1e293b !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder input {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #475569 !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder input::placeholder {
+    color: #64748b !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder input:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder-result {
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder-result table tr {
+    background: #0f172a !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder-result table tr:hover,
+body.dark-theme .leaflet-routing-geocoder-result table tr.leaflet-routing-geocoder-selected {
+    background: #1e293b !important;
+}
+
+body.dark-theme .leaflet-routing-geocoder-result table td {
+    color: #e2e8f0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Botão de recolher (×) no canto do painel
+   -------------------------------------------------------------------------- */
+.leaflet-routing-collapse-btn {
+    background: transparent;
+    color: #7f8c8d;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.leaflet-routing-collapse-btn:hover {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+
+body.dark-theme .leaflet-routing-collapse-btn {
+    color: #94a3b8 !important;
+}
+
+body.dark-theme .leaflet-routing-collapse-btn:hover {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Mensagens de erro do roteador
+   -------------------------------------------------------------------------- */
+.leaflet-routing-error {
+    background: #fdf2f2;
+    color: #922b21;
+    border: 1px solid #f5b7b1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+}
+
+body.dark-theme .leaflet-routing-error {
+    background: rgba(146, 43, 33, 0.25) !important;
+    color: #fca5a5 !important;
+    border: 1px solid #dc2626 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbar do painel (mais discreta no dark)
+   -------------------------------------------------------------------------- */
+.leaflet-routing-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.leaflet-routing-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.leaflet-routing-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.leaflet-routing-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+body.dark-theme .leaflet-routing-container::-webkit-scrollbar-track {
+    background: #0b1120 !important;
+}
+
+body.dark-theme .leaflet-routing-container::-webkit-scrollbar-thumb {
+    background: #334155 !important;
+}
+
+body.dark-theme .leaflet-routing-container::-webkit-scrollbar-thumb:hover {
+    background: #475569 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Ajuste de posição do painel em mobile: evita sobrepor a busca flutuante
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .leaflet-routing-container {
+        max-width: calc(100vw - 24px);
+        max-height: 45vh;
+        font-size: 11.5px;
+    }
+
+    .leaflet-routing-container td {
+        font-size: 11px;
+        padding: 4px 5px;
+    }
 }

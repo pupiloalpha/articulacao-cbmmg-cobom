@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v7';
+const DATA_VERSION = 'v8';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -163,6 +163,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ------------------------------------------------------------
     await checkDataVersion();
 
+    // Solicita armazenamento persistente para evitar expurgo de tiles e dados offline
+    if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(persisted => {
+            if (persisted) console.log('[Storage] Armazenamento persistente concedido.');
+        }).catch(() => {});
+    }
+
     initMap();
     updateOnlineStatus();
 
@@ -222,20 +229,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         await seedInitialData();
         await cleanupMunicipioFeatures();
 
-        await reloadLayers();
-
         showLoading('Carregando Macrorregiões, Microrregiões, Hospitais e Hidrantes...');
-	await Promise.all([
-	    loadMicroMacroRegions(),
-	    loadHospitalsData(),
-	    loadHidrantesData()
-	]);
+        await Promise.all([
+            loadMicroMacroRegions(),
+            loadHospitalsData(),
+            loadHidrantesData()
+        ]);
 
+        showLoading('Renderizando camadas operacionais...');
         await reloadLayers();
         zoomToAllFeatures();
 
         showLoading('Pronto!');
-        setTimeout(hideLoading, 500);
+        setTimeout(hideLoading, 400);
 
     } catch (err) {
         console.warn('Falha parcial no carregamento inicial:', err);
@@ -254,6 +260,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupTileDownload();
     initEditFeatureModalListeners();
     setupFloatingSearch();
+    initTheme();
+    initOperationalKeyboardShortcuts();
+    initShortcutsModal();
 
     // ============================================================
     // 2. Botão "Definir origem no mapa"
@@ -429,3 +438,145 @@ window.enterRouteViewMode = enterRouteViewMode;
 window.exitRouteViewMode = exitRouteViewMode;
 window.clearRouteViewState = clearRouteViewState;
 window.ensureOriginAvailable = ensureOriginAvailable;
+
+// ============================================================
+// MODO ESCURO / DARK THEME OPERACIONAL (COBOM)
+// ============================================================
+function initTheme() {
+    const savedTheme = localStorage.getItem('cobom_theme') || 'light';
+    const toggleBtn = document.getElementById('themeToggleBtn');
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+            if (toggleBtn) {
+                toggleBtn.textContent = '☀️';
+                toggleBtn.title = 'Alternar para Modo Diurno';
+            }
+        } else {
+            document.body.classList.remove('dark-theme');
+            if (toggleBtn) {
+                toggleBtn.textContent = '🌙';
+                toggleBtn.title = 'Alternar para Modo Noturno (COBOM)';
+            }
+        }
+        localStorage.setItem('cobom_theme', theme);
+    }
+
+    applyTheme(savedTheme);
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const isDark = document.body.classList.contains('dark-theme');
+            applyTheme(isDark ? 'light' : 'dark');
+            showToast(isDark ? 'Modo Diurno ativado.' : 'Modo Noturno (COBOM) ativado.', 'info', 1800);
+        });
+    }
+}
+
+// ============================================================
+// ATALHOS DE TECLADO OPERACIONAIS (SALA DE DESPACHO 193)
+// ============================================================
+function initOperationalKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isEditing = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select';
+
+        // F2 ou / (quando fora de digitação): Focar campo de busca
+        if (e.key === 'F2' || (!isEditing && e.key === '/')) {
+            e.preventDefault();
+            const floatingInput = document.getElementById('floatingSearchInput');
+            const searchInput = document.getElementById('searchInput');
+            const sidebar = document.getElementById('sidebar');
+
+            if (sidebar && !sidebar.classList.contains('collapsed') && searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            } else if (floatingInput) {
+                floatingInput.focus();
+                floatingInput.select();
+            }
+            return;
+        }
+
+        // Alt + G: Usar localização GPS
+        if (e.altKey && (e.key === 'g' || e.key === 'G')) {
+            e.preventDefault();
+            const gpsBtn = document.getElementById('useMyLocationBtn');
+            if (gpsBtn) gpsBtn.click();
+            return;
+        }
+
+        // Alt + 1: Despacho rápido para a Unidade BM #1 (mais próxima)
+        if (e.altKey && e.key === '1') {
+            e.preventDefault();
+            const topUnitCard = document.getElementById('dispatch-unit-card-0');
+            if (topUnitCard) {
+                topUnitCard.click();
+                showToast('Despacho acionado para Unidade #1.', 'info', 2000);
+            }
+            return;
+        }
+
+        // Alt + N: Alternar Modo Noturno (COBOM) / Diurno
+        if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            const themeBtn = document.getElementById('themeToggleBtn');
+            if (themeBtn) themeBtn.click();
+            return;
+        }
+
+        // Escape: Fechar modais, limpar rotas ou fechar dropdown flutuante
+        if (e.key === 'Escape') {
+            // 1. Fecha modais visíveis
+            const openModals = document.querySelectorAll('.modal:not(.hidden)');
+            if (openModals.length > 0) {
+                openModals.forEach(m => m.classList.add('hidden'));
+                return;
+            }
+
+            // 2. Fecha dropdown de resultados da busca flutuante
+            const floatingResults = document.getElementById('floatingSearchResults');
+            if (floatingResults && !floatingResults.classList.contains('hidden')) {
+                floatingResults.classList.add('hidden');
+                return;
+            }
+
+            // 3. Se há rota ativa ou origem traçada, restaura visão inicial
+            if (window.distanceLine || window.routingControl) {
+                resetAll();
+            }
+        }
+    });
+}
+
+// ============================================================
+// MODAL DE ATALHOS OPERACIONAIS (COBOM 193)
+// ============================================================
+function initShortcutsModal() {
+    const shortcutsBtn = document.getElementById('shortcutsBtn');
+    const shortcutsModal = document.getElementById('shortcutsModal');
+    const closeShortcutsModal = document.getElementById('closeShortcutsModal');
+
+    if (shortcutsBtn && shortcutsModal) {
+        shortcutsBtn.addEventListener('click', () => {
+            shortcutsModal.classList.remove('hidden');
+        });
+    }
+
+    if (closeShortcutsModal && shortcutsModal) {
+        closeShortcutsModal.addEventListener('click', () => {
+            shortcutsModal.classList.add('hidden');
+        });
+    }
+
+    if (shortcutsModal) {
+        // Fechar ao clicar fora do conteúdo
+        shortcutsModal.addEventListener('click', (e) => {
+            if (e.target === shortcutsModal) {
+                shortcutsModal.classList.add('hidden');
+            }
+        });
+    }
+}
+

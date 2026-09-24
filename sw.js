@@ -1,6 +1,6 @@
 // sw.js - Service Worker com estratégia Cache-First para assets estáticos
 
-const CACHE_NAME = 'gis-pwa-cache-v7'; // ⚠️ Bump aqui sempre que alterar arquivos estáticos OU dados iniciais.
+const CACHE_NAME = 'gis-pwa-cache-v8'; // ⚠️ Bump aqui sempre que alterar arquivos estáticos OU dados iniciais.
                                        // Manter sincronizado com DATA_VERSION em app.js.
 const STATIC_ASSETS = [
     './',
@@ -14,16 +14,30 @@ const STATIC_ASSETS = [
     './data/macrorregioes/macrorregioes.topojson',
     './data/microrregioes/microrregioes.topojson',
     './data/hidrantes/hidrantes.geojson',
+    './data/hospitais/hospitais_referencia_mg.geojson',
+    // Módulos JS da aplicação
+    './js/utils.js',
+    './js/map.js',
     './js/icons.js',
+    './js/eventos.js',
     './js/chamadas.js',
+    './js/layers.js',
+    './js/search.js',
+    './js/gps.js',
+    './js/tiles.js',
+    './js/admin.js',
     // Ícones PWA
     './icons/favicon-16.png',
     './icons/favicon-32.png',
-    './icons/icon-128.png',
+    './icons/favicon-96x96.png',
+    './icons/favicon.ico',
     './icons/icon-152.png',
+    './icons/icon-167.png',
+    './icons/icon-180.png',
     './icons/icon-192.png',
-    './icons/icon-384.png',
+    './icons/icon-256.png',
     './icons/icon-512.png',
+    './icons/apple-touch-icon.png',
     // Bibliotecas de terceiros (locais)
     './vendor/leaflet.css',
     './vendor/leaflet-routing-machine.css',

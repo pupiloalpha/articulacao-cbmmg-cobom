@@ -487,7 +487,19 @@ function setupBackupAndRoutes() {
             e.target.value = '';
         });
     }
-    // Botão de limpar cache de rotas removido
+
+    const clearRoutesBtn = document.getElementById('clearRoutesBtn');
+    if (clearRoutesBtn) {
+        clearRoutesBtn.addEventListener('click', async () => {
+            if (!window.isAdmin) return;
+            if (confirm('Deseja limpar todas as rotas armazenadas em cache local?')) {
+                if (window.DB && typeof window.DB.clearRoutes === 'function') {
+                    await window.DB.clearRoutes();
+                    showToast('Cache de rotas limpo com sucesso!', 'success');
+                }
+            }
+        });
+    }
 }
 
 // ==========================================================================

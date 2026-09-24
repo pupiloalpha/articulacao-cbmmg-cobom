@@ -62,8 +62,6 @@ async function seedInitialData() {
             });
             console.log(`Camada inicial importada: ${name} (${geojson.features.length} feições)`);
         }
-
-        await reloadLayers();
     } catch (e) {
         console.warn('Erro ao carregar dados iniciais de backup:', e);
     }
@@ -636,7 +634,7 @@ if (type === 'HIDRANTE') {
                 ${enderecoCompleto ? `
                 <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                     <span class="feature-info-label">Endereço:</span>
-                    <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;color:#2c3e50;">
+                    <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;">
                         ${enderecoCompleto}${bairro ? ' — ' + bairro : ''}
                     </span>
                 </div>` : (bairro ? `
@@ -654,7 +652,7 @@ if (type === 'HIDRANTE') {
                 ${referencia ? `
                 <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                     <span class="feature-info-label">Referência:</span>
-                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;color:#34495e;">
+                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;">
                         ${referencia}
                     </span>
                 </div>` : ''}
@@ -675,7 +673,7 @@ if (type === 'HIDRANTE') {
                 ${nReds ? `
                 <div class="feature-info-row">
                     <span class="feature-info-label">REDS:</span>
-                    <span class="feature-info-value" style="font-size:10.5px;font-family:monospace;color:#34495e;">${nReds}</span>
+                    <span class="feature-info-value" style="font-size:10.5px;font-family:monospace;">${nReds}</span>
                 </div>` : ''}
 
                 ${unidade ? `
@@ -741,7 +739,7 @@ if (type === 'HIDRANTE') {
                     </div>` : ''}
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Natureza:</span>
-                        <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;color:#2c3e50;line-height:1.35;">${props.natureza || '—'}</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:11.5px;font-weight:600;line-height:1.35;">${props.natureza || '—'}</span>
                     </div>
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Local:</span>
@@ -755,7 +753,7 @@ if (type === 'HIDRANTE') {
                     ${props.recursosEmpenhados ? `
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Recursos empenhados:</span>
-                        <span class="feature-info-value" style="text-align:left;font-size:10.5px;font-family:monospace;color:#34495e;">${props.recursosEmpenhados}</span>
+                        <span class="feature-info-value" style="text-align:left;font-size:10.5px;font-family:monospace;">${props.recursosEmpenhados}</span>
                     </div>` : ''}
                     <div class="feature-info-row">
                         <span class="feature-info-label">Criada em:</span>
@@ -927,7 +925,7 @@ if (type === 'HIDRANTE') {
             especialidadesHtml = `
                 <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                     <span class="feature-info-label">Especialidades:</span>
-                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;color:#34495e;">
+                    <span class="feature-info-value" style="text-align:left;font-size:11px;line-height:1.35;">
                         ${texto}
                     </span>
                 </div>`;
@@ -1497,6 +1495,7 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
             iconCreateFunction: _clusterIconCreate
         });
 
+        const markers = [];
         pointFeatures.forEach(feature => {
             if (getFeatureClassification(feature) === 'MUNICIPIO') return;
             const latlng = L.latLng(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
@@ -1509,8 +1508,12 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                 title: getFeatureDisplayName(feature)
             });
             _bindMarkerInteractions(marker, feature);
-            clusterGroup.addLayer(marker);
+            markers.push(marker);
         });
+
+        if (markers.length > 0) {
+            clusterGroup.addLayers(markers);
+        }
 
         wrapper.addLayer(clusterGroup);
     }

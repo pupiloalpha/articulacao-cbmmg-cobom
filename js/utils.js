@@ -246,11 +246,13 @@ function updateOnlineStatus() {
     const indicator = document.getElementById('status-indicator');
     if (!indicator) return;
     if (navigator.onLine) {
-        indicator.textContent = 'Online';
+        indicator.innerHTML = '<span class="status-dot"></span> Online (Tiles & Rotas)';
         indicator.className = 'status-indicator online';
+        indicator.title = 'Conectado à internet. Tiles dinâmicos e cálculo de rotas viárias OSRM disponíveis.';
     } else {
-        indicator.textContent = 'Offline';
+        indicator.innerHTML = '<span class="status-dot"></span> Modo Offline (Dados Locais)';
         indicator.className = 'status-indicator offline';
+        indicator.title = 'Sem conexão externa. Operando 100% com dados e tiles em cache local.';
     }
 }
 

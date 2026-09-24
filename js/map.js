@@ -36,7 +36,12 @@ class OfflineTileLayer extends L.TileLayer {
 }
 
 function initMap() {
-    map = L.map('map', { center: [-15.7934, -47.8822], zoom: 4, zoomControl: false });
+    map = L.map('map', {
+        center: [-15.7934, -47.8822],
+        zoom: 4,
+        zoomControl: false,
+        preferCanvas: true
+    });
 
     const originIconSvg = encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
@@ -50,6 +55,12 @@ function initMap() {
   <path fill="#2980b9" stroke="#1a5276" stroke-width="1.2" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.3 21.7 0 14 0z"/>
   <circle cx="14" cy="14" r="6" fill="#fff"/>
   <circle cx="14" cy="14" r="3.2" fill="#2980b9"/>
+</svg>`);
+
+    const defaultMarkerSvg = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41">
+  <path fill="#2a80b9" stroke="#1b4f72" stroke-width="1.2" d="M12.5 0C5.6 0 0 5.6 0 12.5c0 9.4 12.5 28.5 12.5 28.5S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z"/>
+  <circle cx="12.5" cy="12.5" r="5" fill="#fff"/>
 </svg>`);
 
     const originIcon = L.icon({
@@ -70,9 +81,9 @@ function initMap() {
     window.destIcon = destIcon;
 
     L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
+        iconRetinaUrl: `data:image/svg+xml,${defaultMarkerSvg}`,
+        iconUrl: `data:image/svg+xml,${defaultMarkerSvg}`,
+        shadowUrl: ''
     });
 
     L.control.zoom({ position: 'topright' }).addTo(map);
@@ -162,15 +173,43 @@ function zoomToAllFeatures() {
     else map.setView([-15.7934, -47.8822], 4);
 }
 
-async function checkPolygonContainment(lat, lng) {
+function getFeatureBBox(feature) {
+    if (feature._bbox) return feature._bbox;
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    const processCoord = (c) => {
+        if (!c || c.length < 2) return;
+        const lng = c[0], lat = c[1];
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+    };
+    const geom = feature.geometry;
+    if (geom.type === 'Polygon' && Array.isArray(geom.coordinates)) {
+        geom.coordinates[0].forEach(processCoord);
+    } else if (geom.type === 'MultiPolygon' && Array.isArray(geom.coordinates)) {
+        geom.coordinates.forEach(poly => {
+            if (poly && Array.isArray(poly[0])) poly[0].forEach(processCoord);
+        });
+    }
+    feature._bbox = [minLng, minLat, maxLng, maxLat];
+    return feature._bbox;
+}
+
+async function checkPolygonContainment(lat, lng, providedLayers = null) {
     const point = turf.point([lng, lat]);
     const containingPolygons = [];
-    const allLayers = await DB.getLayers();
+    const allLayers = providedLayers || await DB.getLayers();
 
     for (const layerData of allLayers) {
         if (!layerData?.geojson?.features) continue;
         for (const feature of layerData.geojson.features) {
             if (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon') continue;
+
+            // Pré-filtro Bounding Box: descarta rapidamente polígonos distantes sem chamar Turf
+            const [minLng, minLat, maxLng, maxLat] = getFeatureBBox(feature);
+            if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) continue;
+
             try {
                 const polygonFeature = turf.feature(feature.geometry);
                 if (!turf.booleanPointInPolygon(point, polygonFeature)) continue;
@@ -216,9 +255,10 @@ let _originBriefingToken = 0;
  */
 async function buildOriginBriefing(lat, lng) {
     const originPoint = turf.point([lng, lat]);
+    const allLayers = await DB.getLayers();
 
-    // --- Polígonos que contêm o ponto ---
-    const containing = await checkPolygonContainment(lat, lng);
+    // --- Polígonos que contêm o ponto (reaproveitando allLayers) ---
+    const containing = await checkPolygonContainment(lat, lng, allLayers);
 
     const bmArticulation = containing.find(p =>
         p.layerName && (
@@ -243,8 +283,6 @@ async function buildOriginBriefing(lat, lng) {
     const checkUpa = (typeof isUPA === 'function')
         ? isUPA
         : () => false;
-
-    const allLayers = await DB.getLayers();
 
     for (const layer of allLayers) {
         if (!layer?.geojson?.features) continue;
@@ -545,12 +583,12 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     if (!distanceContainer) return;
 
     const reqId = ++currentRouteRequestId;
-    const containingPolygons = await checkPolygonContainment(originLat, originLng);
+    const allLayers = await DB.getLayers();
+    const containingPolygons = await checkPolygonContainment(originLat, originLng, allLayers);
     const originPoint = turf.point([originLng, originLat]);
     const unitResults = [];
     const hospitalResults = [];
 
-    const allLayers = await DB.getLayers();
     for (const layerData of allLayers) {
         if (!layerData?.geojson?.features) continue;
         for (const feature of layerData.geojson.features) {
@@ -627,9 +665,9 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // ===== Unidades BM (Top 10) =====
     // Direção da rota: Unidade → Local pesquisado (a viatura sai da Unidade)
     html += `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-            <span style="font-size:12px; font-weight:700; color:#2c3e50;">🚒 Unidades BM mais próximas (Top 10)</span>
-            <span style="font-size:10px; color:#7f8c8d;">clique para rota</span>
+        <div class="dispatch-section-header">
+            <span class="dispatch-section-title">🚒 Unidades BM mais próximas (Top 10)</span>
+            <span class="dispatch-section-hint">clique para rota</span>
         </div>
         <div class="dispatch-units-list">`;
 
@@ -644,12 +682,18 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
                 : `<span class="eta-badge-straight">➡️ ${straightKm} km (reta)</span>`;
 
             // reverseRoute = true → rota Unidade → origem
+            const recBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADA</span>' : '';
+            const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
             html += `
-                <div class="dispatch-unit-card" id="dispatch-unit-card-${i}"
+                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-unit-card-${i}"
                      onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, true)">
                     <div class="dispatch-unit-header">
                         <div class="dispatch-unit-name">
                             <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
+                        </div>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            ${recBadge}
+                            <button class="btn-external-nav" title="Abrir no Google Maps/GPS" onclick="event.stopPropagation(); window.open('${gmapUrl}', '_blank')">🧭 GPS</button>
                         </div>
                     </div>
                     <div class="dispatch-unit-details">
@@ -664,9 +708,9 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // ===== Hospitais (Top 3) =====
     // Direção da rota: Local pesquisado → Hospital (paciente/vítima é transportado até o hospital)
     html += `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
-            <span style="font-size:12px; font-weight:700; color:#2c3e50;">🏥 Hospitais de Referência (Top 3)</span>
-            <span style="font-size:10px; color:#7f8c8d;">clique para rota</span>
+        <div class="dispatch-section-header" style="margin-top:14px;">
+            <span class="dispatch-section-title">🏥 Hospitais de Referência (Top 3)</span>
+            <span class="dispatch-section-hint">clique para rota</span>
         </div>
         <div class="dispatch-units-list">`;
 
@@ -676,13 +720,19 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         topHospitals.forEach((res, i) => {
             const straightKm = res.distanceKm.toFixed(2);
             const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
+            const hospGmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
+            const recHospBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADO</span>' : '';
             // reverseRoute = false → rota origem → Hospital
             html += `
-                <div class="dispatch-unit-card" id="dispatch-hosp-card-${i}"
+                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-hosp-card-${i}"
                      onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, false)">
                     <div class="dispatch-unit-header">
                         <div class="dispatch-unit-name">
                             <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
+                        </div>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            ${recHospBadge}
+                            <button class="btn-external-nav" title="Abrir no Google Maps/GPS" onclick="event.stopPropagation(); window.open('${hospGmapUrl}', '_blank')">🧭 GPS</button>
                         </div>
                     </div>
                     <div class="dispatch-unit-details">
@@ -794,8 +844,23 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
     }
 }
 
-// Sem cache – sempre tenta OSRM se online, senão linha reta
+// Com cache IndexedDB – busca local antes de consultar OSRM; linha reta como fallback
 async function getRouteDistance(originLat, originLng, destLat, destLng) {
+    const routeKey = `${Number(originLat).toFixed(4)},${Number(originLng).toFixed(4)}_${Number(destLat).toFixed(4)},${Number(destLng).toFixed(4)}`;
+
+    if (window.DB && typeof window.DB.getCachedRoute === 'function') {
+        try {
+            const cached = await DB.getCachedRoute(routeKey);
+            if (cached && typeof cached.distance === 'number') {
+                return {
+                    distance: cached.distance,
+                    duration: cached.duration,
+                    source: 'cache'
+                };
+            }
+        } catch (_) {}
+    }
+
     if (navigator.onLine) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -805,9 +870,16 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
             clearTimeout(timeoutId);
             const data = await response.json();
             if (data.code === 'Ok' && data.routes?.length > 0) {
+                const distance = data.routes[0].distance;
+                const duration = data.routes[0].duration;
+
+                if (window.DB && typeof window.DB.saveCachedRoute === 'function') {
+                    DB.saveCachedRoute(routeKey, distance, duration).catch(() => {});
+                }
+
                 return {
-                    distance: data.routes[0].distance,
-                    duration: data.routes[0].duration,
+                    distance,
+                    duration,
                     source: 'online'
                 };
             }
@@ -1137,18 +1209,18 @@ function drawOfflineRoute(originPos, path, name, distanceMeters) {
         icon: window.destIcon
     }).addTo(map)
         .bindPopup(`
-            <div style="font-family:sans-serif; max-width:280px;">
-                <b style="color:#1a5276; font-size:13px;">${name}</b><br>
-                <div style="margin-top:6px; font-size:12px; line-height:1.45;">
-                    <b>Rota offline aproximada (vias locais)</b><br>
-                    Distância: <b>${distKm} km</b><br>
-                    <small style="color:#7f8c8d;">
-                        Calculada com a malha de logradouros disponível no dispositivo.<br>
-                        Pode conter pequenas imprecisões.
-                    </small>
-                </div>
-            </div>
-        `).openPopup();
+    <div class="route-popup">
+        <span class="route-popup-title route-popup-title-info">${name}</span>
+        <div class="route-popup-body">
+            <b>Rota offline aproximada (vias locais)</b><br>
+            Distância: <b>${distKm} km</b>
+            <small class="route-popup-muted">
+                Calculada com a malha de logradouros disponível no dispositivo.<br>
+                Pode conter pequenas imprecisões.
+            </small>
+        </div>
+    </div>
+`).openPopup();
 
     map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
     showToast(`Rota offline aproximada: ${distKm} km`, 'success', 4000);
@@ -1178,21 +1250,20 @@ function drawStraightLine(originPos, lat, lng, name, distance, reverseRoute = fa
         : `Local pesquisado → <b>${name}</b>`;
 
     const popupContent = `
-        <div style="font-family:sans-serif; max-width:280px;">
-            <b style="color:#c0392b; font-size:13px;">${routeLabel}</b><br>
-            <div style="margin-top:6px; font-size:12px; line-height:1.45;">
-                <b>Rota offline (linha reta)</b><br>
-                Distância aproximada: <b>${distText} km</b><br>
-                <small style="color:#7f8c8d;">
-                    Sem grafo de vias disponível no momento.
-                </small>
-            </div>
-            <button id="btnCalcOfflineRoute" 
-                    style="margin-top:10px; width:100%; padding:7px 10px; background:#1a5276; color:white; border:none; border-radius:5px; font-size:12px; font-weight:600; cursor:pointer;">
-                🛣️ Calcular rota aproximada pelas vias locais
-            </button>
+    <div class="route-popup">
+        <span class="route-popup-title">${routeLabel}</span>
+        <div class="route-popup-body">
+            <b>Rota offline (linha reta)</b><br>
+            Distância aproximada: <b>${distText} km</b>
+            <small class="route-popup-muted">
+                Sem grafo de vias disponível no momento.
+            </small>
         </div>
-    `;
+        <button id="btnCalcOfflineRoute" class="route-popup-btn">
+            🛣️ Calcular rota aproximada pelas vias locais
+        </button>
+    </div>
+`;
 
     window.distanceMarker = L.marker([lat, lng], {
         icon: window.destIcon
@@ -1299,13 +1370,13 @@ async function focusOnFeature(lng, lat, name, distance, reverseRoute = false) {
                         icon: window.destIcon
                     }).addTo(map)
                         .bindPopup(`
-                            <div style="font-family:sans-serif;">
-                                <b style="color:#c0392b; font-size:13px;">${routeLabel}</b><br>
-                                <div style="margin-top:4px; font-size:12px;">
-                                    <b>Tempo estimado:</b> ~${dur} min<br>
-                                    <b>Distância por via:</b> ${dist} km
-                                </div>
-                            </div>`).openPopup();
+    <div class="route-popup">
+        <span class="route-popup-title">${routeLabel}</span>
+        <div class="route-popup-body">
+            <b>Tempo estimado:</b> ~${dur} min<br>
+            <b>Distância por via:</b> ${dist} km
+        </div>
+    </div>`).openPopup();
                 });
 
                 window.routingControl.on('routingerror', () => {
