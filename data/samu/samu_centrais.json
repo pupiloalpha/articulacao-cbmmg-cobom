@@ -37,9 +37,11 @@
     "central": "SAMU-Sete Lagoas",
     "sede": "Sete Lagoas",
     "municipios": [
-      "Araçaí", "Baldim", "Caetanópolis", "Cachoeira da Prata",
-      "Cordisburgo", "Fortuna de Minas", "Inhaúma", "Jequitibá", "Maravilhas",
-      "Papagaios", "Paraopeba", "Pompéu", "Santana de Pirapama", "Sete Lagoas"
+      "Araçaí", "Augusto de Lima", "Baldim", "Caetanópolis", "Cachoeira da Prata",
+      "Capim Branco", "Curvelo", "Cordisburgo", "Corinto", "Fortuna de Minas",
+      "Funilândia", "Inhaúma", "Inimutaba", "Jequitibá", "Maravilhas", "Monjolos",
+      "Morro da Garça", "Papagaios", "Paraopeba", "Pompéu", "Presidente Juscelino",
+      "Prudente de Morais", "Santana de Pirapama", "Santo Hipólito", "Sete Lagoas"
     ]
   },
   "SAMU-Contagem": {
