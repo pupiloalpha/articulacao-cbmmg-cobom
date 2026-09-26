@@ -98,6 +98,14 @@ async function fetchEventosMG() {
  * sem o enriquecimento de prioridade (badge ★, coloração por criticidade).
  */
 async function fetchPrioridadesMG() {
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { eventosTimeout: 15000 };
+
+    // Prioridades é enriquecimento OPCIONAL. Usamos um timeout curto
+    // (máx 8s) para não travar o Promise.all junto com fetchEventosMG.
+    const prioridadesTimeout = Math.min(8000, profile.eventosTimeout);
+
     const attempts = [
         // 1. Mesmo filtro do endpoint principal (alta probabilidade de sucesso)
         `${EVENTOS_API_BASE}/eventos/prioridades?sigla_estado=${EVENTOS_UF}`,
@@ -112,10 +120,8 @@ async function fetchPrioridadesMG() {
     for (let i = 0; i < attempts.length; i++) {
         const url = attempts[i];
         const controller = new AbortController();
-        const profile = (typeof getNetworkProfile === 'function')
-	? getNetworkProfile()
-	: { eventosTimeout: 15000 };
-	const timeoutId = setTimeout(() => controller.abort(), profile.eventosTimeout);
+        const timeoutId = setTimeout(() => controller.abort(), prioridadesTimeout);
+        let timedOut = false;
 
         try {
             const res = await fetch(url, {
@@ -127,23 +133,28 @@ async function fetchPrioridadesMG() {
             clearTimeout(timeoutId);
 
             if (!res.ok) {
-                console.warn(`[Eventos] prioridades tentativa ${i + 1} falhou (HTTP ${res.status}) → ${url}`);
-                continue;
+                console.warn(`[Eventos] prioridades tentativa ${i + 1} HTTP ${res.status}`);
+                continue;   // erro HTTP → vale tentar a próxima URL
             }
 
             const data = await res.json();
             if (Array.isArray(data)) {
-                console.log(`[Eventos] prioridades carregadas na tentativa ${i + 1} (${data.length} registros).`);
+                console.log(`[Eventos] prioridades OK na tentativa ${i + 1} (${data.length} registros).`);
                 return data;
             }
-            console.warn(`[Eventos] prioridades tentativa ${i + 1} retornou formato inesperado:`, typeof data);
+            console.warn(`[Eventos] prioridades formato inesperado na tentativa ${i + 1}.`);
         } catch (e) {
             clearTimeout(timeoutId);
-            console.warn(`[Eventos] prioridades tentativa ${i + 1} erro: ${e.message}`);
+            timedOut = (e.name === 'AbortError');
+            console.warn(`[Eventos] prioridades tentativa ${i + 1}: ${timedOut ? 'timeout' : e.message}`);
+
+            // Timeout → endpoint pendurado. Trocar a URL não resolve.
+            // Aborta as tentativas restantes e segue sem enriquecimento.
+            if (timedOut) break;
         }
     }
 
-    console.warn('[Eventos] Todas as tentativas de carregar prioridades falharam. Prosseguindo sem enriquecimento.');
+    console.warn('[Eventos] Prioridades indisponíveis. Prosseguindo sem enriquecimento.');
     return null;
 }
 
