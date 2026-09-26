@@ -1,7 +1,7 @@
 // js/search.js - Busca de endereços (Online prioritário / Offline apenas sem conexão)
 // Pesquisa Online primeiro quando conectado. Pesquisa offline somente quando navigator.onLine === false.
 // Suporte a número + interpolação + interseções robustas.
-// NOVO: pré-carregamento de malha de logradouros ao selecionar resultado online.
+// Pré-carregamento de malha de logradouros ao selecionar resultado online.
 
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
@@ -145,6 +145,64 @@ function detectIntersection(query) {
     return null;
 }
 
+// ===========================================================================
+// Constantes de UF / estados brasileiros — usadas para remover a UF/estado
+// do final do nome da via, evitando que tokens como "mg" contaminem o
+// streetPart e quebrem a consulta estruturada ao Nominatim.
+// ===========================================================================
+const BRAZILIAN_STATE_UFS = [
+    'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+    'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN',
+    'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'
+];
+
+const BRAZILIAN_STATE_NAMES = [
+    'acre', 'alagoas', 'amapa', 'amazonas', 'bahia', 'ceara',
+    'distrito federal', 'espirito santo', 'goias', 'maranhao',
+    'mato grosso', 'mato grosso do sul', 'minas gerais', 'para',
+    'paraiba', 'parana', 'pernambuco', 'piaui', 'rio de janeiro',
+    'rio grande do norte', 'rio grande do sul', 'rondonia', 'roraima',
+    'santa catarina', 'sao paulo', 'sergipe', 'tocantins'
+];
+
+/**
+ * Remove tokens de UF / país do FINAL do streetPart.
+ *
+ * ⚠️ Importante: NÃO removemos nomes COMPLETOS de estados ("bahia",
+ * "paraná", "goiás") porque eles frequentemente fazem parte do nome
+ * da própria via ("Rua da Bahia", "Avenida Paraná", "Rua Goiás").
+ * A presença residual de "Minas Gerais" na query é ruído inofensivo
+ * para o Nominatim, e é preferível a truncar o nome de uma rua.
+ *
+ * Removemos apenas:
+ *   - UF de 2 letras (MG, SP, RJ, ...)
+ *   - Brasil / Brazil
+ */
+function stripTrailingStateTokens(streetPart) {
+    if (!streetPart) return '';
+    const tokens = streetPart.split(/\s+/).filter(Boolean);
+    let changed = true;
+
+    while (changed && tokens.length > 0) {
+        changed = false;
+        const last = tokens[tokens.length - 1];
+        const lastNorm = normalizeStr(last);
+
+        // UF de 2 letras — sempre remove.
+        if (BRAZILIAN_STATE_UFS.includes(last.toUpperCase())) {
+            tokens.pop(); changed = true; continue;
+        }
+
+        // País — sempre remove.
+        if (lastNorm === 'brasil' || lastNorm === 'brazil') {
+            tokens.pop(); changed = true; continue;
+        }
+
+        // Nomes completos de estado NÃO são removidos (ver comentário acima).
+    }
+    return tokens.join(' ').trim();
+}
+
 /**
  * Tenta extrair município conhecido da query (lista IBGE de MG).
  */
@@ -157,6 +215,7 @@ function parseAddressQueryWithCity(query) {
     const tokens = String(query).split(/[,\-–]/).map(t => t.trim()).filter(Boolean);
     const allMunNames = Object.values(IBGE_MUNICIPALITIES || {});
 
+    // 1) Detecção do município (varredura do fim para o início)
     for (let i = tokens.length - 1; i >= 0; i--) {
         const candidate = normalizeStr(tokens[i]);
         if (candidate.length < 4) continue;
@@ -166,21 +225,63 @@ function parseAddressQueryWithCity(query) {
             return n === candidate || n.includes(candidate) || candidate.includes(n);
         });
 
-        if (found) {
-            city = found;
-            const cityNorm = normalizeStr(found);
-            streetPart = streetPart
+        if (found) { city = found; break; }
+    }
+
+    // 2) Remove os tokens do município detectado do streetPart
+    if (city) {
+        const cityNorm = normalizeStr(city);
+        const cityFirstWord = cityNorm.split(' ')[0];
+        streetPart = streetPart
+            .split(/\s+/)
+            .filter(t => {
+                if (!t) return false;
+                if (t.length >= 3 && cityNorm.includes(t)) return false;
+                if (t.length >= 4 && t.includes(cityFirstWord)) return false;
+                return true;
+            })
+            .join(' ')
+            .trim();
+    }
+
+    // 3) Remove UF / estado / país do FINAL do streetPart (versão normalizada)
+    streetPart = stripTrailingStateTokens(streetPart);
+
+    // ============================================================
+    // 4) Constrói a versão COM ACENTOS do nome da via.
+    // ------------------------------------------------------------
+    // Motivo: o Nominatim diferencia "Eustáquio" de "eustaquio".
+    // Sem acento, ele interpreta o termo como NOME DO BAIRRO e devolve
+    // ruas dentro dele — o que explica o usuário ver "vias que fazem
+    // esquina" em vez da rua pesquisada. Com acento, ele identifica
+    // corretamente a VIA (class=highway, addresstype=road).
+    // ============================================================
+    let streetPartOriginal = base.originalStreet || '';
+    if (streetPartOriginal) {
+        if (city) {
+            const cityNorm = normalizeStr(city);
+            const cityFirstWord = cityNorm.split(' ')[0];
+            streetPartOriginal = streetPartOriginal
                 .split(/\s+/)
-                .filter(t => !cityNorm.includes(t) && !t.includes(cityNorm.split(' ')[0]))
+                .filter(t => {
+                    if (!t) return false;
+                    const tNorm = normalizeStr(t);
+                    if (tNorm.length >= 3 && cityNorm.includes(tNorm)) return false;
+                    if (tNorm.length >= 4 && tNorm.includes(cityFirstWord)) return false;
+                    return true;
+                })
                 .join(' ')
                 .trim();
-            break;
         }
+        streetPartOriginal = stripTrailingStateTokens(streetPartOriginal);
     }
 
     return {
         ...base,
         streetPart: streetPart || base.streetPart,
+        // streetPartOriginal é o valor efetivamente enviado ao Nominatim.
+        // Fallback para streetPart caso originalStreet esteja vazio.
+        streetPartOriginal: streetPartOriginal || streetPart || base.streetPart,
         city,
         isIntersection: !!intersection,
         streetA: intersection ? intersection.streetA : null,
@@ -294,6 +395,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
         let data = [];
         const seenPlaceIds = new Set();
 
+        // Viewbox de MG — forçamos bounded=1 para excluir resultados de SP/RJ/GO.
         const viewbox = '-51.0,-14.0,-39.5,-23.0';
 
         const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
@@ -301,11 +403,17 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
         const isIncomplete = !hasClearStreet || parsed.isIntersection ||
             (parsed.streetPart || '').split(/\s+/).filter(Boolean).length <= 2;
 
-        // ---------- 1. Structured ----------
+        // ---------- 1. Structured (street + state + cidade, se houver) ----------
         if (hasClearStreet) {
+            // ⚠️ USA A VERSÃO COM ACENTOS ("Rua Padre Eustáquio").
+            // Sem acentuação, o Nominatim trata "Padre Eustáquio" como nome
+            // de bairro e devolve ruas dentro dele — e não a própria via.
+            const streetForNominatim =
+                parsed.streetPartOriginal || parsed.streetPart;
+
             const streetParam = hasNumber
-                ? `${parsed.streetPart} ${parsed.number}`.trim()
-                : parsed.streetPart;
+                ? `${streetForNominatim} ${parsed.number}`.trim()
+                : streetForNominatim;
 
             const params = new URLSearchParams({
                 format: 'json',
@@ -316,7 +424,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
                 street: streetParam,
                 state: 'Minas Gerais',
                 viewbox: viewbox,
-                bounded: '0'
+                bounded: '1'
             });
             if (parsed.city) params.set('city', parsed.city);
 
@@ -343,7 +451,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             }
         }
 
-        // ---------- 2. Free-form ----------
+        // ---------- 2. Free-form (só quando structured < 4 resultados) ----------
         if (data.length < 4 || isIncomplete || parsed.isIntersection) {
             const freeParams = new URLSearchParams({
                 format: 'json',
@@ -353,7 +461,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
                 'accept-language': 'pt',
                 q: `${rawQuery}, Minas Gerais, Brazil`,
                 viewbox: viewbox,
-                bounded: '0'
+                bounded: '1'
             });
 
             const freeUrl = `https://nominatim.openstreetmap.org/search?${freeParams.toString()}`;
@@ -379,97 +487,112 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             }
         }
 
-        // ---------- 3. Fallback extra ----------
-        if (data.length === 0 && parsed.city && hasClearStreet) {
-            const streetParam = hasNumber
-                ? `${parsed.streetPart} ${parsed.number}`.trim()
-                : parsed.streetPart;
-
-            const params2 = new URLSearchParams({
-                format: 'json',
-                addressdetails: '1',
-                limit: '10',
-                countrycodes: 'BR',
-                'accept-language': 'pt',
-                street: streetParam,
-                state: 'Minas Gerais',
-                viewbox: viewbox,
-                bounded: '0'
-            });
-
-            const url2 = `https://nominatim.openstreetmap.org/search?${params2.toString()}`;
-            const ctrl2 = new AbortController();
-            const t2 = setTimeout(() => ctrl2.abort(), 8000);
-            const res2 = await fetch(url2, {
-                method: 'GET',
-                mode: 'cors',
-                headers: { 'Accept': 'application/json' },
-                signal: ctrl2.signal
-            });
-            clearTimeout(t2);
-            if (!res2.ok) throw new Error(`Nominatim HTTP ${res2.status}`);
-            const data2 = await res2.json();
-
-            if (Array.isArray(data2)) {
-                data2.forEach(item => {
-                    if (item.place_id && !seenPlaceIds.has(item.place_id)) {
-                        seenPlaceIds.add(item.place_id);
-                        data.push(item);
-                    }
-                });
-            }
-        }
-
         if (!Array.isArray(data) || data.length === 0) {
             resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Nada encontrado online. Verificando base local...</div>';
             return false;
         }
 
-        const onlineResults = data.map(item => {
-            let score = 55;
-            const addr = item.address || {};
-            const house = addr.house_number || '';
+        // ============================================================
+        // SCORING — prioriza vias sobre bairros e POIs
+        // ============================================================
+        const GENERIC_STREET_TOKENS = new Set([
+            'rua', 'r', 'avenida', 'av', 'avd', 'travessa', 'trv', 'trav',
+            'alameda', 'al', 'praca', 'pca', 'pc', 'rodovia', 'rod',
+            'estrada', 'est', 'viela', 'beco', 'largo', 'via'
+        ]);
 
+        const HIGHWAY_TYPE_SCORE = {
+            motorway: 70, trunk: 65,
+            motorway_link: 60, trunk_link: 55,
+            primary: 50, primary_link: 45,
+            secondary: 45, secondary_link: 40,
+            tertiary: 40, tertiary_link: 35,
+            residential: 55, living_street: 50,
+            unclassified: 35, pedestrian: 30, service: 25,
+            footway: 10, path: 5, track: 5, cycleway: 8
+        };
+
+        const rawQueryNorm = normalizeStr(parsed.streetPart || rawQuery);
+        const queryTokensAll = (parsed.streetPart || expandSearchQuery(rawQuery))
+            .split(/\s+/).filter(Boolean);
+        const queryTokensSpecific = queryTokensAll
+            .filter(t => !GENERIC_STREET_TOKENS.has(t) && t.length >= 3);
+
+        const onlineResults = data.map(item => {
+            let score = 0;
+            const addr = item.address || {};
+            const osmClass = String(item.class || '').toLowerCase();
+            const osmType  = String(item.type  || '').toLowerCase();
+            const displayName = String(item.display_name || '');
+            const displayNorm = normalizeStr(displayName);
+            const firstSegment = String(displayName.split(',')[0] || '').trim();
+            const firstSegNorm = normalizeStr(firstSegment);
+
+            // Boost 1 — class/type OSM
+            if (osmClass === 'highway') {
+                score += HIGHWAY_TYPE_SCORE[osmType] || 20;
+            } else if (osmClass === 'place') {
+                score += (osmType === 'city' || osmType === 'town') ? 25 : 5;
+            } else if (['amenity', 'shop', 'tourism', 'leisure', 'office', 'building'].includes(osmClass)) {
+                score += 8;
+            } else {
+                score += 15;
+            }
+
+            // Boost 2 — match exato do 1º segmento
+            if (firstSegNorm && rawQueryNorm) {
+                if (firstSegNorm === rawQueryNorm) score += 220;
+                else if (firstSegNorm.startsWith(rawQueryNorm + ' ')) score += 130;
+                else if (firstSegNorm.startsWith(rawQueryNorm)) score += 90;
+                else if (firstSegNorm.includes(rawQueryNorm)) score += 60;
+            }
+
+            // Boost 3 — tokens específicos (padre, eustaquio) valem mais que "rua"
+            queryTokensSpecific.forEach(t => {
+                if (displayNorm.includes(t)) score += 12;
+            });
+            queryTokensAll
+                .filter(t => GENERIC_STREET_TOKENS.has(t) || t.length < 3)
+                .forEach(t => {
+                    if (displayNorm.includes(t)) score += 1;
+                });
+
+            // Boost 4 — número da casa
+            const house = addr.house_number || '';
             if (parsed.hasNumber && house) {
                 const num = parseInt(house, 10);
                 if (!isNaN(num) && Math.abs(num - parsed.number) <= 20) score += 45;
                 else if (house.includes(String(parsed.number))) score += 30;
             }
 
+            // Boost 5 — estado / cidade
             if (addr.state && normalizeStr(addr.state).includes('minas')) score += 15;
             if (parsed.city && (addr.city || addr.town || addr.municipality)) {
                 const cityNorm = normalizeStr(parsed.city);
                 const foundCity = normalizeStr(addr.city || addr.town || addr.municipality || '');
-                if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) {
-                    score += 25;
-                }
+                if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) score += 25;
             }
+
             if (parsed.isIntersection) score += 12;
 
-            const displayNorm = normalizeStr(item.display_name || '');
-            const queryTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
-                .split(/\s+/)
-                .filter(t => t.length >= 3);
-            queryTokens.forEach(t => {
-                if (displayNorm.includes(t)) score += 4;
-            });
-
             return {
-                title: item.display_name.split(',')[0],
+                title: firstSegment || 'Sem título',
                 munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
-                address: item.display_name,
-                subtitle: item.display_name,
+                address: displayName,
+                subtitle: displayName,
                 lat: parseFloat(item.lat),
                 lng: parseFloat(item.lon),
                 source: 'online_osm',
                 score,
                 houseNumber: house,
-                isIntersection: parsed.isIntersection
+                isIntersection: parsed.isIntersection,
+                osmClass,
+                osmType
             };
         });
 
         onlineResults.sort((a, b) => b.score - a.score);
-        displaySearchResults(onlineResults.slice(0, 12), targetId);  // ← passa targetId
+        displaySearchResults(onlineResults.slice(0, 12), targetId);
 
     } catch (error) {
         console.error('Erro na busca online:', error);
@@ -835,7 +958,24 @@ async function searchAddress(query, targetId = 'searchResults') {
         return;
     }
 
-    const parsed = parseAddressQueryWithCity(rawQuery);
+        const parsed = parseAddressQueryWithCity(rawQuery);
+
+    // ============================================================
+    // INTERSEÇÕES: roteamento direto para o caminho offline.
+    // ------------------------------------------------------------
+    // O Nominatim não possui parâmetro nativo para "rua A esquina
+    // com rua B". Enviar `street="rua A esquina com rua B"` ao
+    // endpoint structured retorna vazio (bug conhecido).
+    //
+    // O caminho offline (`findIntersectionPoint` + turf.lineIntersect)
+    // é determinístico e usa as geometrias das ruas já carregadas
+    // no IndexedDB. Por isso, interseções são SEMPRE resolvidas por
+    // esse caminho, independentemente do estado da conexão.
+    // ============================================================
+    if (parsed.isIntersection) {
+        await searchAddressOffline(rawQuery, parsed, targetId);
+        return;
+    }
 
     if (navigator.onLine) {
         try {
