@@ -1,6 +1,6 @@
 // sw.js - Service Worker com estratégia Cache-First para assets estáticos
 
-const CACHE_NAME = 'gis-pwa-cache-v9'; // ⚠️ Bump aqui sempre que alterar arquivos estáticos OU dados iniciais.
+const CACHE_NAME = 'gis-pwa-cache-v10'; // ⚠️ Bump aqui sempre que alterar arquivos estáticos OU dados iniciais.
                                        // Manter sincronizado com DATA_VERSION em app.js.
 const STATIC_ASSETS = [
     './',
@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
     './data/hospitais/hospitais_referencia_mg.geojson',
     './data/samu/samu_centrais.json',
     // Módulos JS da aplicação
+    './js/network.js',
     './js/utils.js',
     './js/map.js',
     './js/icons.js',

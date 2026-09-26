@@ -58,8 +58,12 @@ function eventosToGeoJSON(eventos) {
 // ---------------------------------------------------------------------------
 async function fetchEventosMG() {
     const url = `${EVENTOS_API_BASE}/eventos?sigla_estado=${EVENTOS_UF}`;
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { eventosTimeout: 20000 };
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), profile.eventosTimeout);
 
     try {
         const res = await fetch(url, {
@@ -97,8 +101,10 @@ async function fetchPrioridadesMG() {
     const attempts = [
         // 1. Mesmo filtro do endpoint principal (alta probabilidade de sucesso)
         `${EVENTOS_API_BASE}/eventos/prioridades?sigla_estado=${EVENTOS_UF}`,
+
         // 2. Com sigla_estado + limite
         `${EVENTOS_API_BASE}/eventos/prioridades?sigla_estado=${EVENTOS_UF}&limite=500`,
+
         // 3. Sem nenhum parâmetro (endpoint pode ter default)
         `${EVENTOS_API_BASE}/eventos/prioridades`
     ];
@@ -106,7 +112,10 @@ async function fetchPrioridadesMG() {
     for (let i = 0; i < attempts.length; i++) {
         const url = attempts[i];
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const profile = (typeof getNetworkProfile === 'function')
+	? getNetworkProfile()
+	: { eventosTimeout: 15000 };
+	const timeoutId = setTimeout(() => controller.abort(), profile.eventosTimeout);
 
         try {
             const res = await fetch(url, {

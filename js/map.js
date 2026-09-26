@@ -992,6 +992,16 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
  *   • Hospital/UPA: paciente/vítima parte do LOCAL PESQUISADO → vai ao HOSPITAL.
  */
 async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals, reqId) {
+
+     // Ajuste dinâmico: em redes lentas, calcula apenas as N melhores
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { fetchTopRoutes: 3 };
+    const limit = Math.max(1, Math.min(profile.fetchTopRoutes || 3, topUnits.length || 1));
+
+    const trimmedUnits = topUnits.slice(0, limit);
+    const trimmedHospitals = topHospitals.slice(0, Math.min(limit, topHospitals.length || 0));
+
     const allCandidates = [
         ...topUnits.map((cand, index) => ({ type: 'unit', index, cand })),
         ...topHospitals.map((cand, index) => ({ type: 'hosp', index, cand }))
@@ -1077,7 +1087,8 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
     }
 }
 
-// Com cache IndexedDB – busca local antes de consultar OSRM; linha reta como fallback
+// Com cache IndexedDB – busca local antes de consultar OSRM; linha reta como fallback.
+// Timeout e comportamento ajustados conforme perfil de rede.
 async function getRouteDistance(originLat, originLng, destLat, destLng) {
     const routeKey = `${Number(originLat).toFixed(4)},${Number(originLng).toFixed(4)}_${Number(destLat).toFixed(4)},${Number(destLng).toFixed(4)}`;
 
@@ -1095,8 +1106,12 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
     }
 
     if (navigator.onLine) {
+        const profile = (typeof getNetworkProfile === 'function')
+            ? getNetworkProfile()
+            : { osrmTimeout: 4000 };
+
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), profile.osrmTimeout);
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
             const response = await fetch(url, { signal: controller.signal });
@@ -1132,9 +1147,13 @@ async function getRouteDistance(originLat, originLng, destLat, destLng) {
 
 async function reverseGeocodeCity(lat, lng) {
     if (!navigator.onLine) return null;
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { reverseGeocodeTimeout: 3500 };
+
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), profile.reverseGeocodeTimeout);
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1&accept-language=pt`;
         const res = await fetch(url, {
             headers: { 'Accept': 'application/json' },
@@ -1356,7 +1375,10 @@ function findNearestNode(graph, lng, lat) {
 async function findApproxOfflineRoute(originLat, originLng, destLat, destLng) {
     const startTime = performance.now();
     const TIMEOUT = 2800;
-    const MAX_EDGES = 1500;
+    const profile = (typeof getNetworkProfile === 'function')
+    ? getNetworkProfile()
+    : { offlineRouteMaxEdges: 1500 };
+const MAX_EDGES = profile.offlineRouteMaxEdges || 1500;
 
     try {
         await ensureStreetsAroundPoints(originLat, originLng, destLat, destLng);

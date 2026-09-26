@@ -6,6 +6,41 @@
 let cachedStreetIndex = null;
 let isIndexingStreets = false;
 
+// ============================================================
+// CACHE DE BUSCAS ONLINE (LRU + TTL)
+// ------------------------------------------------------------
+// Evita refazer chamadas idênticas ao Nominatim (custo alto,
+// rate-limited). Chave = query normalizada + cidade detectada.
+// ============================================================
+const _onlineSearchCache = new Map();
+
+function _getCachedSearch(key) {
+    const entry = _onlineSearchCache.get(key);
+    if (!entry) return null;
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { searchCacheTtlMs: 5 * 60 * 1000 };
+    if (Date.now() - entry.ts > profile.searchCacheTtlMs) {
+        _onlineSearchCache.delete(key);
+        return null;
+    }
+    // LRU: move para o fim
+    _onlineSearchCache.delete(key);
+    _onlineSearchCache.set(key, entry);
+    return entry.data;
+}
+
+function _setCachedSearch(key, data) {
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { searchCacheMax: 60 };
+    if (_onlineSearchCache.size >= profile.searchCacheMax) {
+        const firstKey = _onlineSearchCache.keys().next().value;
+        _onlineSearchCache.delete(firstKey);
+    }
+    _onlineSearchCache.set(key, { data, ts: Date.now() });
+}
+
 function invalidateStreetIndex() {
     cachedStreetIndex = null;
 }
@@ -382,43 +417,165 @@ function streetNameScore(candidate, queryTokens) {
 
 /**
  * ============================================================
- * BUSCA ONLINE (prioritária quando conectado)
+ * SCORING DE RESULTADOS ONLINE (extraído como função pura)
+ * ------------------------------------------------------------
+ * Mantido exatamente como era — apenas encapsulado para ser
+ * reutilizado tanto no caminho "fresco" quanto no caminho
+ * "cache hit". Não altera pesos nem critérios.
+ * ============================================================
+ */
+function _scoreOnlineResults(data, parsed, rawQuery) {
+    const GENERIC_STREET_TOKENS = new Set([
+        'rua', 'r', 'avenida', 'av', 'avd', 'travessa', 'trv', 'trav',
+        'alameda', 'al', 'praca', 'pca', 'pc', 'rodovia', 'rod',
+        'estrada', 'est', 'viela', 'beco', 'largo', 'via'
+    ]);
+
+    const HIGHWAY_TYPE_SCORE = {
+        motorway: 70, trunk: 65,
+        motorway_link: 60, trunk_link: 55,
+        primary: 50, primary_link: 45,
+        secondary: 45, secondary_link: 40,
+        tertiary: 40, tertiary_link: 35,
+        residential: 55, living_street: 50,
+        unclassified: 35, pedestrian: 30, service: 25,
+        footway: 10, path: 5, track: 5, cycleway: 8
+    };
+
+    const rawQueryNorm = normalizeStr(parsed.streetPart || rawQuery);
+    const queryTokensAll = (parsed.streetPart || expandSearchQuery(rawQuery))
+        .split(/\s+/).filter(Boolean);
+    const queryTokensSpecific = queryTokensAll
+        .filter(t => !GENERIC_STREET_TOKENS.has(t) && t.length >= 3);
+
+    const onlineResults = data.map(item => {
+        let score = 0;
+        const addr = item.address || {};
+        const osmClass = String(item.class || '').toLowerCase();
+        const osmType  = String(item.type  || '').toLowerCase();
+        const displayName = String(item.display_name || '');
+        const displayNorm = normalizeStr(displayName);
+        const firstSegment = String(displayName.split(',')[0] || '').trim();
+        const firstSegNorm = normalizeStr(firstSegment);
+
+        if (osmClass === 'highway') {
+            score += HIGHWAY_TYPE_SCORE[osmType] || 20;
+        } else if (osmClass === 'place') {
+            score += (osmType === 'city' || osmType === 'town') ? 25 : 5;
+        } else if (['amenity', 'shop', 'tourism', 'leisure', 'office', 'building'].includes(osmClass)) {
+            score += 8;
+        } else {
+            score += 15;
+        }
+
+        if (firstSegNorm && rawQueryNorm) {
+            if (firstSegNorm === rawQueryNorm) score += 220;
+            else if (firstSegNorm.startsWith(rawQueryNorm + ' ')) score += 130;
+            else if (firstSegNorm.startsWith(rawQueryNorm)) score += 90;
+            else if (firstSegNorm.includes(rawQueryNorm)) score += 60;
+        }
+
+        queryTokensSpecific.forEach(t => {
+            if (displayNorm.includes(t)) score += 12;
+        });
+        queryTokensAll
+            .filter(t => GENERIC_STREET_TOKENS.has(t) || t.length < 3)
+            .forEach(t => {
+                if (displayNorm.includes(t)) score += 1;
+            });
+
+        const house = addr.house_number || '';
+        if (parsed.hasNumber && house) {
+            const num = parseInt(house, 10);
+            if (!isNaN(num) && Math.abs(num - parsed.number) <= 20) score += 45;
+            else if (house.includes(String(parsed.number))) score += 30;
+        }
+
+        if (addr.state && normalizeStr(addr.state).includes('minas')) score += 15;
+        if (parsed.city && (addr.city || addr.town || addr.municipality)) {
+            const cityNorm = normalizeStr(parsed.city);
+            const foundCity = normalizeStr(addr.city || addr.town || addr.municipality || '');
+            if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) score += 25;
+        }
+
+        if (parsed.isIntersection) score += 12;
+
+        return {
+            title: firstSegment || 'Sem título',
+            munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
+            address: displayName,
+            subtitle: displayName,
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+            source: 'online_osm',
+            score,
+            houseNumber: house,
+            isIntersection: parsed.isIntersection,
+            osmClass,
+            osmType
+        };
+    });
+
+    onlineResults.sort((a, b) => b.score - a.score);
+    return onlineResults;
+}
+
+/**
+ * ============================================================
+ * BUSCA ONLINE — versão adaptativa por perfil de rede
+ * ------------------------------------------------------------
+ * • FAST/BALANCED: structured + free-form em PARALELO
+ * • ECONOMY/MINIMAL: sequencial, aborta se structured já basta
+ * • Cache LRU (5 min) evita refetch de queries repetidas
+ * • Timeout e limit ajustados dinamicamente
  * ============================================================
  */
 async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults') {
     const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
-    resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Buscando no mapa online (OpenStreetMap)...</div>';
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { nominatimTimeout: 8000, nominatimLimit: 12,
+            parallelNominatim: true, profileName: 'Padrão' };
+
+    const profileName = (typeof getNetworkInfo === 'function')
+        ? (getNetworkInfo().profileName || '')
+        : '';
+
+    resultsDiv.innerHTML = `<div class="search-status-msg">🌐 Buscando no mapa online${profileName ? ' • ' + profileName : ''}...</div>`;
+
+    // ---------- CACHE HIT ----------
+    const cacheKey = `${normalizeStr(rawQuery)}__${normalizeStr(parsed.city || '')}`;
+    const cached = _getCachedSearch(cacheKey);
+    if (cached && cached.length > 0) {
+        const scored = _scoreOnlineResults(cached, parsed, rawQuery);
+        displaySearchResults(scored.slice(0, 12), targetId);
+        return true;
+    }
 
     try {
         let data = [];
         const seenPlaceIds = new Set();
-
-        // Viewbox de MG — forçamos bounded=1 para excluir resultados de SP/RJ/GO.
         const viewbox = '-51.0,-14.0,-39.5,-23.0';
 
         const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
-        const hasNumber = parsed.hasNumber;
         const isIncomplete = !hasClearStreet || parsed.isIntersection ||
             (parsed.streetPart || '').split(/\s+/).filter(Boolean).length <= 2;
 
-        // ---------- 1. Structured (street + state + cidade, se houver) ----------
-        if (hasClearStreet) {
-            // ⚠️ USA A VERSÃO COM ACENTOS ("Rua Padre Eustáquio").
-            // Sem acentuação, o Nominatim trata "Padre Eustáquio" como nome
-            // de bairro e devolve ruas dentro dele — e não a própria via.
-            const streetForNominatim =
-                parsed.streetPartOriginal || parsed.streetPart;
+        // ---------- Constrói lista de URLs a consultar ----------
+        const urlJobs = [];
 
-            const streetParam = hasNumber
+        if (hasClearStreet) {
+            const streetForNominatim = parsed.streetPartOriginal || parsed.streetPart;
+            const streetParam = parsed.hasNumber
                 ? `${streetForNominatim} ${parsed.number}`.trim()
                 : streetForNominatim;
 
             const params = new URLSearchParams({
                 format: 'json',
                 addressdetails: '1',
-                limit: '12',
+                limit: String(profile.nominatimLimit),
                 countrycodes: 'BR',
                 'accept-language': 'pt',
                 street: streetParam,
@@ -428,178 +585,105 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             });
             if (parsed.city) params.set('city', parsed.city);
 
-            const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-            const response = await fetch(url, {
-                method: 'GET',
-                mode: 'cors',
-                headers: { 'Accept': 'application/json' },
-                signal: controller.signal
+            urlJobs.push({
+                type: 'structured',
+                url: `https://nominatim.openstreetmap.org/search?${params.toString()}`
             });
-            clearTimeout(timeoutId);
-            if (!response.ok) throw new Error(`Nominatim HTTP ${response.status}`);
-            const structured = await response.json();
-
-            if (Array.isArray(structured)) {
-                structured.forEach(item => {
-                    if (item.place_id && !seenPlaceIds.has(item.place_id)) {
-                        seenPlaceIds.add(item.place_id);
-                        data.push(item);
-                    }
-                });
-            }
         }
 
-        // ---------- 2. Free-form (só quando structured < 4 resultados) ----------
-        if (data.length < 4 || isIncomplete || parsed.isIntersection) {
+        if (urlJobs.length === 0 || isIncomplete || parsed.isIntersection) {
             const freeParams = new URLSearchParams({
                 format: 'json',
                 addressdetails: '1',
-                limit: '12',
+                limit: String(profile.nominatimLimit),
                 countrycodes: 'BR',
                 'accept-language': 'pt',
                 q: `${rawQuery}, Minas Gerais, Brazil`,
                 viewbox: viewbox,
                 bounded: '1'
             });
-
-            const freeUrl = `https://nominatim.openstreetmap.org/search?${freeParams.toString()}`;
-            const freeController = new AbortController();
-            const freeTimeout = setTimeout(() => freeController.abort(), 8000);
-            const freeRes = await fetch(freeUrl, {
-                method: 'GET',
-                mode: 'cors',
-                headers: { 'Accept': 'application/json' },
-                signal: freeController.signal
+            urlJobs.push({
+                type: 'freeform',
+                url: `https://nominatim.openstreetmap.org/search?${freeParams.toString()}`
             });
-            clearTimeout(freeTimeout);
-            if (!freeRes.ok) throw new Error(`Nominatim HTTP ${freeRes.status}`);
-            const freeData = await freeRes.json();
+        }
 
-            if (Array.isArray(freeData)) {
-                freeData.forEach(item => {
+        // ---------- Helper de fetch com timeout adaptativo ----------
+        const fetchNom = async (url) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), profile.nominatimTimeout);
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                throw e;
+            }
+        };
+
+        // ---------- Execução: paralela ou sequencial ----------
+        if (profile.parallelNominatim && urlJobs.length > 1) {
+            // Desktop / 4G: dispara todas em paralelo
+            const settled = await Promise.all(
+                urlJobs.map(job => fetchNom(job.url).catch(e => {
+                    console.warn(`[Search] ${job.type} falhou:`, e.message);
+                    return [];
+                }))
+            );
+            settled.forEach(arr => {
+                if (!Array.isArray(arr)) return;
+                arr.forEach(item => {
                     if (item.place_id && !seenPlaceIds.has(item.place_id)) {
                         seenPlaceIds.add(item.place_id);
                         data.push(item);
                     }
                 });
+            });
+        } else {
+            // Mobile: structured primeiro; free-form só se ainda precisar
+            for (const job of urlJobs) {
+                try {
+                    const arr = await fetchNom(job.url);
+                    if (Array.isArray(arr)) {
+                        arr.forEach(item => {
+                            if (item.place_id && !seenPlaceIds.has(item.place_id)) {
+                                seenPlaceIds.add(item.place_id);
+                                data.push(item);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn(`[Search] ${job.type} falhou:`, e.message);
+                }
+                // Se structured já entregou massa crítica, evita gastar dados com free-form
+                if (job.type === 'structured' && data.length >= 6) break;
             }
         }
 
-        if (!Array.isArray(data) || data.length === 0) {
+        if (data.length === 0) {
             resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Nada encontrado online. Verificando base local...</div>';
             return false;
         }
 
-        // ============================================================
-        // SCORING — prioriza vias sobre bairros e POIs
-        // ============================================================
-        const GENERIC_STREET_TOKENS = new Set([
-            'rua', 'r', 'avenida', 'av', 'avd', 'travessa', 'trv', 'trav',
-            'alameda', 'al', 'praca', 'pca', 'pc', 'rodovia', 'rod',
-            'estrada', 'est', 'viela', 'beco', 'largo', 'via'
-        ]);
+        // ---------- Cacheia antes do scoring ----------
+        _setCachedSearch(cacheKey, data);
 
-        const HIGHWAY_TYPE_SCORE = {
-            motorway: 70, trunk: 65,
-            motorway_link: 60, trunk_link: 55,
-            primary: 50, primary_link: 45,
-            secondary: 45, secondary_link: 40,
-            tertiary: 40, tertiary_link: 35,
-            residential: 55, living_street: 50,
-            unclassified: 35, pedestrian: 30, service: 25,
-            footway: 10, path: 5, track: 5, cycleway: 8
-        };
-
-        const rawQueryNorm = normalizeStr(parsed.streetPart || rawQuery);
-        const queryTokensAll = (parsed.streetPart || expandSearchQuery(rawQuery))
-            .split(/\s+/).filter(Boolean);
-        const queryTokensSpecific = queryTokensAll
-            .filter(t => !GENERIC_STREET_TOKENS.has(t) && t.length >= 3);
-
-        const onlineResults = data.map(item => {
-            let score = 0;
-            const addr = item.address || {};
-            const osmClass = String(item.class || '').toLowerCase();
-            const osmType  = String(item.type  || '').toLowerCase();
-            const displayName = String(item.display_name || '');
-            const displayNorm = normalizeStr(displayName);
-            const firstSegment = String(displayName.split(',')[0] || '').trim();
-            const firstSegNorm = normalizeStr(firstSegment);
-
-            // Boost 1 — class/type OSM
-            if (osmClass === 'highway') {
-                score += HIGHWAY_TYPE_SCORE[osmType] || 20;
-            } else if (osmClass === 'place') {
-                score += (osmType === 'city' || osmType === 'town') ? 25 : 5;
-            } else if (['amenity', 'shop', 'tourism', 'leisure', 'office', 'building'].includes(osmClass)) {
-                score += 8;
-            } else {
-                score += 15;
-            }
-
-            // Boost 2 — match exato do 1º segmento
-            if (firstSegNorm && rawQueryNorm) {
-                if (firstSegNorm === rawQueryNorm) score += 220;
-                else if (firstSegNorm.startsWith(rawQueryNorm + ' ')) score += 130;
-                else if (firstSegNorm.startsWith(rawQueryNorm)) score += 90;
-                else if (firstSegNorm.includes(rawQueryNorm)) score += 60;
-            }
-
-            // Boost 3 — tokens específicos (padre, eustaquio) valem mais que "rua"
-            queryTokensSpecific.forEach(t => {
-                if (displayNorm.includes(t)) score += 12;
-            });
-            queryTokensAll
-                .filter(t => GENERIC_STREET_TOKENS.has(t) || t.length < 3)
-                .forEach(t => {
-                    if (displayNorm.includes(t)) score += 1;
-                });
-
-            // Boost 4 — número da casa
-            const house = addr.house_number || '';
-            if (parsed.hasNumber && house) {
-                const num = parseInt(house, 10);
-                if (!isNaN(num) && Math.abs(num - parsed.number) <= 20) score += 45;
-                else if (house.includes(String(parsed.number))) score += 30;
-            }
-
-            // Boost 5 — estado / cidade
-            if (addr.state && normalizeStr(addr.state).includes('minas')) score += 15;
-            if (parsed.city && (addr.city || addr.town || addr.municipality)) {
-                const cityNorm = normalizeStr(parsed.city);
-                const foundCity = normalizeStr(addr.city || addr.town || addr.municipality || '');
-                if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) score += 25;
-            }
-
-            if (parsed.isIntersection) score += 12;
-
-            return {
-                title: firstSegment || 'Sem título',
-                munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
-                address: displayName,
-                subtitle: displayName,
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lon),
-                source: 'online_osm',
-                score,
-                houseNumber: house,
-                isIntersection: parsed.isIntersection,
-                osmClass,
-                osmType
-            };
-        });
-
-        onlineResults.sort((a, b) => b.score - a.score);
+        const onlineResults = _scoreOnlineResults(data, parsed, rawQuery);
         displaySearchResults(onlineResults.slice(0, 12), targetId);
+        return true;
 
     } catch (error) {
         console.error('Erro na busca online:', error);
         resultsDiv.innerHTML = '<div class="search-status-msg">⚠️ Busca online indisponível (CORS/rede). Tentando base local...</div>';
         return false;
     }
-    return true;
 }
 
 /**
