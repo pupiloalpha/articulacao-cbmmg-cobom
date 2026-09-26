@@ -730,36 +730,47 @@ async function updateOriginPopup(lat, lng, description) {
     originMarker.openPopup();
 }
 
-function setOrigin(lat, lng, description) {
-    if (originMarker) map.removeLayer(originMarker);
+function setOrigin(lat, lng, description, options = {}) {
+    const { silent = false } = options;
 
-    originMarker = L.marker([lat, lng], {
-        draggable: true,
-        icon: window.originIcon
-    }).addTo(map);
+    if (originMarker) {
+        // Reutiliza o marker existente — evita removeLayer + recriação
+        // (que causava flicker visual em atualizações rápidas de GPS).
+        originMarker.setLatLng([lat, lng]);
+    } else {
+        originMarker = L.marker([lat, lng], {
+            draggable: true,
+            icon: window.originIcon
+        }).addTo(map);
 
-    originMarker.bindPopup(
-        `<b>Origem:</b> ${description}<br>Arraste para ajustar.`,
-        {
-            className: 'feature-popup origin-brief-popup',
-            maxWidth: 420,
-            minWidth: 300,
-            maxHeight: 420,
-            closeButton: true,
-            autoPanPadding: [40, 60]
-        }
-    ).openPopup();
+        originMarker.bindPopup(
+            `<b>Origem:</b> ${description}<br>Arraste para ajustar.`,
+            {
+                className: 'feature-popup origin-brief-popup',
+                maxWidth: 420,
+                minWidth: 300,
+                maxHeight: 420,
+                closeButton: true,
+                autoPanPadding: [40, 60]
+            }
+        );
 
-    updateOriginPopup(lat, lng, description);
-
-    originMarker.on('dragend', () => {
-        const pos = originMarker.getLatLng();
-        currentSearchResult = { lat: pos.lat, lng: pos.lng, address: description };
-        calculateDistancesToAllFeatures(pos.lat, pos.lng);
-        updateOriginPopup(pos.lat, pos.lng, description);
-    });
+        originMarker.on('dragend', () => {
+            const pos = originMarker.getLatLng();
+            const desc = (currentSearchResult && currentSearchResult.address) || description;
+            currentSearchResult = { lat: pos.lat, lng: pos.lng, address: desc };
+            calculateDistancesToAllFeatures(pos.lat, pos.lng);
+            updateOriginPopup(pos.lat, pos.lng, desc);
+        });
+    }
 
     currentSearchResult = { lat, lng, address: description };
+
+    // silent = true → só move o marker, não toca em popup nem dispara briefing.
+    // Usado pelo rastreamento GPS contínuo para atualizações intermediárias.
+    if (!silent) {
+        updateOriginPopup(lat, lng, description);
+    }
 }
 
 let currentRouteRequestId = 0;
