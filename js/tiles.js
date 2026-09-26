@@ -72,48 +72,15 @@ function setupTileDownload() {
             let saved = 0;
             showToast(`Iniciando download paralelo de ${totalTiles} tiles...`, 'info');
 
+            // Pool concorrente adaptativo conforme perfil de rede
+            const profile = (typeof getNetworkProfile === 'function')
+                ? getNetworkProfile()
+                : { tileConcurrency: 6 };
 
-// Pool concorrente adaptativo conforme perfil de rede
-const profile = (typeof getNetworkProfile === 'function')
-    ? getNetworkProfile()
-    : { tileConcurrency: 6 };
-const CONCURRENCY = Math.max(
-    2,
-    Math.min(profile.tileConcurrency || 6, tilesToFetch.length)
-);
-let currentIndex = 0;
-
-async function downloadWorker() {
-    while (currentIndex < tilesToFetch.length) {
-        const idx = currentIndex++;
-        const tileItem = tilesToFetch[idx];
-        try {
-            const existing = await DB.getTile(tileItem.key);
-            if (!existing) {
-                const resp = await fetch(tileItem.url);
-                if (resp.ok) {
-                    const blob = await resp.blob();
-                    await DB.saveTile(tileItem.key, blob);
-                    saved++;
-                }
-            }
-        } catch (e) {
-            console.warn('Erro ao baixar tile:', tileItem.url, e);
-        }
-        completed++;
-        if (completed % 4 === 0 || completed === totalTiles) {
-            const pct = Math.round((completed / totalTiles) * 100);
-            tileProgress.innerHTML = `Progresso: <b>${completed}</b> / ${totalTiles} tiles (${pct}%) — <i>${saved} novos</i>`;
-        }
-    }
-}
-
-const workers = Array.from(
-    { length: CONCURRENCY },
-    () => downloadWorker()
-);
-await Promise.all(workers);
-
+            const CONCURRENCY = Math.max(
+                2,
+                Math.min(profile.tileConcurrency || 6, tilesToFetch.length)
+            );
 
             let currentIndex = 0;
 
@@ -143,7 +110,7 @@ await Promise.all(workers);
             }
 
             const workers = Array.from(
-                { length: Math.min(CONCURRENCY, tilesToFetch.length) },
+                { length: CONCURRENCY },
                 () => downloadWorker()
             );
             await Promise.all(workers);
