@@ -196,6 +196,196 @@ function getFeatureBBox(feature) {
     return feature._bbox;
 }
 
+// ============================================================
+// CENTRAIS SAMU 192 — Lookup por município
+// ------------------------------------------------------------
+// O TopoJSON de macrorregião traz apenas UMA Central_SAMU_192 por
+// macrorregião. Na RM de Belo Horizonte e no colar metropolitano
+// existem 5 centrais distintas (BH, Divinópolis, Sete Lagoas,
+// Contagem, Betim). Usamos o município (NM_MUN extraído do polígono
+// de microrregião que contém o ponto) para determinar a central
+// correta via tabela `data/samu/samu_centrais.json`.
+// ============================================================
+
+let _samuCentraisMap = null;     // Map<municipioNormalizado, {central, sede, municipio}>
+let _samuCentraisPromise = null;
+
+async function loadSamuCentrais() {
+    if (_samuCentraisMap) return _samuCentraisMap;
+    if (_samuCentraisPromise) return _samuCentraisPromise;
+
+    _samuCentraisPromise = (async () => {
+        try {
+            const res = await fetch('./data/samu/samu_centrais.json');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const map = new Map();
+
+            for (const [centralKey, info] of Object.entries(data)) {
+                const central = info.central || centralKey;
+                const sede = info.sede || '';
+                for (const mun of (info.municipios || [])) {
+                    map.set(normalizeStr(mun), { central, sede, municipio: mun });
+                }
+            }
+
+            console.log(`[SAMU] ${map.size} municípios mapeados em ${Object.keys(data).length} centrais.`);
+            _samuCentraisMap = map;
+            return map;
+        } catch (e) {
+            console.warn('[SAMU] Falha ao carregar tabela de centrais:', e);
+            _samuCentraisMap = new Map();
+            return _samuCentraisMap;
+        }
+    })();
+
+    return _samuCentraisPromise;
+}
+
+/**
+ * Retorna { central, sede, municipio } ou null.
+ * Aceita nome com/sem acento — normalização por normalizeStr().
+ */
+function getSamuCentralForMunicipio(munName) {
+    if (!_samuCentraisMap || !munName) return null;
+    return _samuCentraisMap.get(normalizeStr(munName)) || null;
+}
+
+// ============================================================
+// RESOLUÇÃO DA CENTRAL SAMU 192 — ESTRATÉGIA EM CAMADAS
+// ------------------------------------------------------------
+// A tabela samu_centrais.json mapeia apenas 5 centrais metropolitanas
+// (BH, Contagem, Betim, Sete Lagoas, Divinópolis). Para atribuir a
+// central correta a um ponto, seguimos esta ordem:
+//
+//   1) Reverse geocoding (Nominatim) com cache persistente — devolve
+//      o MUNICÍPIO REAL do ponto, com malha atualizada.
+//   2) Polígono de microrregião (NM_MUN) — malha local, pode estar
+//      desatualizada ou incompleta.
+//   3) Macrorregião — fallback com Central_SAMU_192 genérica.
+//
+// O cache em localStorage tem TTL de 90 dias e limite de 500 entradas
+// (eviction FIFO) para não estourar quota.
+// ============================================================
+
+const _reverseGeocodeCache = new Map();
+const REVERSE_GEOCODE_CACHE_KEY = 'reverse_geocode_cache_v1';
+const REVERSE_GEOCODE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 dias
+const REVERSE_GEOCODE_MAX_ENTRIES = 500;
+let _reverseGeocodeCacheLoaded = false;
+
+function _loadReverseGeocodeCache() {
+    if (_reverseGeocodeCacheLoaded) return;
+    _reverseGeocodeCacheLoaded = true;
+    try {
+        const stored = localStorage.getItem(REVERSE_GEOCODE_CACHE_KEY);
+        if (!stored) return;
+        const parsed = JSON.parse(stored);
+        const now = Date.now();
+        for (const [key, val] of Object.entries(parsed)) {
+            if (val && val.mun && (now - val.ts) < REVERSE_GEOCODE_TTL_MS) {
+                _reverseGeocodeCache.set(key, val);
+            }
+        }
+        console.log(`[SAMU] Cache de reverse geocoding carregado: ${_reverseGeocodeCache.size} entradas válidas.`);
+    } catch (e) {
+        console.warn('[SAMU] Falha ao carregar cache de reverse geocoding:', e);
+    }
+}
+
+function _saveReverseGeocodeCache() {
+    try {
+        const obj = {};
+        _reverseGeocodeCache.forEach((val, key) => { obj[key] = val; });
+        localStorage.setItem(REVERSE_GEOCODE_CACHE_KEY, JSON.stringify(obj));
+    } catch (e) {
+        console.warn('[SAMU] Falha ao salvar cache de reverse geocoding:', e);
+    }
+}
+
+/**
+ * Reverse geocoding com cache — devolve o nome do município do ponto.
+ * Coordenadas arredondadas para 3 casas decimais (~100 m) para
+ * maximizar reuso sem perder precisão em área urbana.
+ *
+ * Retorna string ou null.
+ */
+async function getCachedReverseGeocodeMunicipality(lat, lng) {
+    if (!navigator.onLine) return null;
+    _loadReverseGeocodeCache();
+
+    const key = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
+    const cached = _reverseGeocodeCache.get(key);
+    if (cached && (Date.now() - cached.ts) < REVERSE_GEOCODE_TTL_MS) {
+        return cached.mun;
+    }
+
+    const mun = await reverseGeocodeCity(lat, lng);
+    if (mun) {
+        _reverseGeocodeCache.set(key, { mun, ts: Date.now() });
+
+        // Eviction FIFO quando passa do limite
+        if (_reverseGeocodeCache.size > REVERSE_GEOCODE_MAX_ENTRIES) {
+            const firstKey = _reverseGeocodeCache.keys().next().value;
+            _reverseGeocodeCache.delete(firstKey);
+        }
+        _saveReverseGeocodeCache();
+    }
+    return mun;
+}
+
+/**
+ * Resolve a Central SAMU 192 aplicando a estratégia em camadas.
+ * Retorna { central, sede, municipio, fonte } ou null.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {Array}  containingPolygons  resultado já calculado de
+ *                                     checkPolygonContainment (evita reexecução)
+ */
+async function resolveSamuCentralForPoint(lat, lng, containingPolygons) {
+    // ---------- Camada 1: reverse geocoding (município real) ----------
+    const munFromGeocode = await getCachedReverseGeocodeMunicipality(lat, lng);
+    if (munFromGeocode) {
+        const info = getSamuCentralForMunicipio(munFromGeocode);
+        if (info) {
+            return {
+                central: info.central,
+                sede: info.sede || '',
+                municipio: munFromGeocode,
+                fonte: 'municipio-geocode'
+            };
+        }
+    }
+
+    // ---------- Camada 2: polígono de microrregião (NM_MUN) ----------
+    const micro = (containingPolygons || []).find(p => p.classification === 'MICRORREGIAO');
+    if (micro?.municipioName) {
+        const info = getSamuCentralForMunicipio(micro.municipioName);
+        if (info) {
+            return {
+                central: info.central,
+                sede: info.sede || '',
+                municipio: micro.municipioName,
+                fonte: 'municipio-poligono'
+            };
+        }
+    }
+
+    // ---------- Camada 3: fallback genérico da macrorregião ----------
+    const macro = (containingPolygons || []).find(p => p.classification === 'MACRORREGIAO');
+    if (macro?.centralSamu192) {
+        return {
+            central: macro.centralSamu192,
+            sede: macro.municipioSedeCentral192 || '',
+            municipio: munFromGeocode || micro?.municipioName || null,
+            fonte: 'macrorregiao'
+        };
+    }
+
+    return null;
+}
+
 async function checkPolygonContainment(lat, lng, providedLayers = null) {
     const point = turf.point([lng, lat]);
     const containingPolygons = [];
@@ -215,23 +405,33 @@ async function checkPolygonContainment(lat, lng, providedLayers = null) {
                 if (!turf.booleanPointInPolygon(point, polygonFeature)) continue;
 
                 const classification = typeof getFeatureClassification === 'function' ? getFeatureClassification(feature) : null;
+                const props = feature.properties || {};
                 let featureName = 'Sem nome';
+                let municipioName = null;
 
                 if (classification === 'MACRORREGIAO') {
-                    featureName = feature.properties?.Macrorregiao_Saude ||
-                        feature.properties?.['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
-                        feature.properties?.['Macrorregião de Saúde'] || feature.properties?.name || 'Macrorregião';
+                    featureName = props.Macrorregiao_Saude ||
+                        props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] ||
+                        props['Macrorregião de Saúde'] ||
+                        props.name || 'Macrorregião';
                 } else if (classification === 'MICRORREGIAO') {
-                    featureName = feature.properties?.['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
-                        feature.properties?.['Microrregião de Saúde'] || feature.properties?.NM_RGI || feature.properties?.name || 'Microrregião';
+                    featureName = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
+                        props['Microrregião de Saúde'] ||
+                        props.NM_RGI || props.name || 'Microrregião';
+                    // Município associado a este polígono (chave para lookup SAMU)
+                    municipioName = props.NM_MUN || props['Município Sede'] || null;
                 } else {
-                    featureName = feature.properties?.name || feature.properties?.NM_MUN || feature.properties?.Field3 || 'Sem nome';
+                    featureName = props.name || props.NM_MUN || props.Field3 || 'Sem nome';
                 }
 
                 containingPolygons.push({
                     layerName: layerData.name,
                     featureName,
-                    classification
+                    classification,
+                    properties: props,
+                    municipioName,
+                    centralSamu192: props.Central_SAMU_192 || null,
+                    municipioSedeCentral192: props.Municipio_Sede_Central_192 || null
                 });
             } catch (e) {
                 console.warn('Erro contenção polígono:', e);
@@ -267,9 +467,6 @@ async function buildOriginBriefing(lat, lng) {
             p.layerName.toLowerCase().includes('bombeiro')
         )
     ) || null;
-
-    const macroRegion = containing.find(p => p.classification === 'MACRORREGIAO') || null;
-    const microRegion = containing.find(p => p.classification === 'MICRORREGIAO') || null;
 
     // --- Vizinhos mais próximos (uma passada única) ---
     let nearestUnit     = null;  // UNIDADE_BM
@@ -365,8 +562,6 @@ async function buildOriginBriefing(lat, lng) {
 
     return {
         bmArticulation,
-        macroRegion,
-        microRegion,
         nearestUnit,
         nearestHospital,
         nearestHidrante,
@@ -527,15 +722,6 @@ async function updateOriginPopup(lat, lng, description) {
                 'Nenhum evento em MG', '', 'origin-brief-muted');
         }
 
-        // Regiões de saúde
-        if (briefing.macroRegion) {
-            html += _briefRow('🩺', 'Macrorregião de Saúde',
-                esc(briefing.macroRegion.featureName));
-        }
-        if (briefing.microRegion) {
-            html += _briefRow('🩺', 'Microrregião de Saúde',
-                esc(briefing.microRegion.featureName));
-        }
     }
 
     html += `</div></div>`;
@@ -583,6 +769,10 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     if (!distanceContainer) return;
 
     const reqId = ++currentRouteRequestId;
+
+    // Carrega tabela de centrais SAMU (idempotente, fetch único)
+    await loadSamuCentrais();
+
     const allLayers = await DB.getLayers();
     const containingPolygons = await checkPolygonContainment(originLat, originLng, allLayers);
     const originPoint = turf.point([originLng, originLat]);
@@ -628,31 +818,77 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
     let html = '<div class="dispatch-panel">';
 
+    // ============================================================
+    // Responsabilidade Territorial: apenas Articulação BM + Central SAMU 192
+    // ============================================================
+    const bmArticulation = containingPolygons.find(p =>
+        p.layerName && (
+            p.layerName.toLowerCase().includes('articula') ||
+            p.layerName.toLowerCase().includes('cbmmg') ||
+            p.layerName.toLowerCase().includes('bombeiro')
+        )
+    );
+
+    // Resolve a Central SAMU 192 com estratégia em camadas:
+         //   1) reverse geocoding (município real, com cache)
+        //   2) polígono de microrregião (NM_MUN)
+        //   3) fallback genérico da macrorregião
+	    const samuInfo = await resolveSamuCentralForPoint(
+	        originLat,
+	        originLng,
+	        containingPolygons
+	    );
+
     let jurisdictionHtml = '';
-    if (containingPolygons.length > 0) {
-        jurisdictionHtml = containingPolygons.map(p => {
-            const isBM = p.layerName && (
-                p.layerName.toLowerCase().includes('articula') ||
-                p.layerName.toLowerCase().includes('cbmmg') ||
-                p.layerName.toLowerCase().includes('bombeiro')
-            );
-            const itemClass = isBM ? 'jurisdiction-item jurisdiction-bm' : 'jurisdiction-item';
-            const icon = isBM ? '🚒' : '🛡️';
-            return `
-                <div class="${itemClass}">
-                    <span class="jurisdiction-icon">${icon}</span>
-                    <div class="jurisdiction-text">
-                        <span class="jurisdiction-name">${p.featureName}</span>
-                        <small class="jurisdiction-layer">(${p.layerName})</small>
-                    </div>
-                    ${isBM ? '<span class="jurisdiction-badge-bm">BM</span>' : ''}
-                </div>`;
-        }).join('');
+
+    if (bmArticulation) {
+        jurisdictionHtml += `
+            <div class="jurisdiction-item jurisdiction-bm">
+                <span class="jurisdiction-icon">🚒</span>
+                <div class="jurisdiction-text">
+                    <span class="jurisdiction-name">${bmArticulation.featureName}</span>
+                    <small class="jurisdiction-layer">Unidade da Articulação BM</small>
+                </div>
+                <span class="jurisdiction-badge-bm">BM</span>
+            </div>`;
     } else {
-        jurisdictionHtml = `
+        jurisdictionHtml += `
             <div class="jurisdiction-item jurisdiction-empty">
                 <span class="jurisdiction-icon">⚠️</span>
                 <div class="jurisdiction-text"><span class="jurisdiction-name">Fora de polígonos mapeados</span></div>
+            </div>`;
+    }
+
+        if (samuInfo) {
+        const esc = (typeof escapeHtml === 'function')
+            ? escapeHtml
+            : (s => String(s == null ? '' : s));
+
+        // Rótulo amigável da camada que resolveu a informação
+        const fonteLabel = samuInfo.fonte === 'municipio-geocode'
+            ? '🌐 Município confirmado (geocodificação)'
+            : samuInfo.fonte === 'municipio-poligono'
+                ? '📐 Município (base territorial local)'
+                : '🗺️ Macrorregião (fallback genérico)';
+
+        const munTxt = samuInfo.municipio
+            ? ` • ${esc(samuInfo.municipio)}`
+            : '';
+        const sedeTxt = samuInfo.sede
+            ? ` • Sede: ${esc(samuInfo.sede)}`
+            : '';
+
+        jurisdictionHtml += `
+            <div class="jurisdiction-item jurisdiction-samu">
+                <span class="jurisdiction-icon">📞</span>
+                <div class="jurisdiction-text">
+                    <span class="jurisdiction-name">${esc(samuInfo.central)}</span>
+                    <small class="jurisdiction-layer">
+                        Central SAMU 192${munTxt}${sedeTxt}
+                    </small>
+                    <small class="jurisdiction-source">${fonteLabel}</small>
+                </div>
+                <span class="jurisdiction-badge-samu">192</span>
             </div>`;
     }
 

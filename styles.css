@@ -1156,6 +1156,90 @@ body {
     padding-right: 38px;
 }
 
+/* =========================================================
+   Central SAMU 192 – destaque de responsabilidade
+   ========================================================= */
+
+.jurisdiction-item.jurisdiction-samu {
+    background: linear-gradient(135deg, #eef7ff 0%, #d6ebff 100%);
+    border-left: 4px solid #1a5276;
+    box-shadow: 0 1px 4px rgba(26, 82, 118, 0.15);
+    position: relative;
+}
+
+.jurisdiction-item.jurisdiction-samu .jurisdiction-name {
+    color: #1a5276;
+    font-weight: 700;
+}
+
+.jurisdiction-item.jurisdiction-samu .jurisdiction-layer {
+    color: #2874a6;
+}
+
+.jurisdiction-badge-samu {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1a5276;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.4px;
+}
+
+/* Garante espaço para o badge */
+.jurisdiction-item.jurisdiction-samu .jurisdiction-text {
+    padding-right: 42px;
+}
+
+/* =========================================================
+   Fonte da informação SAMU (rastreabilidade da camada)
+   ========================================================= */
+
+.jurisdiction-source {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #1a5276;
+    background: rgba(26, 82, 118, 0.10);
+    padding: 2px 7px;
+    border-radius: 8px;
+    border: 1px solid rgba(26, 82, 118, 0.20);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+body.dark-theme .jurisdiction-source {
+    color: #7dd3fc;
+    background: rgba(12, 74, 110, 0.40);
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+/* Dark theme */
+body.dark-theme .jurisdiction-item.jurisdiction-samu {
+    background: linear-gradient(135deg, rgba(12, 74, 110, 0.45) 0%, rgba(21, 113, 165, 0.25) 100%);
+    border-left-color: #38bdf8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-samu .jurisdiction-name {
+    color: #7dd3fc;
+}
+
+body.dark-theme .jurisdiction-item.jurisdiction-samu .jurisdiction-layer {
+    color: #bae6fd;
+}
+
+body.dark-theme .jurisdiction-badge-samu {
+    background: #0369a1;
+    color: #ffffff;
+}
+
 .jurisdiction-item.jurisdiction-empty {
     border-left-color: #e74c3c;
     background: #fdf2f2;

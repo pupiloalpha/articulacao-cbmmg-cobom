@@ -532,9 +532,12 @@ const FEATURE_FIELD_SCHEMAS = {
     ],
     MICRORREGIAO: [
         { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde', label: 'Microrregião de Saúde:', type: 'text' },
-        { key: 'NM_RGI', label: 'Nome da Microrregião (NM_RGI):', type: 'text' },
+        { key: 'Microrregião de Saúde', label: 'Microrregião de Saúde (campo curto):', type: 'text' },
+        { key: 'NM_RGI', label: 'Região Imediata (NM_RGI):', type: 'text' },
         { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde', label: 'Macrorregião de Saúde:', type: 'text' },
-        { key: 'NM_MUN', label: 'Município sede:', type: 'text' },
+        { key: 'Macrorregião de Saúde', label: 'Macrorregião (campo curto):', type: 'text' },
+        { key: 'NM_MUN', label: 'Município (NM_MUN):', type: 'text' },
+        { key: 'Município Sede', label: 'Município Sede:', type: 'text' },
         { key: 'AREA_KM2', label: 'Área (km²):', type: 'text' },
         { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)', label: 'População 2022:', type: 'text' },
         { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)', label: 'População 2025 (est.):', type: 'text' },
@@ -542,9 +545,14 @@ const FEATURE_FIELD_SCHEMAS = {
     ],
     MACRORREGIAO: [
         { key: 'Macrorregiao_Saude', label: 'Macrorregião de Saúde:', type: 'text' },
-        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde', label: 'Macrorregião (campo longo):', type: 'text' },
+        { key: 'Macrorregião de Saúde', label: 'Macrorregião (campo curto):', type: 'text' },
+        { key: 'Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde', label: 'Macrorregião (campo longo oficial):', type: 'text' },
+        { key: 'Município Sede / Polo Macrorregional', label: 'Município Sede / Polo Macrorregional:', type: 'text' },
+        { key: 'Central_SAMU_192', label: 'Central SAMU 192:', type: 'text' },
+        { key: 'Municipio_Sede_Central_192', label: 'Município Sede da Central 192:', type: 'text' },
+        { key: 'Municipios_Atendidos_Central_192', label: 'Municípios Atendidos pela Central 192:', type: 'textarea' },
         { key: 'Hospitais_de_Referencia_Macrorregiao', label: 'Hospitais de Referência da Macro (um por linha):', type: 'textarea' },
-        { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo):', type: 'textarea' }
+        { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo — separados por |):', type: 'textarea' }
     ],
 HIDRANTE: [
     { key: 'id',            label: 'ID do Hidrante (CBMMG):', type: 'text' },

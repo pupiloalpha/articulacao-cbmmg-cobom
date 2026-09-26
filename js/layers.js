@@ -93,46 +93,36 @@ async function loadMicroMacroRegions() {
         const hasMacro = existing.some(l => l.name && l.name.includes('Macrorregi'));
 
         if (!hasMacro) {
-            let geojson = null;
             try {
-                geojson = await loadGeoOrTopo('./data/macrorregioes/macrorregioes.topojson');
-                console.log('Camada Macrorregiões carregada via TopoJSON');
+                const geojson = await loadGeoOrTopo('./data/macrorregioes/macrorregioes.topojson');
+                if (geojson) {
+                    await DB.saveLayer({
+                        name: 'Macrorregiões de Saúde',
+                        type: 'geojson',
+                        order: 20,
+                        geojson
+                    });
+                    console.log('Camada Macrorregiões de Saúde importada.');
+                }
             } catch (e) {
-                console.warn('TopoJSON de Macrorregiões não encontrado, tentando GeoJSON...', e);
-                const res = await fetch('./data/macrorregioes/macrorregioes.geojson');
-                if (res.ok) geojson = await res.json();
-            }
-
-            if (geojson) {
-                await DB.saveLayer({
-                    name: 'Macrorregiões de Saúde',
-                    type: 'geojson',
-                    order: 20,
-                    geojson
-                });
-                console.log('Camada Macrorregiões de Saúde importada.');
+                console.warn('TopoJSON de Macrorregiões não encontrado.', e);
             }
         }
 
         if (!hasMicro) {
-            let geojson = null;
             try {
-                geojson = await loadGeoOrTopo('./data/microrregioes/microrregioes.topojson');
-                console.log('Camada Microrregiões carregada via TopoJSON');
+                const geojson = await loadGeoOrTopo('./data/microrregioes/microrregioes.topojson');
+                if (geojson) {
+                    await DB.saveLayer({
+                        name: 'Microrregiões de Saúde',
+                        type: 'geojson',
+                        order: 30,
+                        geojson
+                    });
+                    console.log('Camada Microrregiões de Saúde importada.');
+                }
             } catch (e) {
-                console.warn('TopoJSON de Microrregiões não encontrado, tentando GeoJSON...', e);
-                const res = await fetch('./data/microrregioes/microrregioes.geojson');
-                if (res.ok) geojson = await res.json();
-            }
-
-            if (geojson) {
-                await DB.saveLayer({
-                    name: 'Microrregiões de Saúde',
-                    type: 'geojson',
-                    order: 30,
-                    geojson
-                });
-                console.log('Camada Microrregiões de Saúde importada.');
+                console.warn('TopoJSON de Microrregiões não encontrado.', e);
             }
         }
     } catch (e) {
@@ -457,24 +447,18 @@ function getFeatureClassification(feature) {
     const geomType = feature.geometry?.type;
     const props = feature.properties || {};
 
-    if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
 
         if (props._tipo === 'EVENTO_FOGO' ||
             (props.id_evento !== undefined && props.status_evento !== undefined)) {
             return 'EVENTO_FOGO';
         }
 
-        if (
-            props.Hospitais_de_Referencia_Macrorregiao ||
-            props.Hospitais_de_Referencia_Macrorregiao_Texto ||
-            props.Macrorregiao_Saude ||
-            props['Macrorregião de Saúde'] ||
-            (props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] &&
-             !props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'])
-        ) {
-            return 'MACRORREGIAO';
-        }
-
+        // ⚠️ MICRORREGIAO é testada ANTES de MACRORREGIAO.
+        // Motivo: features de microrregião TAMBÉM têm o campo
+        // "Macrorregião de Saúde" (indicando a qual macro pertencem).
+        // Se a checagem de macro viesse primeiro, ela daria falso
+        // positivo para microrregiões.
         if (
             props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'] ||
             props['Microrregião de Saúde'] ||
@@ -483,6 +467,17 @@ function getFeatureClassification(feature) {
             (props.NM_RGI && props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Código Micro'])
         ) {
             return 'MICRORREGIAO';
+        }
+
+        if (
+            props.Hospitais_de_Referencia_Macrorregiao ||
+            props.Hospitais_de_Referencia_Macrorregiao_Texto ||
+            props.Macrorregiao_Saude ||
+            props.Central_SAMU_192 ||
+            (props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Macrorregião de Saúde'] &&
+             !props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Microrregião de Saúde'])
+        ) {
+            return 'MACRORREGIAO';
         }
 
         return 'POLYGON';
@@ -982,7 +977,13 @@ if (type === 'HIDRANTE') {
             props.Macrorregiao_Saude ||
             '-';
 
-        const mun = props.NM_MUN || props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Município '] || '-';
+        const municipioSede =
+            props['Município Sede'] ||
+            props.NM_MUN ||
+            props['Regionalização pop. 2025 — RegionalizaçãoMG2025_Município '] ||
+            '-';
+
+        const nmRgi = props.NM_RGI || '';
         const pop2022 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2022)'];
         const pop2025 = props['Regionalização pop. 2025 — RegionalizaçãoMG2025_POPULAÇÃO CENSO DEMOGRÁFICO (IBGE/2025)'];
         const area = props.AREA_KM2
@@ -991,7 +992,7 @@ if (type === 'HIDRANTE') {
 
         let hospList = props['Hospitais de Referência'] || props.Hospitais_de_Referencia || [];
         if ((!Array.isArray(hospList) || hospList.length === 0) && typeof props['Hospitais de Referência'] === 'string') {
-            hospList = props['Hospitais de Referência'].split(/\\n|\\|/).map(h => h.trim()).filter(Boolean);
+            hospList = props['Hospitais de Referência'].split(/\n|\|/).map(h => h.trim()).filter(Boolean);
         }
 
         let hospitaisHtml = '<span style="color:#7f8c8d;">Não informado</span>';
@@ -1013,9 +1014,14 @@ if (type === 'HIDRANTE') {
                         <span class="feature-info-value"><span class="feature-badge badge-macro">${macroName}</span></span>
                     </div>
                     <div class="feature-info-row">
-                        <span class="feature-info-label">Município sede:</span>
-                        <span class="feature-info-value">${mun}</span>
+                        <span class="feature-info-label">Município Sede:</span>
+                        <span class="feature-info-value">${municipioSede}</span>
                     </div>
+                    ${nmRgi ? `
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Região Imediata:</span>
+                        <span class="feature-info-value" style="font-size:11px;">${nmRgi}</span>
+                    </div>` : ''}
                     <div class="feature-info-row">
                         <span class="feature-info-label">Área:</span>
                         <span class="feature-info-value">${area}</span>
@@ -1032,7 +1038,7 @@ if (type === 'HIDRANTE') {
                     </div>` : ''}
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Hospitais de Referência:</span>
-                        <div style="margin-top:4px;max-height:110px;overflow-y:auto;width:100%;">${hospitaisHtml}</div>
+                        <div style="margin-top:4px;max-height:140px;overflow-y:auto;width:100%;">${hospitaisHtml}</div>
                     </div>
                 </div>
             </div>
@@ -1046,6 +1052,15 @@ if (type === 'HIDRANTE') {
             props['Macrorregião de Saúde'] ||
             props.name ||
             'Macrorregião';
+
+        const municipioSede =
+            props['Município Sede / Polo Macrorregional'] ||
+            props['Município Sede'] ||
+            '-';
+
+        const centralSamu = props.Central_SAMU_192 || '';
+        const municipioCentral = props.Municipio_Sede_Central_192 || '';
+        const municipiosAtendidos = props.Municipios_Atendidos_Central_192 || '';
 
         let hospList = props.Hospitais_de_Referencia_Macrorregiao ||
                        props['Hospitais de Referência'] ||
@@ -1075,6 +1090,24 @@ if (type === 'HIDRANTE') {
             </div>
             <div class="feature-card-body">
                 <div class="feature-info-grid">
+                    <div class="feature-info-row">
+                        <span class="feature-info-label">Município Sede:</span>
+                        <span class="feature-info-value">${municipioSede}</span>
+                    </div>
+                    ${centralSamu ? `
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Central SAMU 192:</span>
+                        <span class="feature-info-value" style="text-align:left;font-weight:600;color:#1a5276;">
+                            📞 ${centralSamu}${municipioCentral ? ' — ' + municipioCentral : ''}
+                        </span>
+                    </div>` : ''}
+                    ${municipiosAtendidos ? `
+                    <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
+                        <span class="feature-info-label">Municípios Atendidos pela Central 192:</span>
+                        <div style="margin-top:4px;max-height:120px;overflow-y:auto;width:100%;font-size:11px;line-height:1.35;">
+                            ${municipiosAtendidos}
+                        </div>
+                    </div>` : ''}
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Hospitais de Referência da Macro:</span>
                         <div style="margin-top:4px;max-height:130px;overflow-y:auto;width:100%;">
