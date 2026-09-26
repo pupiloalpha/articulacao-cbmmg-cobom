@@ -1,0 +1,55 @@
+{
+  "SAMU-BH": {
+    "central": "SAMU-BH",
+    "sede": "Belo Horizonte",
+    "municipios": [
+      "Belo Horizonte", "Belo Vale", "Caeté", "Confins", "Itabirito",
+      "Jaboticatubas", "Lagoa Santa", "Mariana", "Matozinhos", "Moeda",
+      "Nova Lima", "Nova União", "Ouro Preto", "Pedro Leopoldo", "Raposos",
+      "Ribeirão das Neves", "Rio Acima", "Sabará", "Santa Luzia",
+      "Santana do Riacho", "São José da Lapa", "Taquaraçu de Minas",
+      "Vespasiano"
+    ]
+  },
+  "SAMU-Divinópolis": {
+    "central": "SAMU-Divinópolis",
+    "sede": "Divinópolis",
+    "municipios": [
+      "Aguanil", "Araújos", "Arcos", "Bambuí", "Bom Despacho", "Bonfim",
+      "Brumadinho", "Camacho", "Campo Belo", "Cana Verde", "Candeias",
+      "Carmo da Mata", "Carmo do Cajuru", "Carmópolis de Minas", "Cláudio",
+      "Conceição do Pará", "Córrego Danta", "Córrego Fundo", "Cristais",
+      "Crucilândia", "Divinópolis", "Dores do Indaiá", "Esmeraldas",
+      "Estrela do Indaiá", "Florestal", "Formiga", "Igarapé", "Igaratinga",
+      "Iguatama", "Itaguara", "Itapecerica", "Itatiaiuçu", "Itaúna",
+      "Japaraíba", "Juatuba", "Lagoa da Prata", "Leandro Ferreira", "Luz",
+      "Mário Campos", "Martinho Campos", "Mateus Leme", "Medeiros", "Moema",
+      "Nova Serrana", "Oliveira", "Onça de Pitangui", "Pains", "Pará de Minas",
+      "Passa Tempo", "Pedra do Indaiá", "Perdigão", "Piedade dos Gerais",
+      "Piracema", "Pitangui", "Rio Manso", "Santana do Jacaré",
+      "Santo Antônio do Amparo", "Santo Antônio do Monte",
+      "São Francisco de Paula", "São Gonçalo do Pará", "São Joaquim de Bicas",
+      "São José da Varginha", "São Sebastião do Oeste", "Serra da Saudade",
+      "Tapiraí"
+    ]
+  },
+  "SAMU-Sete Lagoas": {
+    "central": "SAMU-Sete Lagoas",
+    "sede": "Sete Lagoas",
+    "municipios": [
+      "Araçaí", "Baldim", "Caetanópolis", "Cachoeira da Prata",
+      "Cordisburgo", "Fortuna de Minas", "Inhaúma", "Jequitibá", "Maravilhas",
+      "Papagaios", "Paraopeba", "Pompéu", "Santana de Pirapama", "Sete Lagoas"
+    ]
+  },
+  "SAMU-Contagem": {
+    "central": "SAMU-Contagem",
+    "sede": "Contagem",
+    "municipios": ["Contagem", "Ibirité", "Sarzedo"]
+  },
+  "SAMU-Betim": {
+    "central": "SAMU-Betim",
+    "sede": "Betim",
+    "municipios": ["Betim"]
+  }
+}
