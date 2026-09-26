@@ -2,7 +2,8 @@
 // ---------------------------------------------------------------------------
 // Detecção e adaptação de condições de rede/dispositivo.
 //
-// Classifica o ambiente em 4 perfis e expõe parâmetros ajustados para:
+// Classifica o ambiente em 4 perfis de rede + 3 classes de dispositivo e
+// expõe parâmetros ajustados para:
 //   • Timeouts de fetch (Nominatim, OSRM, reverse, eventos)
 //   • Limite de resultados e paralelismo de busca
 //   • Concorrência de download de tiles
@@ -12,7 +13,6 @@
 // ---------------------------------------------------------------------------
 
 const NETWORK_PROFILES = {
-    // Desktop em cabo/Wi-Fi rápido: máxima qualidade e paralelismo
     FAST: {
         name: 'Rápido (cabo/Wi-Fi)',
         nominatimTimeout: 12000,
@@ -28,7 +28,6 @@ const NETWORK_PROFILES = {
         searchCacheTtlMs: 5 * 60 * 1000,
         offlineRouteMaxEdges: 1800
     },
-    // 4G equilibrado
     BALANCED: {
         name: 'Equilibrado (4G)',
         nominatimTimeout: 8000,
@@ -44,7 +43,6 @@ const NETWORK_PROFILES = {
         searchCacheTtlMs: 5 * 60 * 1000,
         offlineRouteMaxEdges: 1500
     },
-    // 3G móvel: econômico, séries para reduzir rajadas
     ECONOMY: {
         name: 'Econômico (3G)',
         nominatimTimeout: 6000,
@@ -60,7 +58,6 @@ const NETWORK_PROFILES = {
         searchCacheTtlMs: 5 * 60 * 1000,
         offlineRouteMaxEdges: 900
     },
-    // 2G / saveData: mínimo absoluto
     MINIMAL: {
         name: 'Mínimo (2G/saveData)',
         nominatimTimeout: 5000,
@@ -81,6 +78,38 @@ const NETWORK_PROFILES = {
 let currentNetworkProfile = NETWORK_PROFILES.BALANCED;
 let currentNetworkInfo = {};
 
+// ---------------------------------------------------------------------------
+// Classificação de dispositivo — 3 tiers
+// ---------------------------------------------------------------------------
+const DEVICE_BREAKPOINTS = {
+    MOBILE_MAX: 768,      // <= 768 → mobile
+    TABLET_MAX: 1024      // 769..1024 → tablet; >= 1025 → desktop
+};
+
+/**
+ * Retorna 'mobile' | 'tablet' | 'desktop' de acordo com a viewport atual.
+ * Não usa UA sniffing como fonte primária — apenas largura real.
+ */
+function getDeviceClass() {
+    if (typeof window === 'undefined') return 'desktop';
+    const w = window.innerWidth || 1024;
+    if (w <= DEVICE_BREAKPOINTS.MOBILE_MAX) return 'mobile';
+    if (w <= DEVICE_BREAKPOINTS.TABLET_MAX) return 'tablet';
+    return 'desktop';
+}
+
+/**
+ * Aplica `data-device` no <body> para que o CSS responda com precisão
+ * mesmo onde @media depende do viewport (ex.: drawers).
+ */
+function applyDeviceClassToBody() {
+    if (typeof document === 'undefined' || !document.body) return;
+    const cls = getDeviceClass();
+    if (document.body.dataset.device !== cls) {
+        document.body.dataset.device = cls;
+    }
+}
+
 /**
  * Detecta o perfil de rede mais adequado no momento atual.
  * Prioridade: saveData > effectiveType > downlink × dispositivo.
@@ -96,9 +125,10 @@ function detectNetworkProfile() {
     const downlink      = Number(conn.downlink) || 0;
     const rtt           = Number(conn.rtt) || 0;
 
-    const isMobile  = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-                    || window.matchMedia('(max-width: 768px)').matches;
-    const isDesktop = !isMobile;
+    const deviceClass = getDeviceClass();
+    const isMobile  = deviceClass === 'mobile';
+    const isTablet  = deviceClass === 'tablet';
+    const isDesktop = deviceClass === 'desktop';
 
     let profileKey;
 
@@ -107,7 +137,8 @@ function detectNetworkProfile() {
     } else if (effectiveType === '3g') {
         profileKey = 'ECONOMY';
     } else if (effectiveType === '4g') {
-        // 4G em desktop com downlink confortável: pode promover para FAST
+        // Desktop com downlink confortável → FAST
+        // Tablet com 4G saudável → BALANCED (mantém consumo contido)
         profileKey = (isDesktop && downlink >= 5) ? 'FAST' : 'BALANCED';
     } else {
         profileKey = isDesktop ? 'FAST' : 'BALANCED';
@@ -119,19 +150,27 @@ function detectNetworkProfile() {
         downlink,
         rtt,
         isMobile,
+        isTablet,
         isDesktop,
+        deviceClass,
         profileKey,
         profileName: NETWORK_PROFILES[profileKey].name
     };
 
     currentNetworkProfile = NETWORK_PROFILES[profileKey];
+
+    // Espelha o perfil no <body> para o CSS reagir (economia visual)
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.dataset.network = profileKey;
+    }
+
     return currentNetworkProfile;
 }
 
 function getNetworkProfile() { return currentNetworkProfile; }
 function getNetworkInfo()    { return currentNetworkInfo; }
 
-// Re-avalia quando a conexão mudar (troca de Wi-Fi ↔ 4G, degradação, etc.)
+// Re-avalia quando a conexão mudar
 if ('connection' in navigator && navigator.connection.addEventListener) {
     navigator.connection.addEventListener('change', () => {
         const oldKey = currentNetworkInfo.profileKey;
@@ -145,15 +184,32 @@ if ('connection' in navigator && navigator.connection.addEventListener) {
     });
 }
 
-// Detecta mudança de viewport (rotação de tela, resize para mobile)
-window.matchMedia('(max-width: 768px)').addEventListener?.('change', () => {
+// Re-avalia em mudanças de viewport (rotação, resize, tablet ↔ desktop)
+// Reage aos dois breakpoints reais da aplicação
+const mqMobile = window.matchMedia(`(max-width: ${DEVICE_BREAKPOINTS.MOBILE_MAX}px)`);
+const mqTablet = window.matchMedia(`(min-width: ${DEVICE_BREAKPOINTS.MOBILE_MAX + 1}px) and (max-width: ${DEVICE_BREAKPOINTS.TABLET_MAX}px)`);
+const onViewportChange = () => {
+    applyDeviceClassToBody();
     detectNetworkProfile();
-});
+};
+mqMobile.addEventListener?.('change', onViewportChange);
+mqTablet.addEventListener?.('change', onViewportChange);
 
-// Inicialização
-detectNetworkProfile();
+// Aplicação inicial — DOMContentLoaded garante que <body> já existe
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        applyDeviceClassToBody();
+        detectNetworkProfile();
+    }, { once: true });
+} else {
+    applyDeviceClassToBody();
+    detectNetworkProfile();
+}
 
-window.NETWORK_PROFILES    = NETWORK_PROFILES;
+window.NETWORK_PROFILES     = NETWORK_PROFILES;
+window.DEVICE_BREAKPOINTS   = DEVICE_BREAKPOINTS;
 window.detectNetworkProfile = detectNetworkProfile;
-window.getNetworkProfile   = getNetworkProfile;
-window.getNetworkInfo      = getNetworkInfo;
+window.getNetworkProfile    = getNetworkProfile;
+window.getNetworkInfo       = getNetworkInfo;
+window.getDeviceClass       = getDeviceClass;
+window.applyDeviceClassToBody = applyDeviceClassToBody;

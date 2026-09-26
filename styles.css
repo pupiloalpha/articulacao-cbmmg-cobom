@@ -3393,3 +3393,348 @@ body.dark-theme .leaflet-routing-container::-webkit-scrollbar-thumb:hover {
         padding: 4px 5px;
     }
 }
+
+/* ==========================================================================
+   OTIMIZAÇÃO RESPONSIVA 3-TIER + DESIGN TOKENS (Bootstrap-like)
+   --------------------------------------------------------------------------
+   Bloco ADITIVO — anexar ao final de styles.css.
+   Não substitui regras existentes; complementa com:
+     • Tokens de espaçamento, raio e transição
+     • Backdrop do sidebar (tablet/mobile)
+     • Desativação seletiva de efeitos pesados em redes lentas
+     • Breakpoints explícitos: desktop ≥ 1025 / tablet 769–1024 / mobile ≤ 768
+     • Alvos de toque acessíveis (>= 44px) em dispositivos coarse pointer
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. TOKENS ADICIONAIS — mergulham no :root já existente
+   -------------------------------------------------------------------------- */
+:root {
+    /* Escala de espaçamento (múltiplos de 4px) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+
+    /* Raios adicionais */
+    --radius-xs: 4px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Larguras de sidebar por breakpoint */
+    --sidebar-width-desktop: 340px;
+    --sidebar-width-tablet: 300px;
+    --sidebar-width-mobile: min(88vw, 340px);
+
+    /* Alvos de toque (WCAG 2.5.5) */
+    --touch-min: 40px;
+    --touch-comfortable: 44px;
+
+    /* Transições padronizadas */
+    --transition-fast: 120ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
+
+    /* Escala de z-index — elimina "número mágico" espalhado no código */
+    --z-map: 0;
+    --z-backdrop: 999;
+    --z-sidebar: 1000;
+    --z-floating: 1500;
+    --z-modal: 2000;
+    --z-toast: 9999;
+}
+
+/* --------------------------------------------------------------------------
+   2. BACKDROP DO SIDEBAR — usado em tablet/mobile quando a sidebar é overlay
+   -------------------------------------------------------------------------- */
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: var(--z-backdrop);
+    opacity: 1;
+    transition: opacity var(--transition-base);
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+.sidebar-backdrop.hidden {
+    display: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. ADAPTAÇÃO POR PERFIL DE REDE — desliga efeitos pesados em ECONOMY/MINIMAL
+   -------------------------------------------------------------------------- */
+
+/* Em redes lentas, priorizamos resposta e economia de CPU/GPU.
+   Mantemos animações essenciais (spinner de loading) para feedback visual. */
+body[data-network="ECONOMY"] .feature-pin-wrapper .pin-marker,
+body[data-network="MINIMAL"] .feature-pin-wrapper .pin-marker {
+    transition: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+    will-change: auto;
+}
+body[data-network="ECONOMY"] .pin-marker:hover,
+body[data-network="MINIMAL"] .pin-marker:hover {
+    transform: none;
+}
+
+body[data-network="ECONOMY"] .map-loading-overlay,
+body[data-network="MINIMAL"] .map-loading-overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(244, 246, 247, 0.96);
+}
+
+body[data-network="MINIMAL"] .leaflet-tile-pane {
+    image-rendering: auto; /* evita forced-GPU em 2G */
+}
+
+body[data-network="MINIMAL"] .toast {
+    animation: none;
+}
+
+body[data-network="MINIMAL"] .sidebar {
+    transition: none;
+}
+
+/* --------------------------------------------------------------------------
+   4. UTILITÁRIOS (Bootstrap-like) — uso pontual nos módulos de UI
+   -------------------------------------------------------------------------- */
+.u-flex            { display: flex !important; }
+.u-flex-col        { flex-direction: column !important; }
+.u-items-center    { align-items: center !important; }
+.u-justify-between { justify-content: space-between !important; }
+.u-gap-1           { gap: var(--space-1) !important; }
+.u-gap-2           { gap: var(--space-2) !important; }
+.u-gap-3           { gap: var(--space-3) !important; }
+.u-gap-4           { gap: var(--space-4) !important; }
+.u-mt-2            { margin-top: var(--space-2) !important; }
+.u-mt-3            { margin-top: var(--space-3) !important; }
+.u-mt-4            { margin-top: var(--space-4) !important; }
+.u-mb-2            { margin-bottom: var(--space-2) !important; }
+.u-mb-3            { margin-bottom: var(--space-3) !important; }
+.u-p-3             { padding: var(--space-3) !important; }
+.u-p-4             { padding: var(--space-4) !important; }
+.u-w-full          { width: 100% !important; }
+.u-text-sm         { font-size: 0.82rem !important; }
+.u-text-muted      { color: var(--text-muted) !important; }
+.u-truncate        { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   5. BREAKPOINT: TABLET (769px – 1024px)
+   --------------------------------------------------------------------------
+   Sidebar ligeiramente mais estreita, alvos de toque maiores, painel de
+   roteamento mais contido. Sem sidebar overlay — mantém-se persistente
+   para que o tablet se comporte como um "desktop de bolso".
+   -------------------------------------------------------------------------- */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: var(--sidebar-width-tablet);
+    }
+
+    .sidebar-header h2 {
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    /* Centraliza o floating search na área LIVRE do mapa (descontando sidebar) */
+    #sidebar:not(.collapsed) ~ #floatingSearch {
+        left: calc(50% + (var(--sidebar-width-tablet) / 2));
+    }
+
+    /* Alvos de toque mais generosos */
+    .btn {
+        min-height: var(--touch-min);
+        font-size: 0.85rem;
+    }
+    .layer-btn,
+    #layersUl li .btn-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    /* Popups e painel de rota cabem confortavelmente */
+    .feature-popup {
+        max-width: 380px !important;
+    }
+    .leaflet-routing-container {
+        max-width: 300px;
+        max-height: 50vh;
+    }
+
+    /* Cards de despacho com respiro extra */
+    .dispatch-unit-card {
+        padding: var(--space-3) var(--space-3);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   6. BREAKPOINT: MOBILE (≤ 768px)
+   --------------------------------------------------------------------------
+   Sidebar em modo drawer (overlay sobre o mapa) com backdrop. A sidebar
+   FECHA por padrão ao carregar em mobile (controlado via JS em app.js).
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .sidebar {
+        width: var(--sidebar-width-mobile);
+        max-width: 340px;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .sidebar-header {
+        padding: var(--space-3) var(--space-4);
+    }
+    .sidebar-header h2 {
+        font-size: 0.95rem;
+    }
+
+    /* Cards e listas mais compactos */
+    .search-container,
+    #adminTools,
+    #layerList,
+    #viewControls,
+    #legendSection {
+        padding: var(--space-3);
+    }
+
+    /* Botões e itens de lista com alvo de toque confortável */
+    .btn {
+        min-height: var(--touch-comfortable);
+        padding: var(--space-2) var(--space-3);
+    }
+    #layersUl li {
+        min-height: var(--touch-comfortable);
+        padding: var(--space-2) var(--space-3);
+    }
+    .layer-btn,
+    #layersUl li .btn-icon {
+        width: var(--touch-comfortable);
+        height: var(--touch-comfortable);
+        font-size: 0.95rem !important;
+    }
+
+    /* Search flutuante oculto enquanto sidebar estiver aberta (regra já existente
+       no bloco original — reforçamos para garantir prioridade) */
+    #sidebar:not(.collapsed) ~ #floatingSearch {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    /* Popups nunca ultrapassam a viewport */
+    .feature-popup,
+    .leaflet-popup-content-wrapper {
+        max-width: min(92vw, 360px) !important;
+    }
+    .leaflet-routing-container {
+        max-width: calc(100vw - 24px);
+        max-height: 40vh;
+        font-size: 11px;
+    }
+
+    /* Grid de ações vira coluna única em telas muito estreitas */
+    @media (max-width: 480px) {
+        .btn-grid-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
+/* --------------------------------------------------------------------------
+   7. BREAKPOINT: DESKTOP (≥ 1025px)
+   --------------------------------------------------------------------------
+   Sidebar larga persistente, com respiro extra em cards e listas.
+   -------------------------------------------------------------------------- */
+@media (min-width: 1025px) {
+    .sidebar {
+        width: var(--sidebar-width-desktop);
+    }
+    .dispatch-unit-card {
+        padding: var(--space-3) var(--space-4);
+    }
+    #layersUl li {
+        padding: 10px 12px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   8. ORIENTAÇÃO PAISAGEM COM ALTURA REDUZIDA
+   --------------------------------------------------------------------------
+   Celular deitado / tablet em landscape muito baixo → libera espaço vertical.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) and (orientation: landscape) and (max-height: 520px) {
+    .sidebar-header {
+        padding: 8px 12px;
+    }
+    .sidebar-header h2 {
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+    .sidebar-header h2 small {
+        display: none;
+    }
+    #legendSection {
+        display: none; /* preserva funcionamento, apenas oculta a legenda */
+    }
+    .dispatch-jurisdiction-card {
+        padding: 8px 10px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   9. TOQUE (hover:none + pointer:coarse) — alvos mínimos e sem hover fantasma
+   -------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+    /* Remove efeitos de hover "grudados" que ficam visíveis no touch */
+    .search-result-item:hover,
+    .dispatch-unit-card:hover,
+    #layersUl li:hover {
+        transform: none;
+    }
+
+    /* Ações dentro de popups precisam ser confortáveis ao toque */
+    .btn-popup-action {
+        min-height: var(--touch-comfortable);
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    .btn-brief-route,
+    .btn-result-route {
+        min-height: 28px;
+        padding: 4px 10px;
+    }
+
+    /* Controles de zoom do Leaflet maiores */
+    .leaflet-control-zoom a,
+    .leaflet-control-zoom-extended {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 34px !important;
+        font-size: 20px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   10. ACESSIBILIDADE — respeita "prefers-reduced-motion"
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    /* Exceção: spinner de carregamento precisa continuar girando (feedback) */
+    .spinner {
+        animation-duration: 1.2s !important;
+        animation-iteration-count: infinite !important;
+    }
+}

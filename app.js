@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v10';
+const DATA_VERSION = 'v11';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -32,6 +32,60 @@ let previousLayerVisibilityBeforeOrigin = null;
 // Guarda o estado de visualização anterior para restaurar ao sair do modo "rota"
 let previousViewModeBeforeRoute = null;
 let previousLayerVisibilityBeforeRoute = null;
+
+// ============================================================
+// DETECÇÃO DE DISPOSITIVO E CONTROLE DO DRAWER
+// ============================================================
+// A sidebar se comporta de forma diferente conforme a largura:
+//   • Desktop  (>= 1025px) → persistente, sem backdrop
+//   • Tablet   (769..1024) → persistente, sem backdrop, mais estreita
+//   • Mobile   (<= 768px)  → drawer overlay, com backdrop, fechada por padrão
+//
+// A lógica fica centralizada aqui e é chamada tanto na inicialização
+// quanto em resize/orientationchange (com debounce).
+// ============================================================
+
+function _currentDeviceClass() {
+    // Delegado ao network.js quando disponível; fallback local seguro.
+    if (typeof window.getDeviceClass === 'function') return window.getDeviceClass();
+    const w = window.innerWidth;
+    if (w <= 768) return 'mobile';
+    if (w <= 1024) return 'tablet';
+    return 'desktop';
+}
+
+function _updateSidebarBackdrop() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (!sidebar || !backdrop) return;
+
+    const isOverlayMode = _currentDeviceClass() === 'mobile';
+    const sidebarOpen = !sidebar.classList.contains('collapsed');
+
+    if (isOverlayMode && sidebarOpen) {
+        backdrop.classList.remove('hidden');
+    } else {
+        backdrop.classList.add('hidden');
+    }
+}
+
+function _closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const showBtn = document.getElementById('sidebarShowBtn');
+    if (!sidebar) return;
+    sidebar.classList.add('collapsed');
+    if (showBtn) showBtn.classList.remove('hidden');
+    _updateSidebarBackdrop();
+}
+
+function _openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const showBtn = document.getElementById('sidebarShowBtn');
+    if (!sidebar) return;
+    sidebar.classList.remove('collapsed');
+    if (showBtn) showBtn.classList.add('hidden');
+    _updateSidebarBackdrop();
+}
 
 // ============================================================
 // MODO "VISUALIZAÇÃO DE ROTA"
@@ -173,11 +227,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     initMap();
     updateOnlineStatus();
 
-    // Controle da Sidebar / Painel Lateral
+        // Controle da Sidebar / Painel Lateral
     const sidebar = document.getElementById('sidebar');
     const showBtn = document.getElementById('sidebarShowBtn');
     const toggleBtn = document.getElementById('sidebarToggle');
     const resetBtn = document.getElementById('resetBtn');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+    // Em mobile, começa FECHADA (drawer); em tablet/desktop, ABERTA.
+    // Respeita preferência salva, se houver.
+    const savedSidebarState = localStorage.getItem('cobom_sidebar_state');
+    const startCollapsed = savedSidebarState
+        ? savedSidebarState === 'collapsed'
+        : (_currentDeviceClass() === 'mobile');
+
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed', startCollapsed);
+    }
 
     if (sidebar && showBtn) {
         if (sidebar.classList.contains('collapsed')) {
@@ -188,18 +254,63 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                if (sidebar.classList.contains('collapsed')) {
+                const willBeCollapsed = !sidebar.classList.contains('collapsed');
+                sidebar.classList.toggle('collapsed', willBeCollapsed);
+                localStorage.setItem('cobom_sidebar_state', willBeCollapsed ? 'collapsed' : 'open');
+
+                if (willBeCollapsed) {
                     showBtn.classList.remove('hidden');
                 } else {
                     showBtn.classList.add('hidden');
                 }
+                _updateSidebarBackdrop();
             });
         }
 
         showBtn.addEventListener('click', () => {
-            sidebar.classList.remove('collapsed');
-            showBtn.classList.add('hidden');
+            _openSidebar();
+            localStorage.setItem('cobom_sidebar_state', 'open');
+        });
+
+        // Backdrop fecha o drawer ao ser clicado (mobile)
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', () => {
+                _closeSidebar();
+                localStorage.setItem('cobom_sidebar_state', 'collapsed');
+            });
+        }
+
+        // Aplicação inicial do backdrop
+        _updateSidebarBackdrop();
+
+        // Reavalia em resize/orientationchange, com debounce simples
+        let _sidebarResizeTimer = null;
+        const _onViewportResize = () => {
+            clearTimeout(_sidebarResizeTimer);
+            _sidebarResizeTimer = setTimeout(() => {
+                _updateSidebarBackdrop();
+                // Se migrou para desktop/tablet, sempre abre;
+                // se migrou para mobile, respeita o último estado salvo.
+                const cls = _currentDeviceClass();
+                if (cls !== 'mobile') {
+                    _openSidebar();
+                } else if (localStorage.getItem('cobom_sidebar_state') === 'collapsed') {
+                    _closeSidebar();
+                }
+            }, 150);
+        };
+        window.addEventListener('resize', _onViewportResize);
+        window.addEventListener('orientationchange', _onViewportResize);
+
+        // ESC fecha o drawer em mobile (não interfere com modais — o
+        // listener global de atalhos trata primeiro)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && _currentDeviceClass() === 'mobile') {
+                const anyModalOpen = document.querySelector('.modal:not(.hidden)');
+                if (!anyModalOpen && !sidebar.classList.contains('collapsed')) {
+                    _closeSidebar();
+                }
+            }
         });
     }
 
@@ -523,6 +634,21 @@ function initOperationalKeyboardShortcuts() {
             e.preventDefault();
             const themeBtn = document.getElementById('themeToggleBtn');
             if (themeBtn) themeBtn.click();
+            return;
+        }
+
+        // Alt + B: Alternar sidebar (drawer)
+        if (e.altKey && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            if (sidebar.classList.contains('collapsed')) {
+                _openSidebar();
+                localStorage.setItem('cobom_sidebar_state', 'open');
+            } else {
+                _closeSidebar();
+                localStorage.setItem('cobom_sidebar_state', 'collapsed');
+            }
             return;
         }
 

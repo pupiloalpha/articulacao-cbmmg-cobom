@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Articulação CBMMG - COBOM-BH</title>
 
     <!-- Manifest PWA -->
@@ -41,7 +41,11 @@
 </head>
 <body>
 <!-- Botão flutuante para mostrar a sidebar quando oculta -->
-<button id="sidebarShowBtn" class="btn-floating hidden">☰</button>
+<button id="sidebarShowBtn" class="btn-floating hidden" aria-label="Abrir painel">☰</button>
+
+<!-- Backdrop do sidebar — usado em tablet/mobile (modo drawer) -->
+<div id="sidebarBackdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
+
     <!-- Sidebar / Painel Lateral -->
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
@@ -223,6 +227,7 @@
                 ⌨️ Atalhos Operacionais – Despacho 193
             </h3>
             <div class="shortcuts-grid">
+                <div class="shortcut-item"><span>Alternar Painel Lateral (drawer)</span><div><kbd>Alt</kbd> + <kbd>B</kbd></div></div>
                 <div class="shortcut-item"><span>Focar busca de endereço/coordenada</span><div><kbd>F2</kbd> ou <kbd>/</kbd></div></div>
                 <div class="shortcut-item"><span>Executar pesquisa no campo de busca</span><div><kbd>Enter</kbd></div></div>
                 <div class="shortcut-item"><span>Definir origem via GPS da viatura</span><div><kbd>Alt</kbd> + <kbd>G</kbd></div></div>
