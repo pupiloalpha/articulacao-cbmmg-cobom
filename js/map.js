@@ -866,14 +866,11 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
         // Rótulo amigável da camada que resolveu a informação
         const fonteLabel = samuInfo.fonte === 'municipio-geocode'
-            ? '🌐 Município confirmado (geocodificação)'
+            ? '🌐 Município confirmado'
             : samuInfo.fonte === 'municipio-poligono'
-                ? '📐 Município (base territorial local)'
-                : '🗺️ Macrorregião (fallback genérico)';
+                ? '📐 Município (base territorial)'
+                : '🗺️ Macrorregião (genérico)';
 
-        const munTxt = samuInfo.municipio
-            ? ` • ${esc(samuInfo.municipio)}`
-            : '';
         const sedeTxt = samuInfo.sede
             ? ` • Sede: ${esc(samuInfo.sede)}`
             : '';
@@ -884,7 +881,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
                 <div class="jurisdiction-text">
                     <span class="jurisdiction-name">${esc(samuInfo.central)}</span>
                     <small class="jurisdiction-layer">
-                        Central SAMU 192${munTxt}${sedeTxt}
+                        Central SAMU 192${sedeTxt}
                     </small>
                     <small class="jurisdiction-source">${fonteLabel}</small>
                 </div>
