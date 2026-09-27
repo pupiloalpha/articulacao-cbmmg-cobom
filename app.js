@@ -379,6 +379,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof updateMapChips === 'function') updateMapChips();
     if (typeof initAreaSearch === 'function')  initAreaSearch();
 
+    // Botão flutuante de refresh do mapa (substitui F5 em mobile)
+    const refreshMapBtn = document.getElementById('refreshMapBtn');
+    if (refreshMapBtn) {
+        refreshMapBtn.addEventListener('click', () => {
+            refreshMapHard();
+        });
+    }
+
     // ============================================================
     // 2. Botão "Definir origem no mapa"
     // ============================================================
@@ -496,6 +504,96 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// ============================================================
+// REFRESH DO MAPA (substitui F5 em mobile/tablet)
+// ------------------------------------------------------------
+// Faz um "soft reload" da aplicação sem recarregar a página:
+//   • Re-renderiza todas as camadas visíveis (IndexedDB → mapa)
+//   • Refresca eventos de fogo (CENSIPAM, se online)
+//   • Limpa rota/linha traçada + popups abertos
+//   • Reaplica o modo de visualização atual
+//   • Zera marcador de origem (opcional, mantém se o usuário quiser)
+//
+// NÃO apaga: caches de tiles, cache de rotas, backup de camadas, dados
+// de logradouros. Isso garante que o offline continue funcional.
+// ============================================================
+async function refreshMapHard() {
+    const btn = document.getElementById('refreshMapBtn');
+    if (btn?.disabled) return;   // já está rodando
+
+    // Feedback visual
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+    }
+
+    showToast('Recarregando mapa...', 'info', 2000);
+
+    try {
+        // 1. Limpa rota/linha/marcador de destino ativos
+        if (window.distanceLine && map) {
+            map.removeLayer(window.distanceLine);
+            window.distanceLine = null;
+        }
+        if (window.distanceMarker && map) {
+            map.removeLayer(window.distanceMarker);
+            window.distanceMarker = null;
+        }
+        if (window.routingControl && map) {
+            map.removeControl(window.routingControl);
+            window.routingControl = null;
+        }
+
+        // 2. Fecha popups abertos para evitar estado "fantasma"
+        if (map) {
+            try { map.closePopup(); } catch (_) {}
+        }
+
+        // 3. Invalida caches voláteis de UI
+        if (typeof invalidateLayerCategoryCache === 'function') {
+            invalidateLayerCategoryCache();
+        }
+        if (typeof invalidateStreetIndex === 'function') {
+            invalidateStreetIndex();
+        }
+
+        // 4. Re-renderiza todas as camadas (IndexedDB → mapa)
+        if (typeof reloadLayers === 'function') {
+            await reloadLayers();
+        }
+
+        // 5. Refresca Eventos de Fogo (só se online; usa cache local se offline)
+        if (typeof window.refreshEventosMG === 'function' && navigator.onLine) {
+            try {
+                await window.refreshEventosMG({ silent: true });
+            } catch (e) {
+                console.warn('[Refresh] Falha ao atualizar eventos:', e);
+            }
+        }
+
+        // 6. Reaplica o filtro de visualização atual
+        if (typeof setViewMode === 'function' && typeof viewMode === 'string') {
+            setViewMode(viewMode);
+        }
+
+        // 7. Reinicializa overlays dependentes do DOM (idempotente)
+        if (typeof updateMapChips === 'function') {
+            await updateMapChips();
+        }
+
+        showToast('Mapa recarregado.', 'success', 1800);
+    } catch (e) {
+        console.error('[Refresh] Erro durante o refresh:', e);
+        showToast('Falha ao recarregar o mapa.', 'error', 3000);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('is-loading');
+        }
+    }
+}
+window.refreshMapHard = refreshMapHard;
 
 // Função resetAll - Limpa dados temporários e recupera vista inicial
 async function resetAll() {
@@ -653,6 +751,13 @@ function initOperationalKeyboardShortcuts() {
                 _closeSidebar();
                 localStorage.setItem('cobom_sidebar_state', 'collapsed');
             }
+            return;
+        }
+
+        // Ctrl+R / Cmd+R: Refresh do mapa (intercepta o F5 do browser)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+            e.preventDefault();
+            refreshMapHard();
             return;
         }
 

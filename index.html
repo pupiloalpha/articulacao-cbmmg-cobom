@@ -158,6 +158,22 @@
         <div id="areaSearchResults" class="area-search-results"></div>
     </div>
 
+    <!-- Botão flutuante de refresh do mapa (substitui F5 em mobile) -->
+    <button id="refreshMapBtn" class="btn-floating-refresh"
+            type="button"
+            title="Recarregar mapa (Ctrl+R)"
+            aria-label="Recarregar mapa">
+        <span class="refresh-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                 stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+        </span>
+    </button>
+
 <!-- Busca flutuante no topo do mapa -->
 <div id="floatingSearch" class="floating-search">
     <div class="floating-search-box" id="floatingSearchBox">
@@ -250,6 +266,7 @@
                 <div class="shortcut-item"><span>Despacho rápido para Unidade #1</span><div><kbd>Alt</kbd> + <kbd>1</kbd></div></div>
                 <div class="shortcut-item"><span>Alternar Modo Noturno (COBOM)</span><div><kbd>Alt</kbd> + <kbd>N</kbd></div></div>
                 <div class="shortcut-item"><span>Limpar rota ativa / fechar janelas</span><div><kbd>Esc</kbd></div></div>
+		<div class="shortcut-item"><span>Recarregar mapa</span><div><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
             </div>
             <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 14px; text-align: center; line-height: 1.4;">
                 Dica: Operadores em despacho podem manter as mãos no teclado para maior agilidade no atendimento.

@@ -4221,3 +4221,113 @@ body.dark-theme .area-search-item-sub   { color: #94a3b8; }
     max-height: 52vh;
     padding: 4px 4px 8px;
 }
+
+/* ==========================================================================
+   BOTÃO FLUTUANTE DE REFRESH DO MAPA
+   --------------------------------------------------------------------------
+   Substitui o atalho F5 (indisponível em mobile/tablet). Faz um "soft reload":
+   re-renderiza camadas, atualiza eventos de fogo e limpa rota traçada —
+   SEM apagar caches offline (tiles, rotas, backup).
+   ========================================================================== */
+
+.btn-floating-refresh {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 1002;                           /* acima dos chips (1001) */
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-color, #8e1b1b);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.22),
+        0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: background 0.15s ease, transform 0.12s ease,
+                box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-floating-refresh:hover {
+    background: var(--primary-dark, #641212);
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.28),
+        0 1px 3px rgba(0, 0, 0, 0.16);
+    transform: translateY(-1px);
+}
+
+.btn-floating-refresh:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.btn-floating-refresh:disabled {
+    opacity: 0.7;
+    cursor: progress;
+    transform: none;
+}
+
+/* ---- Ícone (SVG) ---- */
+.btn-floating-refresh .refresh-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: transform 0.15s ease;
+}
+
+/* ---- Estado "carregando" ---- */
+.btn-floating-refresh.is-loading {
+    pointer-events: none;
+    background: var(--primary-dark, #641212);
+}
+
+.btn-floating-refresh.is-loading .refresh-icon {
+    animation: refresh-spin 0.9s linear infinite;
+    transform-origin: 50% 50%;
+}
+
+@keyframes refresh-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* ---- Dark theme ---- */
+body.dark-theme .btn-floating-refresh {
+    background: #a82323;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.55),
+        0 1px 3px rgba(0, 0, 0, 0.35);
+}
+body.dark-theme .btn-floating-refresh:hover {
+    background: #c9302c;
+}
+
+/* ---- Mobile: sobe um pouco para não colidir com os chips ---- */
+@media (max-width: 768px) {
+    .btn-floating-refresh {
+        right: 12px;
+        /* Chips ocupam ~46 px de altura com margem; damos 62 px de folga. */
+        bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+        width: 46px;
+        height: 46px;
+    }
+    .btn-floating-refresh .refresh-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* ---- Reduz movimento: sem animação de spin ---- */
+@media (prefers-reduced-motion: reduce) {
+    .btn-floating-refresh.is-loading .refresh-icon {
+        animation: none;
+        opacity: 0.6;
+    }
+}
