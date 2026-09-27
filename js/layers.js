@@ -1,6 +1,79 @@
 // js/layers.js - Carregamento, renderização e controle de visualização de camadas GeoJSON
 // Inclui carregamento PROGRESSIVO de logradouros (núcleo RMBH + sob demanda)
 
+// ===========================================================================
+// ÍCONES SVG DE UI
+// ---------------------------------------------------------------------------
+// Substituem emojis ZWJ (ex.: 👁️‍🗨️) que falham em renderizadores mobile,
+// exibindo "olho + balão de diálogo" em vez do ícone único. SVGs inline
+// garantem renderização idêntica em todos os browsers (Feather Icons).
+// ===========================================================================
+const UI_ICONS = {
+    eyeOpen: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    eyeClosed: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`,
+    edit:     `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    copy:     `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+    up:       `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`,
+    down:     `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+    trash:    `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
+};
+
+// ===========================================================================
+// CATEGORIZAÇÃO DE CAMADAS
+// ---------------------------------------------------------------------------
+// Cada camada recebe uma "categoria dominante" (amostragem de até 30 feições).
+// Alimenta os chips flutuantes de filtro.
+// ===========================================================================
+const _layerCategoryCache = new Map();
+
+function invalidateLayerCategoryCache() {
+    _layerCategoryCache.clear();
+}
+
+function getLayerCategory(layer) {
+    if (!layer?.id) return 'OTHER';
+    if (_layerCategoryCache.has(layer.id)) return _layerCategoryCache.get(layer.id);
+
+    const features = layer?.geojson?.features;
+    if (!Array.isArray(features) || features.length === 0) {
+        _layerCategoryCache.set(layer.id, 'OTHER');
+        return 'OTHER';
+    }
+
+    const counts = {};
+    const sample = Math.min(features.length, 30);
+    for (let i = 0; i < sample; i++) {
+        const f = features[i];
+        if (!f?.geometry) continue;
+        const cat = typeof getFeatureClassification === 'function'
+            ? getFeatureClassification(f)
+            : 'OTHER';
+        counts[cat] = (counts[cat] || 0) + 1;
+    }
+
+    const winner = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'OTHER';
+    _layerCategoryCache.set(layer.id, winner);
+    return winner;
+}
+
+// Metadados visuais por categoria (rótulo, emoji, cor institucional)
+const LAYER_CATEGORY_META = {
+    UNIDADE_BM:   { label: 'Unidades BM',  icon: '🚒', color: '#c0392b' },
+    HOSPITAL:     { label: 'Hospitais',    icon: '🏥', color: '#2980b9' },
+    HIDRANTE:     { label: 'Hidrantes',    icon: '🚰', color: '#1f618d' },
+    EVENTO_FOGO:  { label: 'Fogo',         icon: '🔥', color: '#e67e22' },
+    CHAMADA:      { label: 'Chamadas',     icon: '🚨', color: '#e74c3c' },
+    POLYGON:      { label: 'Articulação',  icon: '🛡️', color: '#0288d1' },
+    MACRORREGIAO: { label: 'Macro',        icon: '🗺️', color: '#8e44ad' },
+    MICRORREGIAO: { label: 'Micro',        icon: '🗺️', color: '#27ae60' },
+    OTHER:        { label: 'Outras',       icon: '📍', color: '#6b7280' }
+};
+
+const LAYER_CATEGORY_ORDER = [
+    'UNIDADE_BM', 'HOSPITAL', 'HIDRANTE', 'EVENTO_FOGO',
+    'CHAMADA', 'POLYGON', 'MACRORREGIAO', 'MICRORREGIAO', 'OTHER'
+];
+
 // ---------------------------------------------------------------------------
 // Semeia dados iniciais (Unidades BM + Articulação)
 // ---------------------------------------------------------------------------
@@ -1620,113 +1693,83 @@ function updateLayerListUI() {
     const ul = document.getElementById('layersUl');
     if (!ul) return;
 
+    // Event delegation: um único listener persistente, imune a re-renders.
+    // Isto resolve o bug "clique no olho não oculta" (closures obsoletas).
+    if (ul.dataset.delegated !== 'true') {
+        ul.dataset.delegated = 'true';
+        ul.addEventListener('click', handleLayerListClick);
+    }
+
     DB.getLayers().then(layers => {
         ul.innerHTML = '';
+        const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
         const visibleLayers = layers.filter(layer => {
-            const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
-            return !hiddenNames.some(keyword => layer.name.includes(keyword));
+            if (!layer.name) return true;
+            return !hiddenNames.some(k => layer.name.includes(k));
         });
 
         visibleLayers.forEach((layer, index) => {
-            const li = document.createElement('li');
+            const isVisible = layerVisibility[layer.id] !== false;
 
-            const iconStack = document.createElement('div');
+            const li = document.createElement('li');
+            li.className = 'layer-row' + (isVisible ? '' : ' layer-hidden');
+            li.dataset.layerId = String(layer.id);
+            li.dataset.visible = isVisible ? 'true' : 'false';
+
+            // --- Pilha de ícones (clicável → enquadra a camada) ---
+            const iconStack = document.createElement('button');
+            iconStack.type = 'button';
             iconStack.className = 'layer-icon-stack';
+            iconStack.dataset.action = 'zoom';
+            iconStack.title = 'Enquadrar esta camada no mapa';
+            iconStack.setAttribute('aria-label', `Enquadrar camada ${layer.name}`);
             if (typeof buildLayerIconHtml === 'function') {
                 iconStack.innerHTML = buildLayerIconHtml(layer);
             }
 
-            iconStack.style.cursor = 'pointer';
-            iconStack.title = 'Clique para enquadrar esta camada no mapa';
-            iconStack.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const lyr = overlayLayers[layer.id];
-                if (!lyr || !map) return;
-                const bounds = (typeof lyr.getBounds === 'function') ? lyr.getBounds() : null;
-		if (bounds && bounds.isValid()) {
-		    map.fitBounds(bounds, { padding: [40, 40] });
-		} else {
-		    showToast('Camada sem feições visíveis para enquadrar.', 'info');
-		}
-            });
-
+            // --- Nome ---
             const nameSpan = document.createElement('span');
             nameSpan.className = 'layer-name';
             nameSpan.textContent = layer.name;
             nameSpan.title = layer.name;
 
+            // --- Ações ---
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'layer-actions';
 
             const visBtn = document.createElement('button');
-            visBtn.className = 'btn-icon layer-btn';
-            visBtn.style.fontSize = '0.95rem';
-            const isVisible = layerVisibility[layer.id] !== false;
-            visBtn.innerHTML = isVisible ? '👁️' : '👁️‍🗨️';
+            visBtn.type = 'button';
+            visBtn.className = 'layer-btn layer-btn-vis';
+            visBtn.dataset.action = 'toggle';
             visBtn.title = isVisible ? 'Ocultar camada' : 'Exibir camada';
-            visBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                layerVisibility[layer.id] = !isVisible;
-                reloadLayers();
-            });
+            visBtn.setAttribute('aria-label', visBtn.title);
+            visBtn.setAttribute('aria-pressed', String(!isVisible));
+            visBtn.innerHTML = isVisible ? UI_ICONS.eyeOpen : UI_ICONS.eyeClosed;
             actionsDiv.appendChild(visBtn);
 
             if (window.isAdmin) {
-                const renameBtn = document.createElement('button');
-                renameBtn.className = 'btn-icon layer-btn';
-                renameBtn.innerHTML = '✏️';
-                renameBtn.title = 'Renomear camada';
-                renameBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    renameLayer(layer.id);
-                });
-                actionsDiv.appendChild(renameBtn);
+                const mkBtn = (action, title, svg, extraClass = '') => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'layer-btn' + (extraClass ? ` ${extraClass}` : '');
+                    b.dataset.action = action;
+                    b.title = title;
+                    b.setAttribute('aria-label', title);
+                    b.innerHTML = svg;
+                    return b;
+                };
 
-                const dupBtn = document.createElement('button');
-                dupBtn.className = 'btn-icon layer-btn';
-                dupBtn.innerHTML = '📋';
-                dupBtn.title = 'Duplicar camada';
-                dupBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    duplicateLayer(layer.id);
-                });
-                actionsDiv.appendChild(dupBtn);
+                const renameBtn = mkBtn('rename',    'Renomear camada',  UI_ICONS.edit);
+                const dupBtn    = mkBtn('duplicate', 'Duplicar camada',  UI_ICONS.copy);
+                const upBtn     = mkBtn('up',        'Mover para cima',  UI_ICONS.up);
+                const downBtn   = mkBtn('down',      'Mover para baixo', UI_ICONS.down);
+                const delBtn    = mkBtn('delete',    'Excluir camada',   UI_ICONS.trash, 'layer-btn-danger');
 
-                const upBtn = document.createElement('button');
-                upBtn.className = 'btn-icon layer-btn';
-                upBtn.innerHTML = '↑';
-                upBtn.title = 'Mover para cima';
                 upBtn.disabled = index === 0;
-                upBtn.style.opacity = index === 0 ? '0.35' : '1';
-                upBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    moveLayer(layer.id, 'up');
-                });
-                actionsDiv.appendChild(upBtn);
-
-                const downBtn = document.createElement('button');
-                downBtn.className = 'btn-icon layer-btn';
-                downBtn.innerHTML = '↓';
-                downBtn.title = 'Mover para baixo';
                 downBtn.disabled = index === visibleLayers.length - 1;
-                downBtn.style.opacity = index === visibleLayers.length - 1 ? '0.35' : '1';
-                downBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    moveLayer(layer.id, 'down');
-                });
-                actionsDiv.appendChild(downBtn);
+                [upBtn, downBtn].forEach(b => { b.style.opacity = b.disabled ? '0.35' : '1'; });
 
-                const delBtn = document.createElement('button');
-                delBtn.className = 'btn-icon layer-btn';
-                delBtn.innerHTML = '🗑️';
-                delBtn.title = 'Excluir camada';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (confirm(`Deseja excluir a camada "${layer.name}"?`)) {
-                        DB.deleteLayer(layer.id).then(() => reloadLayers());
-                    }
-                });
-                actionsDiv.appendChild(delBtn);
+                actionsDiv.append(renameBtn, dupBtn, upBtn, downBtn, delBtn);
             }
 
             li.appendChild(iconStack);
@@ -1734,7 +1777,614 @@ function updateLayerListUI() {
             li.appendChild(actionsDiv);
             ul.appendChild(li);
         });
+
+        // Sincroniza chips flutuantes com o estado das camadas
+        if (typeof updateMapChips === 'function') updateMapChips();
     });
+}
+
+/**
+ * Listener ÚNICO (delegação) para todas as ações da lista de camadas.
+ * Lê o estado ATUAL a cada clique — nunca usa closure obsoleta.
+ */
+async function handleLayerListClick(e) {
+    const actionEl = e.target.closest('[data-action]');
+    if (!actionEl) return;
+
+    const li = actionEl.closest('li[data-layer-id]');
+    if (!li) return;
+    const layerId = Number(li.dataset.layerId);
+    const action = actionEl.dataset.action;
+    if (!layerId || !action) return;
+
+    e.stopPropagation();
+
+    switch (action) {
+        case 'zoom': {
+            const lyr = overlayLayers[layerId];
+            if (!lyr || !map) return;
+            if (typeof lyr.getBounds === 'function') {
+                const bounds = lyr.getBounds();
+                if (bounds && bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+                    return;
+                }
+            }
+            showToast('Camada sem feições visíveis para enquadrar.', 'info');
+            return;
+        }
+        case 'toggle': {
+            // Lê o estado REAL no momento do clique — nunca capturado em closure
+            const currentlyVisible = layerVisibility[layerId] !== false;
+            layerVisibility[layerId] = !currentlyVisible;
+            await reloadLayers();
+            updateLayerListUI();
+            return;
+        }
+        case 'rename':    await renameLayer(layerId); return;
+        case 'duplicate': await duplicateLayer(layerId); return;
+        case 'up':        await moveLayer(layerId, 'up'); return;
+        case 'down':      await moveLayer(layerId, 'down'); return;
+        case 'delete': {
+            const layer = await DB.getLayerById(layerId);
+            if (!layer) return;
+            if (confirm(`Deseja excluir a camada "${layer.name}"?`)) {
+                await DB.deleteLayer(layerId);
+                invalidateLayerCategoryCache();
+                await reloadLayers();
+            }
+            return;
+        }
+    }
+}
+
+// ===========================================================================
+// CHIPS FLUTUANTES DE FILTRO POR CATEGORIA (Google-Maps-like)
+// ===========================================================================
+
+async function updateMapChips() {
+    const container = document.getElementById('mapChips');
+    if (!container) return;
+
+    const layers = await DB.getLayers();
+    const hiddenNames = ['RMBH', 'Ruas', 'Logradouros', 'Street'];
+    const visibleLayers = layers.filter(layer => {
+        if (!layer.name) return true;
+        return !hiddenNames.some(k => layer.name.includes(k));
+    });
+
+    // Agrupa por categoria
+    const byCategory = new Map();
+    for (const layer of visibleLayers) {
+        const cat = getLayerCategory(layer);
+        if (!byCategory.has(cat)) byCategory.set(cat, []);
+        byCategory.get(cat).push(layer);
+    }
+
+    // Ordena categorias conforme preferência visual
+    const categories = [...byCategory.keys()].sort((a, b) => {
+        const ia = LAYER_CATEGORY_ORDER.indexOf(a);
+        const ib = LAYER_CATEGORY_ORDER.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+
+    container.innerHTML = '';
+    for (const cat of categories) {
+        const meta = LAYER_CATEGORY_META[cat] || LAYER_CATEGORY_META.OTHER;
+        const layerList = byCategory.get(cat);
+        const anyVisible = layerList.some(l => layerVisibility[l.id] !== false);
+        const totalFeatures = layerList.reduce(
+            (sum, l) => sum + (l.geojson?.features?.length || 0), 0
+        );
+
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'map-chip' + (anyVisible ? ' active' : '');
+        chip.dataset.category = cat;
+        chip.style.setProperty('--chip-color', meta.color);
+        chip.title = anyVisible ? `Ocultar ${meta.label}` : `Mostrar ${meta.label}`;
+        chip.setAttribute('aria-pressed', String(anyVisible));
+        chip.innerHTML = `
+            <span class="map-chip-icon">${meta.icon}</span>
+            <span class="map-chip-label">${meta.label}</span>
+            <span class="map-chip-count">${totalFeatures}</span>
+        `;
+        chip.addEventListener('click', () => toggleLayerCategory(cat));
+        container.appendChild(chip);
+    }
+}
+
+async function toggleLayerCategory(category) {
+    if (!category) return;
+    const layers = await DB.getLayers();
+    const matching = layers.filter(l => getLayerCategory(l) === category);
+    if (matching.length === 0) return;
+
+    const anyVisible = matching.some(l => layerVisibility[l.id] !== false);
+    for (const l of matching) {
+        layerVisibility[l.id] = !anyVisible;
+    }
+
+    await reloadLayers();
+    updateLayerListUI();
+    // updateMapChips() é re-chamado dentro de updateLayerListUI()
+
+    const meta = LAYER_CATEGORY_META[category] || LAYER_CATEGORY_META.OTHER;
+    showToast(
+        anyVisible ? `${meta.label} ocultada(s).` : `${meta.label} exibida(s).`,
+        'info', 1800
+    );
+}
+
+// ===========================================================================
+// BUSCADOR DE ÁREAS BM — com agrupamento hierárquico (COB → BBM/CIA IND)
+// ---------------------------------------------------------------------------
+// Retorna DOIS níveis:
+//   • groups      → agrupamentos por COB pai (ex.: "1º COB" contendo BBM/CIA)
+//   • individuals → feições isoladas (comportamento anterior)
+//
+// A detecção do COB pai é feita por `extractCOBLabel()`, que varre múltiplos
+// campos possíveis do schema (Field7, Field10, COB, COB / CEB, etc.) em
+// busca do padrão "Nº COB".
+// ===========================================================================
+
+/**
+ * Normalização canônica para comparações de busca — unificada.
+ *
+ * Regras aplicadas em sequência:
+ *   1. NFD + remove diacríticos  → "São" → "sao"
+ *   2. Minúsculas
+ *   3. Remove ordinalizadores    → "1º" / "1°" / "1ª" → "1"
+ *      (mas preserva "o" e "a" como letras quando NÃO são ordinais)
+ *   4. Insere espaço entre dígito↔letra e letra↔dígito
+ *      → "1COB" → "1 COB" | "BBM2" → "BBM 2"
+ *   5. Colapsa espaços múltiplos
+ *
+ * Resultado para todas as formas do usuário:
+ *   "1º COB" → "1 cob"
+ *   "1 COB"  → "1 cob"
+ *   "1COB"   → "1 cob"
+ *   "1º BBM" → "1 bbm"
+ *   "1BBM"   → "1 bbm"
+ */
+function _normalizeSearchText(s) {
+    if (s == null) return '';
+    let t = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    t = t.toLowerCase();
+
+    // Ordinalizadores: "1º" "1°" "1ª" → "1"
+    // Regex só remove quando precedido por dígito, preservando "1o" como letra em outras palavras.
+    t = t.replace(/(\d)\s*[º°ª]/g, '$1 ');
+
+    // Insere espaço entre dígito↔letra (ambas as direções)
+    t = t.replace(/(\d)([a-z])/g, '$1 $2');
+    t = t.replace(/([a-z])(\d)/g, '$1 $2');
+
+    // Colapsa espaços + trim
+    return t.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Compatibilidade retroativa — delega para a normalização unificada.
+ * Mantida porque o nome é usado em outros pontos do código.
+ */
+function _normalizeCOBString(s) {
+    return _normalizeSearchText(s);
+}
+
+/**
+ * Gera a versão compacta (sem espaços) — usada como "segunda chave"
+ * de comparação. Isso garante que "1 cob", "1cob" e "1ºcob" batam.
+ */
+function _compactKey(s) {
+    return _normalizeSearchText(s).replace(/\s+/g, '');
+}
+
+/**
+ * Extrai o rótulo do COB pai de uma feature poligonal.
+ * Retorna string canônica (ex.: "1º COB") ou null.
+ */
+function extractCOBLabel(props) {
+    if (!props) return null;
+
+    // 1. Campos diretos dedicados a COB
+    const direct = props.COB
+        || props['COB / CEB']
+        || props.Comando_COB
+        || props.cobOperacional
+        || props.comandoOperacional;
+    if (direct) {
+        const s = String(direct).trim();
+        if (s && s !== '-') return s;
+    }
+
+    // 2. Varredura em campos descritivos pelo padrão "Nº COB"
+    const searchables = [
+        props.Field7,   // Comando / Batalhão
+        props.Field10,  // Denominação Completa da Fração
+        props.Field8,   // Tipo da Fração
+        props.name,
+        props['Denominação Completa'],
+        props.description
+    ];
+
+    for (const v of searchables) {
+        if (v == null) continue;
+        const s = String(v);
+        // Aceita: "1º COB", "1o COB", "1 COB BM", "1° COB Bombeiros"
+        const m = s.match(/(\d+\s*[ºo°ª]?\s*COB(?:\s*(?:BM|BOMBEIROS?))?)/i);
+        if (m) {
+            // Canonicaliza: "1 COB" → "1º COB"
+            const numMatch = m[1].match(/(\d+)/);
+            if (numMatch) return `${numMatch[1]}º COB`;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Extrai rótulo resumido da subunidade (BBM / CIA IND) para exibir
+ * na lista de membros do grupo.
+ */
+function extractUnitLabel(props) {
+    if (!props) return 'Unidade';
+    return (
+        props.name ||
+        props.Field10 ||
+        props.Field8 ||
+        props['Denominação Completa'] ||
+        'Unidade'
+    ).toString().trim();
+}
+
+async function searchAreasBM(query) {
+    const rawQuery = String(query || '').trim();
+    if (rawQuery.length < 2) return { groups: [], individuals: [] };
+
+    // Duas representações da query — espaçada e compacta.
+    // Isso garante match independentemente de o usuário digitar
+    // "1 COB", "1º COB" ou "1COB".
+    const qNorm    = _normalizeSearchText(rawQuery);   // "1 cob"
+    const qCompact = qNorm.replace(/\s+/g, '');        // "1cob"
+
+    if (qNorm.length < 2) return { groups: [], individuals: [] };
+
+    const layers = await DB.getLayers();
+    const allPolygons = [];       // pool completo (para agrupar)
+    const individuals = [];        // matches individuais
+
+    for (const layer of layers) {
+        if (!layer?.geojson?.features) continue;
+        for (let i = 0; i < layer.geojson.features.length; i++) {
+            const f = layer.geojson.features[i];
+            const geom = f.geometry;
+            if (!geom || (geom.type !== 'Polygon' && geom.type !== 'MultiPolygon')) continue;
+
+            const classification = typeof getFeatureClassification === 'function'
+                ? getFeatureClassification(f)
+                : 'OTHER';
+            if (classification !== 'POLYGON' &&
+                classification !== 'MACRORREGIAO' &&
+                classification !== 'MICRORREGIAO') continue;
+
+            const props = f.properties || {};
+            const record = {
+                layerId: layer.id,
+                layerName: layer.name,
+                featureIndex: i,
+                feature: f,
+                props
+            };
+            allPolygons.push(record);
+
+            // ---------- Match individual (tolerante) ----------
+            const partsRaw = [
+                props.name,
+                props.Field7,
+                props.Field8,
+                props.Field10,
+                props.NM_MUN,
+                props.Macrorregiao_Saude,
+                props['Microrregião de Saúde']
+            ].filter(Boolean);
+
+            const haystackRaw     = partsRaw.join(' ');
+            const haystackNorm    = _normalizeSearchText(haystackRaw);   // "1 cob 1 bbm ..."
+            const haystackCompact = haystackNorm.replace(/\s+/g, '');    // "1cob1bbm..."
+
+            const matchesIndividual =
+                haystackNorm.includes(qNorm) ||
+                haystackCompact.includes(qCompact);
+
+            if (!matchesIndividual) continue;
+
+            const title = props.name || props.Field10 || props.Field7 || 'Área';
+            const subtitle = [
+                props.Field8 ? `Tipo: ${props.Field8}` : '',
+                props.Field7 ? `Comando: ${props.Field7}` : '',
+                props.NM_MUN ? `Mun.: ${props.NM_MUN}` : ''
+            ].filter(Boolean).join(' • ');
+
+            individuals.push({
+                type: 'feature',
+                layerId: layer.id,
+                featureIndex: i,
+                feature: f,
+                title,
+                subtitle,
+                layerName: layer.name
+            });
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // AGRUPAMENTO HIERÁRQUICO POR COB (match tolerante nos dois lados)
+    // -----------------------------------------------------------------------
+    const groupsMap = new Map();
+    for (const rec of allPolygons) {
+        const cobLabel = extractCOBLabel(rec.props);
+        if (!cobLabel) continue;
+        const key = _normalizeSearchText(cobLabel);
+        if (!groupsMap.has(key)) {
+            groupsMap.set(key, { label: cobLabel, members: [], unitLabels: [] });
+        }
+        const g = groupsMap.get(key);
+        g.members.push(rec);
+        g.unitLabels.push(extractUnitLabel(rec.props));
+    }
+
+    const groups = [];
+    for (const [, g] of groupsMap) {
+        const labelNorm    = _normalizeSearchText(g.label);
+        const labelCompact = labelNorm.replace(/\s+/g, '');
+
+        const matches =
+            labelNorm.includes(qNorm)     ||
+            qNorm.includes(labelNorm)     ||
+            labelCompact.includes(qCompact) ||
+            qCompact.includes(labelCompact);
+
+        if (!matches) continue;
+        if (g.members.length < 2) continue;   // grupo requer 2+ subunidades
+
+        const uniqUnits = Array.from(new Set(g.unitLabels));
+
+        groups.push({
+            type: 'group',
+            label: g.label,
+            count: g.members.length,
+            members: g.members,
+            memberLabels: uniqUnits,
+            previewText: uniqUnits.slice(0, 5).join(' · ') +
+                (uniqUnits.length > 5 ? ` +${uniqUnits.length - 5}` : '')
+        });
+    }
+
+    // Ordena grupos por número de membros (mais abrangente primeiro)
+    groups.sort((a, b) => b.count - a.count);
+
+    // Ordena indivíduos por relevância (prefixo normalizado tem prioridade)
+    individuals.sort((a, b) => {
+        const at = _normalizeSearchText(a.title);
+        const bt = _normalizeSearchText(b.title);
+        const aStarts = at.startsWith(qNorm) ? 0 : 1;
+        const bStarts = bt.startsWith(qNorm) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        return at.localeCompare(bt);
+    });
+
+    return {
+        groups,
+        individuals: individuals.slice(0, 30)
+    };
+}
+
+/**
+ * Enquadra e destaca UMA OU MAIS feições simultaneamente.
+ * Aceita Feature único ou array de Features.
+ */
+function fitBoundsToFeatures(features) {
+    if (!map) return;
+    const arr = Array.isArray(features) ? features : [features];
+    if (arr.length === 0) return;
+
+    try {
+        // Calcula bounds unificados
+        const wrapper = L.geoJSON({
+            type: 'FeatureCollection',
+            features: arr
+        });
+        const bounds = wrapper.getBounds();
+        if (!bounds || !bounds.isValid()) return;
+
+        // Zoom máximo adaptativo: grupos maiores → zoom um pouco menor
+        const maxZoom = arr.length > 6 ? 11 : (arr.length > 2 ? 12 : 14);
+
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom });
+
+        // Destaque visual temporário (todas as feições em conjunto)
+        const highlight = L.geoJSON({
+            type: 'FeatureCollection',
+            features: arr
+        }, {
+            style: {
+                color: '#f39c12',
+                weight: 3.5,
+                fillColor: '#f39c12',
+                fillOpacity: 0.18,
+                dashArray: '8,5'
+            },
+            interactive: false
+        }).addTo(map);
+
+        // Tempo proporcional ao número de feições (entre 3,5 s e 6 s)
+        const holdMs = Math.min(6000, 3500 + arr.length * 250);
+        setTimeout(() => {
+            try { map.removeLayer(highlight); } catch (_) {}
+        }, holdMs);
+    } catch (e) {
+        console.warn('Erro ao enquadrar feições:', e);
+    }
+}
+
+// Compatibilidade retroativa: função antiga delega para a nova
+function fitBoundsToFeature(feature) {
+    fitBoundsToFeatures(feature);
+}
+
+function initAreaSearch() {
+    if (!map || typeof L === 'undefined') return;
+
+    // Controle Leaflet no canto superior direito
+    const AreaSearchControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function () {
+            const btn = L.DomUtil.create('button', 'leaflet-control-area-search');
+            btn.type = 'button';
+            btn.innerHTML = '🔎';
+            btn.title = 'Buscar área BM (COB / BBM / CIA IND)';
+            btn.setAttribute('aria-label', 'Buscar área BM');
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', (ev) => {
+                L.DomEvent.stop(ev);
+                if (typeof window.openAreaSearchPanel === 'function') {
+                    window.openAreaSearchPanel();
+                }
+            });
+            return btn;
+        }
+    });
+    map.addControl(new AreaSearchControl());
+
+    const panel    = document.getElementById('areaSearchPanel');
+    const input    = document.getElementById('areaSearchInput');
+    const results  = document.getElementById('areaSearchResults');
+    const closeBtn = document.getElementById('areaSearchClose');
+    if (!panel || !input || !results) return;
+
+        let debounce = null;
+    let currentResult = { groups: [], individuals: [] };
+
+    const _esc = (typeof escapeHtml === 'function')
+        ? escapeHtml
+        : (s => String(s ?? ''));
+
+    const renderMatches = (result) => {
+        const groups = result?.groups || [];
+        const individuals = result?.individuals || [];
+
+        if (groups.length === 0 && individuals.length === 0) {
+            results.innerHTML = '<div class="area-search-empty">Nenhuma área encontrada.</div>';
+            return;
+        }
+
+        let html = '';
+
+        // ---------- GRUPOS (COB) primeiro ----------
+        if (groups.length > 0) {
+            html += `<div class="area-search-section-label">📦 Grupos de articulação</div>`;
+            html += groups.map((g, gi) => `
+                <button type="button" class="area-search-item area-search-item-group"
+                        data-group-index="${gi}">
+                    <div class="area-search-item-head">
+                        <span class="area-search-item-title">📦 ${_esc(g.label)}</span>
+                        <span class="area-search-item-count">${g.count}</span>
+                    </div>
+                    <div class="area-search-item-sub">${_esc(g.previewText)}</div>
+                </button>
+            `).join('');
+        }
+
+        // ---------- FEIÇÕES INDIVIDUAIS ----------
+        if (individuals.length > 0) {
+            html += `<div class="area-search-section-label">📍 Feições individuais</div>`;
+            html += individuals.map((m, i) => `
+                <button type="button" class="area-search-item" data-item-index="${i}">
+                    <div class="area-search-item-title">📍 ${_esc(m.title)}</div>
+                    ${m.subtitle ? `<div class="area-search-item-sub">${_esc(m.subtitle)}</div>` : ''}
+                </button>
+            `).join('');
+        }
+
+        results.innerHTML = html;
+
+        // Handlers — grupos (fitBounds sobre TODAS as feições do COB)
+        results.querySelectorAll('.area-search-item-group').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const gi = Number(btn.dataset.groupIndex);
+                const group = currentResult.groups[gi];
+                if (!group) return;
+                const features = group.members.map(m => m.feature);
+                fitBoundsToFeatures(features);
+                if (typeof showToast === 'function') {
+                    showToast(
+                        `${group.label} — ${group.count} feições destacadas.`,
+                        'success', 2800
+                    );
+                }
+                panel.classList.add('hidden');
+            });
+        });
+
+        // Handlers — feições individuais
+        results.querySelectorAll('.area-search-item[data-item-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const i = Number(btn.dataset.itemIndex);
+                const match = currentResult.individuals[i];
+                if (!match) return;
+                fitBoundsToFeatures([match.feature]);
+                panel.classList.add('hidden');
+            });
+        });
+    };
+
+    const runSearch = async () => {
+        const q = input.value.trim();
+        if (q.length < 2) {
+            results.innerHTML = '';
+            currentResult = { groups: [], individuals: [] };
+            return;
+        }
+        results.innerHTML = '<div class="area-search-empty">🔎 Buscando...</div>';
+        currentResult = await searchAreasBM(q);
+        renderMatches(currentResult);
+    };
+
+    input.addEventListener('input', () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(runSearch, 250);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(debounce);
+            runSearch();
+        }
+        if (e.key === 'Escape') {
+            panel.classList.add('hidden');
+            input.blur();
+        }
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
+    }
+
+    document.addEventListener('click', (e) => {
+        if (panel.classList.contains('hidden')) return;
+        if (!panel.contains(e.target) &&
+            !e.target.closest('.leaflet-control-area-search')) {
+            panel.classList.add('hidden');
+        }
+    });
+
+    window.openAreaSearchPanel = () => {
+        panel.classList.remove('hidden');
+        input.focus();
+        input.select();
+    };
 }
 
 function setViewMode(mode) {

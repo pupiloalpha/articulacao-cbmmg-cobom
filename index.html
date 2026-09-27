@@ -142,6 +142,22 @@
     <!-- Mapa -->
     <div id="map"></div>
 
+    <!-- Chips flutuantes de filtro por categoria (camadas) -->
+    <div id="mapChips" class="map-chips" aria-label="Filtros de camadas"></div>
+
+    <!-- Painel de busca de áreas BM (COB / BBM / CIA IND) -->
+    <div id="areaSearchPanel" class="area-search-panel hidden">
+        <div class="area-search-header">
+            <span class="area-search-icon">🔎</span>
+            <input type="text" id="areaSearchInput"
+                   placeholder="Buscar COB, BBM, CIA IND..."
+                   autocomplete="off" spellcheck="false">
+            <button type="button" id="areaSearchClose" class="area-search-close"
+                    title="Fechar" aria-label="Fechar">×</button>
+        </div>
+        <div id="areaSearchResults" class="area-search-results"></div>
+    </div>
+
 <!-- Busca flutuante no topo do mapa -->
 <div id="floatingSearch" class="floating-search">
     <div class="floating-search-box" id="floatingSearchBox">

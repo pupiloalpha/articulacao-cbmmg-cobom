@@ -3738,3 +3738,486 @@ body[data-network="MINIMAL"] .sidebar {
         animation-iteration-count: infinite !important;
     }
 }
+
+/* ==========================================================================
+   ÍCONES SVG NA LISTA DE CAMADAS
+   --------------------------------------------------------------------------
+   Substitui emojis ZWJ por SVG inline. Botões maiores (WCAG 2.5.5) e
+   feedback visual claro para camadas ocultas.
+   ========================================================================== */
+
+.layer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+}
+.layer-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    pointer-events: none;
+}
+.layer-btn:hover  { background: var(--card-hover-bg); }
+.layer-btn:active { transform: scale(0.96); }
+.layer-btn:disabled { cursor: not-allowed; }
+
+.layer-btn-vis svg { width: 18px; height: 18px; }
+
+.layer-btn-danger:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+/* Estado "camada oculta" na lista */
+#layersUl li.layer-hidden {
+    opacity: 0.55;
+}
+#layersUl li.layer-hidden .layer-name {
+    text-decoration: line-through;
+    text-decoration-color: rgba(0, 0, 0, 0.35);
+}
+#layersUl li.layer-hidden .layer-icon-stack {
+    filter: grayscale(1);
+    opacity: 0.65;
+}
+
+/* Alvos de toque confortáveis em mobile */
+@media (hover: none) and (pointer: coarse) {
+    .layer-btn {
+        width: 40px;
+        height: 40px;
+    }
+    .layer-btn svg { width: 18px; height: 18px; }
+    .layer-btn-vis svg { width: 20px; height: 20px; }
+}
+
+/* Dark theme */
+body.dark-theme .layer-btn:hover {
+    background: #334155;
+}
+body.dark-theme .layer-btn-danger:hover {
+    background: rgba(185, 28, 28, 0.25);
+    color: #fca5a5;
+}
+
+/* ==========================================================================
+   CHIPS FLUTUANTES DE FILTRO (Google-Maps-like)
+   ========================================================================== */
+.map-chips {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;               /* acima dos controles Leaflet (1000) */
+    display: flex;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 999px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15),
+                0 1px 3px rgba(0, 0, 0, 0.08);
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    pointer-events: auto;
+    transition: left 0.25s ease;
+}
+.map-chips::-webkit-scrollbar { display: none; }
+.map-chips:empty { display: none; }
+
+/* Reajusta posição quando a sidebar está aberta (desktop/tablet) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    #sidebar:not(.collapsed) ~ #mapChips {
+        left: calc(50% + 150px);
+    }
+}
+@media (min-width: 1025px) {
+    #sidebar:not(.collapsed) ~ #mapChips {
+        left: calc(50% + 170px);
+    }
+}
+
+.map-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease,
+                border-color 0.15s ease, transform 0.12s ease;
+}
+.map-chip:hover { background: #e2e8f0; transform: translateY(-1px); }
+
+.map-chip.active {
+    background: var(--chip-color, #2980b9);
+    color: #ffffff;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.map-chip.active:hover { filter: brightness(1.08); }
+
+.map-chip-icon  { font-size: 14px; line-height: 1; }
+.map-chip-label { font-weight: 700; }
+
+.map-chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+}
+.map-chip.active .map-chip-count {
+    background: rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+}
+
+/* Dark theme */
+body.dark-theme .map-chips {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+body.dark-theme .map-chip       { background: #1e293b; color: #e2e8f0; }
+body.dark-theme .map-chip:hover { background: #334155; }
+body.dark-theme .map-chip-count { background: rgba(255, 255, 255, 0.1); }
+
+/* Mobile: chips em linha inferior, mais respiro */
+@media (max-width: 768px) {
+    .map-chips {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0));
+        left: 8px;
+        right: 8px;
+        transform: none;
+        max-width: none;
+        padding: 6px;
+    }
+    .map-chip        { padding: 6px 10px; font-size: 11.5px; }
+}
+@media (max-width: 400px) {
+    .map-chip-label { display: none; } /* só ícone + contagem */
+}
+
+/* ==========================================================================
+   PAINEL DE BUSCA DE ÁREAS BM
+   ========================================================================== */
+
+.leaflet-control-area-search {
+    width: 30px;
+    height: 30px;
+    background: #ffffff;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.leaflet-control-area-search:hover { background: #f4f4f4; }
+
+body.dark-theme .leaflet-control-area-search {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+body.dark-theme .leaflet-control-area-search:hover { background: #334155; }
+
+.area-search-panel {
+    position: fixed;
+    top: 76px;
+    right: 60px;
+    z-index: 1600;
+    width: min(360px, calc(100vw - 24px));
+    max-height: 60vh;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22),
+                0 2px 6px rgba(0, 0, 0, 0.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: area-search-in 0.18s ease-out;
+}
+.area-search-panel.hidden { display: none; }
+
+@keyframes area-search-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.area-search-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+.area-search-icon { font-size: 14px; color: #64748b; flex-shrink: 0; }
+.area-search-header input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--text-color);
+    font-family: inherit;
+}
+.area-search-header input::placeholder { color: #94a3b8; }
+
+.area-search-close {
+    background: transparent;
+    border: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-size: 18px;
+    line-height: 1;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.area-search-close:hover { background: #e2e8f0; color: #334155; }
+
+.area-search-results {
+    flex: 1;
+    min-height: 40px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.area-search-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.12s ease;
+}
+.area-search-item:hover { background: #eff6ff; }
+
+.area-search-item-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+.area-search-item-sub {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+.area-search-empty {
+    padding: 14px 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Dark theme */
+body.dark-theme .area-search-panel {
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+}
+body.dark-theme .area-search-header {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
+body.dark-theme .area-search-header input { color: #f1f5f9; }
+body.dark-theme .area-search-close:hover { background: #334155; color: #f1f5f9; }
+body.dark-theme .area-search-item:hover  { background: #1e293b; }
+body.dark-theme .area-search-item-title  { color: #f1f5f9; }
+body.dark-theme .area-search-item-sub    { color: #94a3b8; }
+body.dark-theme .area-search-empty       { color: #64748b; }
+
+/* Mobile: painel próximo ao topo, largura total menos margens */
+@media (max-width: 768px) {
+    .area-search-panel {
+        top: 72px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-height: 55vh;
+    }
+}
+
+/* ==========================================================================
+   BUSCADOR DE ÁREAS — Hierarquia (grupos COB + itens individuais)
+   ========================================================================== */
+
+.area-search-section-label {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #64748b;
+    background: transparent;
+}
+
+/* Item genérico (indivíduo) */
+.area-search-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    border: 1px solid transparent;
+}
+.area-search-item:hover { background: #eff6ff; border-color: #bfdbfe; }
+
+/* Item de GRUPO (COB) — mais destacado */
+.area-search-item-group {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    margin: 2px 4px;
+}
+.area-search-item-group:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    border-color: #d97706;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.22);
+}
+
+.area-search-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.area-search-item-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    background: #d97706;
+    color: #ffffff;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    flex-shrink: 0;
+}
+
+.area-search-item-group .area-search-item-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #78350f;
+}
+
+.area-search-item-group .area-search-item-sub {
+    color: #92400e;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.area-search-item-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+
+.area-search-item-sub {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+.area-search-empty {
+    padding: 14px 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* ---------- Dark theme ---------- */
+body.dark-theme .area-search-section-label { color: #94a3b8; }
+
+body.dark-theme .area-search-item:hover {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .area-search-item-group {
+    background: linear-gradient(135deg, rgba(120, 53, 15, 0.55) 0%, rgba(146, 64, 14, 0.35) 100%);
+    border-color: #b45309;
+}
+body.dark-theme .area-search-item-group:hover {
+    background: linear-gradient(135deg, rgba(146, 64, 14, 0.75) 0%, rgba(180, 83, 9, 0.55) 100%);
+    border-color: #f59e0b;
+}
+body.dark-theme .area-search-item-count {
+    background: #b45309;
+    color: #fef3c7;
+}
+body.dark-theme .area-search-item-group .area-search-item-title { color: #fde68a; }
+body.dark-theme .area-search-item-group .area-search-item-sub   { color: #fcd34d; }
+body.dark-theme .area-search-item-title { color: #e2e8f0; }
+body.dark-theme .area-search-item-sub   { color: #94a3b8; }
+
+/* Ajuste de scroll interno do painel para acomodar os dois níveis */
+.area-search-results {
+    max-height: 52vh;
+    padding: 4px 4px 8px;
+}

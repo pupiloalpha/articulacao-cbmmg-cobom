@@ -375,6 +375,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     initOperationalKeyboardShortcuts();
     initShortcutsModal();
 
+    // Chips flutuantes + buscador de áreas BM (COB/BBM/CIA IND)
+    if (typeof updateMapChips === 'function') updateMapChips();
+    if (typeof initAreaSearch === 'function')  initAreaSearch();
+
     // ============================================================
     // 2. Botão "Definir origem no mapa"
     // ============================================================
