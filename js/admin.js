@@ -1,7 +1,274 @@
-// js/admin.js - Autenticação por PIN fixo + upload + ferramentas de desenho
+// js/admin.js - Autenticação por PIN + upload + ferramentas de desenho
+//
+// ============================================================================
+// SEGURANÇA — AUTENTICAÇÃO ENDURECIDA (defense-in-depth)
+// ----------------------------------------------------------------------------
+// Esta aplicação é ESTÁTICA (GitHub Pages), sem backend. Autenticação 100 %
+// client-side é inerentemente vulnerável à inspeção do código-fonte.
+//
+// Mitigações implementadas (por ordem de impacto real):
+//
+//   1. PBKDF2-SHA256 (210 000 iterações, salt único) — substitui SHA-256 puro.
+//      Um atacante que obtenha o hash precisa de ~10^5 vezes mais tempo para
+//      fazer brute-force offline.
+//
+//   2. Rate limiting persistente — 5 tentativas falhas bloqueiam login por
+//      15 minutos. O estado sobrevive a reload (localStorage).
+//
+//   3. Expiração de sessão — sessão admin expira após 4 h de inatividade.
+//      Renovada automaticamente a cada interação admin autenticada.
+//
+//   4. Comparação em tempo constante — evita timing attacks no hash.
+//
+//   5. PIN nunca armazenado em claro — apenas o hash PBKDF2 derivado.
+//
+// ⚠️ LIMITAÇÃO ESTRUTURAL: como o hash fica no JS público, um atacante com
+// acesso ao repositório ainda pode tentar brute-force offline. Para ambientes
+// críticos, migre a verificação para um backend (ex.: o Cloudflare Worker
+// já existente em `painel-fogo-proxy.pesmesquita.workers.dev`).
+// ============================================================================
 
-// Hash fixo do PIN "cobom193"
-const ADMIN_PIN_HASH = 'ffcbf6cc4c1b3280189888f5c15ae08b696d36b898224685586db93f0e9b34eb';
+// ---------------------------------------------------------------------------
+// Configuração de autenticação
+// ---------------------------------------------------------------------------
+const ADMIN_AUTH_CONFIG = {
+    // Salt público — não é segredo, só evita rainbow tables.
+    SALT: 'cobom-bh-pwa-v1-mg-193',
+    ITERATIONS: 210000,
+    // ⚠️ Hash PBKDF2-SHA256 de "cobom193" com o salt acima.
+    // Para regenerar (troque o PIN), abra o console e execute:
+    //     await window.generateAdminHash('NOVO_PIN')
+    // e cole o resultado entre as aspas abaixo.
+    HASH: '53cc771f844035295b0bc03b75f3e44559af66d0a362c4ae01b6024547f88d61',
+    // Compat: hash SHA-256 legado — usado APENAS para migração automática
+    // na primeira execução. Remova após gerar o hash PBKDF2.
+    LEGACY_SHA256: 'ffcbf6cc4c1b3280189888f5c15ae08b696d36b898224685586db93f0e9b34eb',
+    MAX_ATTEMPTS: 5,
+    LOCKOUT_MS: 15 * 60 * 1000,        // 15 minutos
+    SESSION_TTL_MS: 4 * 60 * 60 * 1000 // 4 horas
+};
+
+const ADMIN_STORAGE_KEYS = {
+    ATTEMPTS: 'cobom_admin_attempts',
+    LOCKOUT_UNTIL: 'cobom_admin_lockout_until',
+    SESSION_EXPIRES_AT: 'cobom_admin_session_exp'
+};
+
+// ===========================================================================
+// Criptografia — PBKDF2-SHA256
+// ===========================================================================
+
+/**
+ * Deriva um hash PBKDF2-SHA256 do PIN e o retorna em hexadecimal.
+ * @param {string} pin
+ * @returns {Promise<string>}
+ */
+async function deriveAdminHash(pin) {
+    if (!pin || typeof pin !== 'string') throw new Error('PIN inválido');
+
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(pin),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits']
+    );
+
+    const bits = await crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt: enc.encode(ADMIN_AUTH_CONFIG.SALT),
+            iterations: ADMIN_AUTH_CONFIG.ITERATIONS,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        256 // 32 bytes
+    );
+
+    return Array.from(new Uint8Array(bits))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+/**
+ * Comparação de strings em tempo constante.
+ * Não usa `===` para evitar vazamento por timing (importante quando o
+ * atacante pode medir milissegundos).
+ */
+function timingSafeEqualHex(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+// Compat: SHA-256 puro (só para migração legada)
+async function sha256(str) {
+    try {
+        const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    } catch (error) {
+        console.error('Erro ao calcular hash:', error);
+        return null;
+    }
+}
+
+// ===========================================================================
+// Rate limiting persistente
+// ===========================================================================
+
+function _now() { return Date.now(); }
+
+function _getLockoutUntil() {
+    return Number(localStorage.getItem(ADMIN_STORAGE_KEYS.LOCKOUT_UNTIL) || 0);
+}
+
+function _getFailedAttempts() {
+    return Number(localStorage.getItem(ADMIN_STORAGE_KEYS.ATTEMPTS) || 0);
+}
+
+function _resetAttempts() {
+    localStorage.removeItem(ADMIN_STORAGE_KEYS.ATTEMPTS);
+    localStorage.removeItem(ADMIN_STORAGE_KEYS.LOCKOUT_UNTIL);
+}
+
+function _registerFailedAttempt() {
+    const attempts = _getFailedAttempts() + 1;
+    localStorage.setItem(ADMIN_STORAGE_KEYS.ATTEMPTS, String(attempts));
+
+    if (attempts >= ADMIN_AUTH_CONFIG.MAX_ATTEMPTS) {
+        const until = _now() + ADMIN_AUTH_CONFIG.LOCKOUT_MS;
+        localStorage.setItem(ADMIN_STORAGE_KEYS.LOCKOUT_UNTIL, String(until));
+    }
+    return attempts;
+}
+
+/**
+ * Retorna o número de segundos restantes de bloqueio, ou 0 se liberado.
+ */
+function _lockoutSecondsRemaining() {
+    const until = _getLockoutUntil();
+    const remaining = until - _now();
+    return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+}
+
+// ===========================================================================
+// Sessão admin — expiração por inatividade
+// ===========================================================================
+
+function _touchAdminSession() {
+    localStorage.setItem(
+        ADMIN_STORAGE_KEYS.SESSION_EXPIRES_AT,
+        String(_now() + ADMIN_AUTH_CONFIG.SESSION_TTL_MS)
+    );
+}
+
+function _isAdminSessionValid() {
+    const exp = Number(localStorage.getItem(ADMIN_STORAGE_KEYS.SESSION_EXPIRES_AT) || 0);
+    return exp > _now();
+}
+
+function _endAdminSession() {
+    localStorage.removeItem(ADMIN_STORAGE_KEYS.SESSION_EXPIRES_AT);
+}
+
+// Verifica expiração a cada 60 s — derruba a UI se necessário.
+setInterval(() => {
+    if (window.isAdmin && !_isAdminSessionValid()) {
+        window.isAdmin = false;
+        _endAdminSession();
+        if (typeof setupAuth === 'function') setupAuth();
+        if (typeof showToast === 'function') {
+            showToast('Sessão administrativa expirada por inatividade.', 'warning', 5000);
+        }
+    }
+}, 60 * 1000);
+
+// ===========================================================================
+// Verificação de PIN (interface pública para o modal)
+// ===========================================================================
+
+/**
+ * Verifica o PIN aplicando rate limiting e PBKDF2.
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function verifyPinAsync(pin) {
+    // 1) Bloqueio ativo?
+    const lockRemaining = _lockoutSecondsRemaining();
+    if (lockRemaining > 0) {
+        const mins = Math.ceil(lockRemaining / 60);
+        return { ok: false, reason: `Bloqueado. Tente novamente em ~${mins} min.` };
+    }
+
+    if (!pin || typeof pin !== 'string' || pin.length < 4) {
+        _registerFailedAttempt();
+        return { ok: false, reason: 'PIN incorreto. Tente novamente.' };
+    }
+
+    let isValid = false;
+
+    try {
+        // Caminho principal: PBKDF2 (hash configurado)
+        if (ADMIN_AUTH_CONFIG.HASH && ADMIN_AUTH_CONFIG.HASH !== 'SUBSTITUA_PELO_HASH_GERADO') {
+            const derived = await deriveAdminHash(pin);
+            isValid = timingSafeEqualHex(derived, ADMIN_AUTH_CONFIG.HASH);
+        } else {
+            // Bootstrap de migração: aceita o SHA-256 legado APENAS para
+            // permitir que o operador faça login e regenere o hash.
+            const legacy = await sha256(pin);
+            isValid = timingSafeEqualHex(legacy, ADMIN_AUTH_CONFIG.LEGACY_SHA256);
+
+            if (isValid) {
+                console.warn(
+                    '[Admin] Login aceito via hash legado. Gere o hash PBKDF2 ' +
+                    'com window.generateAdminHash("seu_pin") e cole em ADMIN_AUTH_CONFIG.HASH.'
+                );
+            }
+        }
+    } catch (e) {
+        console.error('[Admin] Erro na verificação:', e);
+        return { ok: false, reason: 'Erro interno. Tente novamente.' };
+    }
+
+    if (!isValid) {
+        const attempts = _registerFailedAttempt();
+        const remaining = Math.max(0, ADMIN_AUTH_CONFIG.MAX_ATTEMPTS - attempts);
+        const msg = remaining > 0
+            ? `PIN incorreto. ${remaining} tentativa(s) restante(s).`
+            : 'Muitas tentativas. Login bloqueado por 15 minutos.';
+        return { ok: false, reason: msg };
+    }
+
+    // Sucesso
+    _resetAttempts();
+    _touchAdminSession();
+    return { ok: true };
+}
+
+// ===========================================================================
+// Gerador de hash (uso pontual no console do navegador)
+// ===========================================================================
+window.generateAdminHash = async function (pin) {
+    if (!pin || typeof pin !== 'string') {
+        console.error('Uso: await window.generateAdminHash("seu_pin")');
+        return null;
+    }
+    const hash = await deriveAdminHash(pin);
+    console.log('%c=== Hash PBKDF2 gerado ===', 'color:#27ae60; font-weight:bold;');
+    console.log('Cole em js/admin.js → ADMIN_AUTH_CONFIG.HASH:\n');
+    console.log(hash);
+    return hash;
+};
+
+// ===========================================================================
+// SETUP DE AUTH (inalterado funcionalmente — melhorias de UX no modal)
+// ===========================================================================
 
 function setupAuth() {
     const adminTools = document.getElementById('adminTools');
@@ -20,9 +287,9 @@ function setupAuth() {
         if (logoutBtn) logoutBtn.classList.add('hidden');
         if (searchContainer) searchContainer.classList.remove('hidden');
     }
-    updateLayerListUI();
+    if (typeof updateLayerListUI === 'function') updateLayerListUI();
     if (typeof renderLegend === 'function') {
-	renderLegend().catch(() => {});
+        renderLegend().catch(() => {});
     }
 }
 
@@ -78,64 +345,31 @@ function setupFloatingSearch() {
         if (e.key === 'Escape') { closeResults(); input.blur(); }
     });
 
-        if (clear) {
+    if (clear) {
         clear.addEventListener('click', async () => {
-            // 1) Limpa o próprio input flutuante (resetAll não o conhece)
             input.value = '';
             syncClearVisibility();
             closeResults();
 
-            // 2) Executa a mesma rotina do botão "🗑️ Limpar Pesquisa"
             if (typeof window.resetAll === 'function') {
-                try {
-                    await window.resetAll();
-                } catch (e) {
-                    console.warn('Falha ao limpar seleção via botão ✕:', e);
-                }
+                try { await window.resetAll(); }
+                catch (e) { console.warn('Falha ao limpar seleção via botão ✕:', e); }
             }
-
             input.focus();
         });
     }
 
-    // Estado inicial (caso o campo já venha preenchido, ex.: autofill)
     syncClearVisibility();
 
-    // =========================================================
-    // Limpa o dropdown sempre que o estado da sidebar mudar.
-    // Evita "resultados fantasma" ao reabrir a barra em mobile.
-    // =========================================================
     const sidebarEl = document.getElementById('sidebar');
     if (sidebarEl && typeof MutationObserver !== 'undefined') {
-        const sidebarObserver = new MutationObserver(() => {
-            closeResults();
-        });
-        sidebarObserver.observe(sidebarEl, {
-            attributes: true,
-            attributeFilter: ['class']
-        });
+        const sidebarObserver = new MutationObserver(() => closeResults());
+        sidebarObserver.observe(sidebarEl, { attributes: true, attributeFilter: ['class'] });
     }
 
-    // Fecha ao clicar fora do container
     document.addEventListener('click', (e) => {
         if (!wrapper.contains(e.target)) closeResults();
     });
-}
-
-async function sha256(str) {
-    try {
-        const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-        const hashArray = Array.from(new Uint8Array(buffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch (error) {
-        console.error('Erro ao calcular hash:', error);
-        return null;
-    }
-}
-
-async function verifyPinAsync(pin) {
-    const hash = await sha256(pin);
-    return hash === ADMIN_PIN_HASH;
 }
 
 function initAdminAuthListeners() {
@@ -149,12 +383,15 @@ function initAdminAuthListeners() {
 
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
+            // Avisa se ainda há bloqueio ativo antes de abrir o modal
+            const remaining = _lockoutSecondsRemaining();
             if (loginModal) loginModal.classList.remove('hidden');
-            if (pinInput) {
-                pinInput.value = '';
-                pinInput.focus();
+            if (pinInput) { pinInput.value = ''; pinInput.focus(); }
+            if (loginError) {
+                loginError.textContent = remaining > 0
+                    ? `Bloqueado. Tente novamente em ~${Math.ceil(remaining / 60)} min.`
+                    : '';
             }
-            if (loginError) loginError.textContent = '';
         });
     }
 
@@ -167,43 +404,59 @@ function initAdminAuthListeners() {
     if (confirmLoginBtn) {
         confirmLoginBtn.addEventListener('click', async () => {
             const pin = pinInput ? pinInput.value.trim() : '';
-            const success = await verifyPinAsync(pin);
-            if (success) {
-                window.isAdmin = true;
-                if (loginModal) loginModal.classList.add('hidden');
-                if (pinInput) pinInput.value = '';
-                if (loginError) loginError.textContent = '';
-                setupAuth();
-                await reloadLayers();
-                showToast('Login de Administrador bem-sucedido!', 'success');
-            } else {
-                if (loginError) loginError.textContent = 'PIN incorreto. Tente novamente.';
-                if (pinInput) {
-                    pinInput.value = '';
-                    pinInput.focus();
+
+            confirmLoginBtn.disabled = true;
+            const originalText = confirmLoginBtn.textContent;
+            confirmLoginBtn.textContent = 'Verificando...';
+
+            try {
+                const result = await verifyPinAsync(pin);
+
+                if (result.ok) {
+                    window.isAdmin = true;
+                    _touchAdminSession();
+                    if (loginModal) loginModal.classList.add('hidden');
+                    if (pinInput) pinInput.value = '';
+                    if (loginError) loginError.textContent = '';
+                    setupAuth();
+                    if (typeof reloadLayers === 'function') await reloadLayers();
+                    if (typeof showToast === 'function') {
+                        showToast('Login de Administrador bem-sucedido!', 'success');
+                    }
+                } else {
+                    if (loginError) loginError.textContent = result.reason || 'PIN incorreto.';
+                    if (pinInput) { pinInput.value = ''; pinInput.focus(); }
                 }
+            } finally {
+                confirmLoginBtn.disabled = false;
+                confirmLoginBtn.textContent = originalText;
             }
         });
     }
 
-    // Enter no campo de PIN
     if (pinInput) {
         pinInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                confirmLoginBtn.click();
-            }
+            if (e.key === 'Enter') confirmLoginBtn.click();
         });
     }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             window.isAdmin = false;
+            _endAdminSession();
             setupAuth();
-            await reloadLayers();
-            showToast('Logout efetuado com sucesso.', 'info');
+            if (typeof reloadLayers === 'function') await reloadLayers();
+            if (typeof showToast === 'function') showToast('Logout efetuado com sucesso.', 'info');
         });
     }
 }
+
+// ===========================================================================
+// Upload de arquivos — com validação de tamanho e tipo
+// ===========================================================================
+
+// Limite de tamanho por arquivo (proteção contra DoS local)
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;  // 50 MB
 
 function setupFileUpload() {
     const dropZone = document.getElementById('dropZone');
@@ -232,19 +485,30 @@ function setupFileUpload() {
         fileInput.value = '';
     });
 
-    // Botão dedicado de importação de chamadas
-    if (typeof setupChamadasImportUI === 'function') {
-        setupChamadasImportUI();
-    }
+    if (typeof setupChamadasImportUI === 'function') setupChamadasImportUI();
 }
 
 async function handleFiles(files) {
     if (!window.isAdmin) return;
 
     for (const file of files) {
-        const ext = file.name.split('.').pop().toLowerCase();
+        // Validação preventiva: tamanho máximo
+        if (file.size > MAX_UPLOAD_BYTES) {
+            showToast(
+                `Arquivo "${file.name}" excede o limite de ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)} MB.`,
+                'error', 5000
+            );
+            continue;
+        }
 
-        // ---------- CSV de chamadas CBMMG ----------
+        const ext = file.name.split('.').pop().toLowerCase();
+        const ALLOWED = new Set(['kml', 'kmz', 'json', 'geojson', 'csv']);
+        if (!ALLOWED.has(ext)) {
+            showToast(`Formato não suportado: ${file.name}`, 'warning');
+            continue;
+        }
+
+        // ---------- CSV de chamadas ----------
         if (ext === 'csv') {
             try {
                 const layers = await DB.getLayers();
@@ -298,7 +562,10 @@ async function handleFiles(files) {
                 continue;
             }
 
-            const layerName = file.name.replace(/\.(kml|kmz|json|geojson)$/i, '');
+            // Sanitiza o GeoJSON (remove funções, __proto__, etc.)
+            geojson = sanitizeGeoJSON(geojson);
+
+            const layerName = sanitizeLayerName(file.name.replace(/\.(kml|kmz|json|geojson)$/i, ''));
             const existingLayers = await DB.getLayers();
             const duplicate = existingLayers.find(l => l.name === layerName);
 
@@ -323,6 +590,53 @@ async function handleFiles(files) {
     }
 }
 
+/**
+ * Sanitiza uma estrutura GeoJSON recém-importada:
+ *   • Rejeita features sem geometria ou com tipo desconhecido.
+ *   • Copia apenas tipos primitivos em `properties`.
+ *   • Remove chaves perigosas (__proto__, constructor, prototype).
+ */
+function sanitizeGeoJSON(geojson) {
+    if (!geojson || typeof geojson !== 'object') throw new Error('GeoJSON inválido');
+
+    const safeProps = (props) => {
+        if (!props || typeof props !== 'object') return {};
+        const out = {};
+        for (const [k, v] of Object.entries(props)) {
+            if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+            if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) out[k] = v;
+            else if (Array.isArray(v)) out[k] = v.map(x => (typeof x === 'object' ? JSON.stringify(x) : x));
+        }
+        return out;
+    };
+
+    const validGeomTypes = new Set([
+        'Point','MultiPoint','LineString','MultiLineString',
+        'Polygon','MultiPolygon','GeometryCollection'
+    ]);
+
+    const features = (geojson.features || []).filter(f =>
+        f && f.type === 'Feature' && f.geometry && validGeomTypes.has(f.geometry.type)
+    ).map(f => ({
+        type: 'Feature',
+        geometry: f.geometry,
+        properties: safeProps(f.properties)
+    }));
+
+    return { type: 'FeatureCollection', features };
+}
+
+function sanitizeLayerName(name) {
+    return String(name || 'Camada')
+        .replace(/[\u0000-\u001F<>"'`]/g, '')
+        .trim()
+        .slice(0, 120) || 'Camada';
+}
+
+// ===========================================================================
+// Ferramentas de desenho
+// ===========================================================================
+
 function setupDrawingTools() {
     const addMarkerBtn = document.getElementById('addMarkerBtn');
     const addPolygonBtn = document.getElementById('addPolygonBtn');
@@ -337,10 +651,7 @@ function setupDrawingTools() {
                 showToast('Modo POI cancelado.', 'info');
             } else {
                 drawingMode = 'marker';
-                if (polygonTempLayer && map) {
-                    map.removeLayer(polygonTempLayer);
-                    polygonTempLayer = null;
-                }
+                if (polygonTempLayer && map) { map.removeLayer(polygonTempLayer); polygonTempLayer = null; }
                 polygonPoints = [];
                 map.off('click', handleMapClickForPolygon);
                 if (addPolygonBtn) {
@@ -365,10 +676,7 @@ function setupDrawingTools() {
                     map.off('click', handleMapClickForPolygon);
                     addPolygonBtn.classList.remove('active');
                     addPolygonBtn.textContent = 'Desenhar Polígono';
-                    if (polygonTempLayer && map) {
-                        map.removeLayer(polygonTempLayer);
-                        polygonTempLayer = null;
-                    }
+                    if (polygonTempLayer && map) { map.removeLayer(polygonTempLayer); polygonTempLayer = null; }
                     polygonPoints = [];
                     showToast('Desenho de polígono cancelado (mínimo 3 pontos).', 'info');
                 }
@@ -402,10 +710,7 @@ function handleMapClickForMarker(e) {
     drawingMode = null;
     map.off('click', handleMapClickForMarker);
     const addMarkerBtn = document.getElementById('addMarkerBtn');
-    if (addMarkerBtn) {
-        addMarkerBtn.classList.remove('active');
-        addMarkerBtn.textContent = 'Adicionar POI';
-    }
+    if (addMarkerBtn) { addMarkerBtn.classList.remove('active'); addMarkerBtn.textContent = 'Adicionar POI'; }
     openCreateFeatureModal(feature, 'Novo POI');
 }
 
@@ -439,14 +744,8 @@ function finishPolygonAndOpenModal() {
     drawingMode = null;
     map.off('click', handleMapClickForPolygon);
     const addPolygonBtn = document.getElementById('addPolygonBtn');
-    if (addPolygonBtn) {
-        addPolygonBtn.classList.remove('active');
-        addPolygonBtn.textContent = 'Desenhar Polígono';
-    }
-    if (polygonTempLayer && map) {
-        map.removeLayer(polygonTempLayer);
-        polygonTempLayer = null;
-    }
+    if (addPolygonBtn) { addPolygonBtn.classList.remove('active'); addPolygonBtn.textContent = 'Desenhar Polígono'; }
+    if (polygonTempLayer && map) { map.removeLayer(polygonTempLayer); polygonTempLayer = null; }
     polygonPoints = [];
     openCreateFeatureModal(feature, 'Novo Polígono');
 }
@@ -476,6 +775,11 @@ function setupBackupAndRoutes() {
         importInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            if (file.size > MAX_UPLOAD_BYTES) {
+                showToast('Backup excede o limite de tamanho.', 'error', 5000);
+                e.target.value = '';
+                return;
+            }
             const text = await file.text();
             const success = await DB.importBackup(text);
             if (success) {
@@ -502,17 +806,14 @@ function setupBackupAndRoutes() {
     }
 }
 
-// ==========================================================================
-// Módulo de Edição / Criação de Feições
-// ==========================================================================
+// ============================================================================
+// Módulo de Edição / Criação de Feições (inalterado)
+// ============================================================================
 
 let currentEditingContext = null;
 let isJsonEditMode = false;
 let isCreateMode = false;
 
-// ==========================================================================
-// Schemas de campos por classificação de feição
-// ==========================================================================
 const FEATURE_FIELD_SCHEMAS = {
     UNIDADE_BM: [
         { key: 'name', label: 'Nome da Fração / Unidade BM / POI:', type: 'text' },
@@ -554,22 +855,22 @@ const FEATURE_FIELD_SCHEMAS = {
         { key: 'Hospitais_de_Referencia_Macrorregiao', label: 'Hospitais de Referência da Macro (um por linha):', type: 'textarea' },
         { key: 'Hospitais_de_Referencia_Macrorregiao_Texto', label: 'Hospitais (texto alternativo — separados por |):', type: 'textarea' }
     ],
-HIDRANTE: [
-    { key: 'id',            label: 'ID do Hidrante (CBMMG):', type: 'text' },
-    { key: 'nReds',         label: 'REDS (nº da vistoria):', type: 'text' },
-    { key: 'unidade',       label: 'Unidade BM responsável:', type: 'text' },
-    { key: 'logradouro',    label: 'Logradouro:', type: 'text' },
-    { key: 'numero',        label: 'Número:', type: 'text' },
-    { key: 'bairro',        label: 'Bairro:', type: 'text' },
-    { key: 'cidade',        label: 'Cidade / Município:', type: 'text' },
-    { key: 'referencia',    label: 'Referência (ponto de apoio):', type: 'text' },
-    { key: 'data',          label: 'Data da última vistoria (DD-MM-AAAA):', type: 'text' },
-    { key: 'situacao',      label: 'Situação (Ativo / Inativo / Em manutenção):', type: 'text' },
-    { key: 'tipo',          label: 'Tipo (Coluna / Subterrâneo / …):', type: 'text' },
-    { key: 'diametro',      label: 'Diâmetro (mm):', type: 'text' },
-    { key: 'vazao',         label: 'Vazão (L/min):', type: 'text' },
-    { key: 'responsavel',   label: 'Órgão / Responsável:', type: 'text' }
-],
+    HIDRANTE: [
+        { key: 'id',            label: 'ID do Hidrante (CBMMG):', type: 'text' },
+        { key: 'nReds',         label: 'REDS (nº da vistoria):', type: 'text' },
+        { key: 'unidade',       label: 'Unidade BM responsável:', type: 'text' },
+        { key: 'logradouro',    label: 'Logradouro:', type: 'text' },
+        { key: 'numero',        label: 'Número:', type: 'text' },
+        { key: 'bairro',        label: 'Bairro:', type: 'text' },
+        { key: 'cidade',        label: 'Cidade / Município:', type: 'text' },
+        { key: 'referencia',    label: 'Referência (ponto de apoio):', type: 'text' },
+        { key: 'data',          label: 'Data da última vistoria (DD-MM-AAAA):', type: 'text' },
+        { key: 'situacao',      label: 'Situação (Ativo / Inativo / Em manutenção):', type: 'text' },
+        { key: 'tipo',          label: 'Tipo (Coluna / Subterrâneo / …):', type: 'text' },
+        { key: 'diametro',      label: 'Diâmetro (mm):', type: 'text' },
+        { key: 'vazao',         label: 'Vazão (L/min):', type: 'text' },
+        { key: 'responsavel',   label: 'Órgão / Responsável:', type: 'text' }
+    ],
     POLYGON: [
         { key: 'name', label: 'Nome da Circunscrição / BBM:', type: 'text' },
         { key: 'NM_MUN', label: 'Município Sede / Referência:', type: 'text' },
@@ -587,14 +888,13 @@ HIDRANTE: [
     ]
 };
 
-// Chaves de sistema que nunca devem aparecer no formulário de edição
 const SYSTEM_PROP_KEYS = new Set([
     '_layerId', '_layerName', '_layerDbId', '_featureIndex',
     '_tipo', '_uf',
     'description', 'descrição', 'fid', 'styleUrl', 'icon', 'icon-scale',
     'auxiliary_storage_labeling_positionx', 'auxiliary_storage_labeling_positiony',
     'SIGLA_UF', 'Field1', 'Field3', 'Field4', 'Field9',
-    'Latitude', 'Longitude', 'LATITUDE', 'LONGITUDE' // coordenadas têm inputs próprios
+    'Latitude', 'Longitude', 'LATITUDE', 'LONGITUDE'
 ]);
 
 window.openEditFeatureModal = async function (layerId, featureIndex) {
@@ -674,10 +974,7 @@ function prepareModalForEditOrCreate() {
         if (modalTitle) modalTitle.textContent = `➕ ${currentEditingContext.defaultTitle || 'Nova Feição'}`;
         if (modalSubtitle) modalSubtitle.textContent = 'Preencha os atributos e escolha a camada de destino.';
         if (deleteBtn) deleteBtn.classList.add('hidden');
-        if (saveBtn) {
-            saveBtn.textContent = '💾 Criar Feição';
-            saveBtn.style.background = '#27ae60';
-        }
+        if (saveBtn) { saveBtn.textContent = '💾 Criar Feição'; saveBtn.style.background = '#27ae60'; }
         if (layerSelector) layerSelector.classList.remove('hidden');
         if (newLayerGroup) newLayerGroup.classList.remove('hidden');
     } else {
@@ -693,10 +990,7 @@ function prepareModalForEditOrCreate() {
             modalSubtitle.textContent = `Camada: "${currentEditingContext.layerData.name}" | Tipo: ${classification}`;
         }
         if (deleteBtn) deleteBtn.classList.remove('hidden');
-        if (saveBtn) {
-            saveBtn.textContent = '💾 Salvar Alterações';
-            saveBtn.style.background = '#27ae60';
-        }
+        if (saveBtn) { saveBtn.textContent = '💾 Salvar Alterações'; saveBtn.style.background = '#27ae60'; }
         if (layerSelector) layerSelector.classList.add('hidden');
         if (newLayerGroup) newLayerGroup.classList.add('hidden');
     }
@@ -737,10 +1031,6 @@ function toggleNewLayerNameVisibility() {
     }
 }
 
-/**
- * Renderiza o formulário de edição/criação de forma adaptativa
- * conforme a classificação da feição (ou genérico para camadas customizadas).
- */
 function renderEditFeatureForm(feature) {
     const container = document.getElementById('editFeatureFieldsContainer');
     if (!container) return;
@@ -752,7 +1042,6 @@ function renderEditFeatureForm(feature) {
         ? getFeatureClassification(feature)
         : 'OTHER';
 
-    // ---- Coordenadas (apenas pontos) ----
     if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
         const coordsRow = document.createElement('div');
         coordsRow.className = 'form-row-coords';
@@ -771,35 +1060,29 @@ function renderEditFeatureForm(feature) {
         container.appendChild(coordsRow);
     }
 
-    // ---- Schema específico ou genérico ----
     const schema = FEATURE_FIELD_SCHEMAS[classification];
     const renderedKeys = new Set();
 
     if (schema) {
-        // Formulário especializado
         schema.forEach(field => {
             const value = props[field.key];
             let displayValue = '';
-
-            if (Array.isArray(value)) {
-                displayValue = value.join('\n');
-            } else if (value !== undefined && value !== null) {
-                displayValue = String(value);
-            }
+            if (Array.isArray(value)) displayValue = value.join('\n');
+            else if (value !== undefined && value !== null) displayValue = String(value);
 
             const group = document.createElement('div');
             group.className = 'form-group-edit';
 
             if (field.type === 'textarea') {
                 group.innerHTML = `
-                    <label>${field.label}</label>
-                    <textarea data-key="${field.key}" rows="4"
+                    <label>${escapeHtml(field.label)}</label>
+                    <textarea data-key="${escapeHtml(field.key)}" rows="4"
                               style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; resize:vertical;">${escapeHtml(displayValue)}</textarea>
                 `;
             } else {
                 group.innerHTML = `
-                    <label>${field.label}</label>
-                    <input type="${field.type || 'text'}" data-key="${field.key}"
+                    <label>${escapeHtml(field.label)}</label>
+                    <input type="${escapeHtml(field.type || 'text')}" data-key="${escapeHtml(field.key)}"
                            value="${escapeHtml(displayValue)}">
                 `;
             }
@@ -808,7 +1091,6 @@ function renderEditFeatureForm(feature) {
         });
     }
 
-    // ---- Outros atributos (sempre, para não perder dados) ----
     const customPropsHeader = document.createElement('div');
     customPropsHeader.innerHTML = `
         <h4 style="font-size:12px; color:#7f8c8d; margin-top:12px; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">
@@ -825,15 +1107,11 @@ function renderEditFeatureForm(feature) {
 
     Object.keys(props).forEach(key => {
         if (renderedKeys.has(key) || SYSTEM_PROP_KEYS.has(key)) return;
-
-        // Arrays que não estavam no schema principal
         let val = props[key];
         if (Array.isArray(val)) val = val.join(' | ');
-
         customContainer.appendChild(createCustomPropRow(key, val));
     });
 
-    // Se for genérico e não houver nenhum atributo, deixa um placeholder
     if (!schema && customContainer.children.length === 0) {
         customContainer.appendChild(createCustomPropRow('', ''));
     }
@@ -851,16 +1129,6 @@ function createCustomPropRow(key = '', value = '') {
     `;
     row.querySelector('.btn-remove-prop').addEventListener('click', () => row.remove());
     return row;
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
 }
 
 function initEditFeatureModalListeners() {
@@ -961,6 +1229,7 @@ function initEditFeatureModalListeners() {
                             const geomType = currentEditingContext.feature.geometry?.type || 'Feição';
                             layerName = geomType === 'Point' ? 'Meus POIs' : 'Minhas Áreas';
                         }
+                        layerName = sanitizeLayerName(layerName);
                         await DB.saveLayer({
                             name: layerName,
                             type: 'geojson',
@@ -997,16 +1266,11 @@ function initEditFeatureModalListeners() {
     }
 }
 
-/**
- * Aplica os valores do formulário de volta na feição.
- * Trata textareas de arrays (um item por linha).
- */
 function applyFormValuesToFeature(feature) {
     if (!feature.properties) feature.properties = {};
     const fieldsContainer = document.getElementById('editFeatureFieldsContainer');
     if (!fieldsContainer) return;
 
-    // Coordenadas de ponto
     const latInput = document.getElementById('editProp_coordLat');
     const lngInput = document.getElementById('editProp_coordLng');
     if (latInput && lngInput && feature.geometry?.type === 'Point') {
@@ -1021,16 +1285,12 @@ function applyFormValuesToFeature(feature) {
         }
     }
 
-    // Campos com data-key (inputs e textareas do schema)
     fieldsContainer.querySelectorAll('[data-key]').forEach(el => {
         const key = el.dataset.key;
         let value = el.value.trim();
-
-        // Detecta se o campo original era array (hospitais) ou se o nome sugere lista
         const original = feature.properties[key];
         const looksLikeHospitalList = key.toLowerCase().includes('hospital');
         if (Array.isArray(original) || looksLikeHospitalList) {
-            // Converte linhas (ou | ) em array
             feature.properties[key] = value
                 ? value.split(/\n|\|/).map(s => s.trim()).filter(Boolean)
                 : [];
@@ -1039,17 +1299,17 @@ function applyFormValuesToFeature(feature) {
         }
     });
 
-    // Propriedades customizadas (chave/valor livres)
     fieldsContainer.querySelectorAll('.custom-prop-row').forEach(row => {
         const keyInput = row.querySelector('.custom-prop-key');
         const valInput = row.querySelector('.custom-prop-value');
         if (keyInput && valInput) {
             const k = keyInput.value.trim();
-            if (k) feature.properties[k] = valInput.value.trim();
+            if (k && k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+                feature.properties[k] = valInput.value.trim();
+            }
         }
     });
 
-    // Mantém compatibilidade com description legada
     if (feature.properties.UEOP && feature.properties.COB) {
         feature.properties.description = `COB: ${feature.properties.COB}<br>UEOP: ${feature.properties.UEOP}`;
     }

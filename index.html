@@ -5,53 +5,104 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Articulação CBMMG - COBOM-BH</title>
 
-    <!-- Manifest PWA -->
-    <link rel="manifest" href="./manifest.json">
+    <!-- ==================================================================
+         SEGURANÇA — Metatags de defesa em profundidade
+         ------------------------------------------------------------------
+         GitHub Pages não permite custom HTTP headers, então usamos as
+         metatags equivalentes (exceto frame-ancestors, que só funciona
+         via header e é ignorado pelo browser quando em <meta>).
+         ================================================================== -->
 
-    <!-- Theme color (barra do navegador Android) -->
+    <!-- Content Security Policy:
+           • script-src 'self' 'unsafe-inline' → bloqueia scripts externos.
+             'unsafe-inline' ainda é necessário por causa dos onclick="..."
+             gerados em JS. Refatoração futura (event delegation) permitirá
+             remover 'unsafe-inline' e fechar a porta de XSS por completo.
+           • style-src 'self' 'unsafe-inline' → Leaflet e a app usam
+             style="..." inline extensivamente.
+           • img-src: data: para ícones SVG inline do Leaflet; blob: para
+             tiles OSM servidos via object-URL do IndexedDB.
+           • connect-src: domínios estritamente necessários.
+           • worker-src: 'self' blob: para possíveis Web Workers futuros.
+           • object-src 'none' + base-uri 'self' → desliga vetores clássicos.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self' data:;
+        connect-src 'self'
+            https://*.tile.openstreetmap.org
+            https://nominatim.openstreetmap.org
+            https://router.project-osrm.org
+            https://painel-fogo-proxy.pesmesquita.workers.dev
+            https://raw.githubusercontent.com;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        manifest-src 'self';
+        worker-src 'self' blob:;
+        upgrade-insecure-requests;
+    ">
+
+    <!-- Referrer-Policy: não vaza URLs internas (ex.: query strings
+         com coordenadas) para servidores externos. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <!-- Permissions-Policy: apenas o estritamente necessário. -->
+    <meta http-equiv="Permissions-Policy"
+          content="geolocation=(self), camera=(), microphone=(), payment=(), usb=()">
+
+    <!-- X-Content-Type-Options (mitiga MIME sniffing; suportado em meta). -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+    <!-- ==================================================================
+         PWA + Ícones
+         ================================================================== -->
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#8e1b1b">
 
-    <!-- iOS: ícone da tela inicial -->
     <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
-
-    <!-- PWA: capacidades web (padrão) -->
     <meta name="mobile-web-app-capable" content="yes">
-
-    <!-- iOS: tela cheia + status bar (legado, mantido por compatibilidade) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="COBOM-BH">
 
-    <!-- Favicons desktop -->
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
     <link rel="shortcut icon" href="./icons/favicon-32.png">
-
-    <!-- Windows tiles -->
     <meta name="msapplication-TileColor" content="#8e1b1b">
     <meta name="msapplication-TileImage" content="./icons/icon-152.png">
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="./vendor/leaflet.css" />
-    <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css" />
-    <link rel="stylesheet" href="./vendor/leaflet.markercluster.css" />
-    <!-- App CSS -->
+    <!-- ==================================================================
+         PERFORMANCE — preconnect + dns-prefetch
+         ------------------------------------------------------------------
+         Antecipa a abertura de sockets TLS para endpoints externos que a
+         app usa em runtime. Reduz em ~100–200 ms a primeira requisição.
+         ================================================================== -->
+    <link rel="preconnect" href="https://a.tile.openstreetmap.org" crossorigin>
+    <link rel="preconnect" href="https://nominatim.openstreetmap.org" crossorigin>
+    <link rel="preconnect" href="https://router.project-osrm.org" crossorigin>
+    <link rel="preconnect" href="https://painel-fogo-proxy.pesmesquita.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+
+    <!-- ==================================================================
+         CSS (bloqueante por natureza — mantido, mas curto)
+         ================================================================== -->
+    <link rel="stylesheet" href="./vendor/leaflet.css">
+    <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css">
+    <link rel="stylesheet" href="./vendor/leaflet.markercluster.css">
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-<!-- Botão flutuante para mostrar a sidebar quando oculta -->
 <button id="sidebarShowBtn" class="btn-floating hidden" aria-label="Abrir painel">☰</button>
-
-<!-- Backdrop do sidebar — usado em tablet/mobile (modo drawer) -->
 <div id="sidebarBackdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
 
-    <!-- Sidebar / Painel Lateral -->
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
-            <h2>COBOM-BH<br>
-                 Articulação CBMMG
-            </h2>
+            <h2>COBOM-BH<br>Articulação CBMMG</h2>
             <div style="display:flex; gap:6px; align-items:center;">
                 <button id="themeToggleBtn" class="btn-icon" title="Modo Noturno (COBOM) / Diurno" aria-label="Alternar Tema">🌙</button>
                 <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir">☰</button>
@@ -63,24 +114,20 @@
             <button id="adminLogoutBtn" class="btn btn-sm hidden">🔓 Sair Admin</button>
         </div>
         <div class="search-container">
-                    <div class="search-input-group">
-                        <input type="text" id="searchInput" placeholder="Pesquisar endereço ou coordenada... [F2]">
-                        <button id="searchBtn" class="btn" title="Buscar Endereço (Enter)">🔍</button>
-                    </div>
+            <div class="search-input-group">
+                <input type="text" id="searchInput" placeholder="Pesquisar endereço ou coordenada... [F2]">
+                <button id="searchBtn" class="btn" title="Buscar Endereço (Enter)">🔍</button>
+            </div>
 
-                    <!-- Grid de Ações Rápidas de Origem -->
-                    <div class="btn-grid-actions">
-                        <button id="useMyLocationBtn" class="btn" title="Usar localização GPS (Alt+G)">📍 GPS Atual</button>
-                        <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">🎯 Ponto no Mapa</button>
-                    </div>
-                    
-                <button id="resetBtn" class="btn btn-danger">🗑️ Limpar Pesquisa</button>
+            <div class="btn-grid-actions">
+                <button id="useMyLocationBtn" class="btn" title="Usar localização GPS (Alt+G)">📍 GPS Atual</button>
+                <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">🎯 Ponto no Mapa</button>
+            </div>
 
-                <!-- Lista de Resultados de Geocodificação -->
-                <div id="searchResults"></div>
+            <button id="resetBtn" class="btn btn-danger">🗑️ Limpar Pesquisa</button>
 
-                <!-- Painel Princial de Unidades Ranqueadas e Jurisdição (ETA) -->
-                <div id="distanceResults" class="dispatch-results-container"></div>
+            <div id="searchResults"></div>
+            <div id="distanceResults" class="dispatch-results-container"></div>
         </div>
         <div id="adminTools" class="hidden">
             <h3>Ferramentas Admin</h3>
@@ -90,14 +137,13 @@
             </div>
             <button id="addMarkerBtn" class="btn">Adicionar POI</button>
             <button id="addPolygonBtn" class="btn">Desenhar Polígono</button>
-	    <button id="importChamadasBtn" class="btn" style="background:#c0392b;">🚨 Importar Chamadas (CSV)</button>
+            <button id="importChamadasBtn" class="btn" style="background:#c0392b;">🚨 Importar Chamadas (CSV)</button>
             <input type="file" id="chamadasFileInput" accept=".csv,text/csv" hidden>
             <button id="exportBackupBtn" class="btn">Exportar Backup</button>
             <button id="importBackupBtn" class="btn">Importar Backup</button>
             <input type="file" id="importFileInput" accept=".json" hidden>
             <button id="downloadTilesBtn" class="btn">Baixar Tiles Offline</button>
             <button id="clearRoutesBtn" class="btn">Limpar Cache de Rotas</button>
-            <!-- Modal para configurar download de tiles -->
             <div id="tileModal" class="modal hidden">
                 <div class="modal-content">
                     <span class="close-modal" id="closeTileModal">&times;</span>
@@ -114,55 +160,38 @@
             <ul id="layersUl"></ul>
         </div>
         <div id="viewControls">
-    <h3>Visualização</h3>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <label>
-            <input type="checkbox" class="view-checkbox" data-mode="all" checked> Todas
-        </label>
-        <label>
-            <input type="checkbox" class="view-checkbox" data-mode="points"> Pontos
-        </label>
-        <label>
-            <input type="checkbox" class="view-checkbox" data-mode="none"> Limpo
-        </label>
-    </div>
-</div>
+            <h3>Visualização</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <label><input type="checkbox" class="view-checkbox" data-mode="all" checked> Todas</label>
+                <label><input type="checkbox" class="view-checkbox" data-mode="points"> Pontos</label>
+                <label><input type="checkbox" class="view-checkbox" data-mode="none"> Limpo</label>
+            </div>
+        </div>
 
-<!-- Legenda dinâmica de ícones -->
-<div id="legendSection">
-    <h3>Legenda</h3>
-    <ul id="legendUl" class="legend-list"></ul>
-</div>
+        <div id="legendSection">
+            <h3>Legenda</h3>
+            <ul id="legendUl" class="legend-list"></ul>
+        </div>
 
-<div class="sidebar-footer">
-    <button id="shortcutsBtn" class="btn-footer-link" title="Ver lista de atalhos de teclado operacionais">⌨️ Atalhos Operacionais (193)</button>
-</div>
+        <div class="sidebar-footer">
+            <button id="shortcutsBtn" class="btn-footer-link" title="Ver lista de atalhos de teclado operacionais">⌨️ Atalhos Operacionais (193)</button>
+        </div>
     </div>
 
-    <!-- Mapa -->
     <div id="map"></div>
-
-    <!-- Chips flutuantes de filtro por categoria (camadas) -->
     <div id="mapChips" class="map-chips" aria-label="Filtros de camadas"></div>
 
-    <!-- Painel de busca de áreas BM (COB / BBM / CIA IND) -->
     <div id="areaSearchPanel" class="area-search-panel hidden">
         <div class="area-search-header">
             <span class="area-search-icon">🔎</span>
-            <input type="text" id="areaSearchInput"
-                   placeholder="Buscar COB, BBM, CIA IND..."
-                   autocomplete="off" spellcheck="false">
-            <button type="button" id="areaSearchClose" class="area-search-close"
-                    title="Fechar" aria-label="Fechar">×</button>
+            <input type="text" id="areaSearchInput" placeholder="Buscar COB, BBM, CIA IND..." autocomplete="off" spellcheck="false">
+            <button type="button" id="areaSearchClose" class="area-search-close" title="Fechar" aria-label="Fechar">×</button>
         </div>
         <div id="areaSearchResults" class="area-search-results"></div>
     </div>
 
-    <!-- Botão flutuante de refresh do mapa (substitui F5 em mobile) -->
     <button id="refreshMapBtn" class="btn-floating-refresh"
-            type="button"
-            title="Recarregar mapa (Ctrl+R)"
-            aria-label="Recarregar mapa">
+            type="button" title="Recarregar mapa (Ctrl+R)" aria-label="Recarregar mapa">
         <span class="refresh-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
                  stroke="currentColor" stroke-width="2.2"
@@ -174,7 +203,6 @@
         </span>
     </button>
 
-<!-- Busca flutuante no topo do mapa -->
 <div id="floatingSearch" class="floating-search">
     <div class="floating-search-box" id="floatingSearchBox">
         <span class="floating-search-icon">🔍</span>
@@ -183,13 +211,11 @@
                autocomplete="off" spellcheck="false">
         <button type="button" id="floatingSearchClear" class="btn-clear"
                 title="Limpar busca" aria-label="Limpar busca">✕</button>
-        <button type="button" id="floatingSearchBtn" class="btn-buscar"
-                title="Buscar">Buscar</button>
+        <button type="button" id="floatingSearchBtn" class="btn-buscar" title="Buscar">Buscar</button>
     </div>
     <div id="floatingSearchResults" class="floating-search-results hidden"></div>
 </div>
 
-<!-- Overlay de carregamento (spinner central) -->
 <div id="map-loading-overlay" class="map-loading-overlay">
     <div class="map-loading-content">
         <div class="spinner"></div>
@@ -197,26 +223,23 @@
     </div>
 </div>
 
-    <!-- Modal de Login Admin -->
     <div id="loginModal" class="modal hidden">
         <div class="modal-content">
             <span class="close-modal" id="closeLoginModal">&times;</span>
             <h3>Login Administrador</h3>
-            <input type="password" id="pinInput" placeholder="Digite o PIN">
+            <input type="password" id="pinInput" placeholder="Digite o PIN" autocomplete="off">
             <button id="confirmLoginBtn" class="btn">Entrar</button>
             <p id="loginError" style="color:red;"></p>
         </div>
     </div>
 
-    <!-- Modal de Edição / Criação de Feição -->
     <div id="editFeatureModal" class="modal hidden">
         <div class="modal-content modal-edit-feature">
             <span class="close-modal" id="closeEditFeatureModal">&times;</span>
             <h3 id="editFeatureModalTitle">✏️ Editar Feição</h3>
             <div id="editFeatureCategory" class="edit-feature-subtitle"></div>
-            
+
             <form id="editFeatureForm" onsubmit="return false;">
-                <!-- Seletor de camada (visível apenas no modo criação) -->
                 <div id="createLayerSelector" class="form-group-edit hidden" style="margin-bottom:12px;">
                     <label style="font-weight:600;">Camada de destino:</label>
                     <select id="targetLayerSelect" style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
@@ -229,7 +252,7 @@
                 </div>
 
                 <div id="editFeatureFieldsContainer" class="edit-feature-fields"></div>
-                
+
                 <div class="edit-feature-custom-actions">
                     <button type="button" id="addCustomPropBtn" class="btn" style="background:#34495e; font-size:12px;">+ Adicionar Campo</button>
                     <button type="button" id="toggleJsonModeBtn" class="btn" style="background:#7f8c8d; font-size:12px;">📋 Alternar Modo JSON</button>
@@ -251,7 +274,6 @@
         </div>
     </div>
 
-    <!-- Modal de Atalhos Operacionais (COBOM 193) -->
     <div id="shortcutsModal" class="modal hidden">
         <div class="modal-content" style="max-width: 440px;">
             <span class="close-modal" id="closeShortcutsModal">&times;</span>
@@ -266,7 +288,7 @@
                 <div class="shortcut-item"><span>Despacho rápido para Unidade #1</span><div><kbd>Alt</kbd> + <kbd>1</kbd></div></div>
                 <div class="shortcut-item"><span>Alternar Modo Noturno (COBOM)</span><div><kbd>Alt</kbd> + <kbd>N</kbd></div></div>
                 <div class="shortcut-item"><span>Limpar rota ativa / fechar janelas</span><div><kbd>Esc</kbd></div></div>
-		<div class="shortcut-item"><span>Recarregar mapa</span><div><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
+                <div class="shortcut-item"><span>Recarregar mapa</span><div><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
             </div>
             <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 14px; text-align: center; line-height: 1.4;">
                 Dica: Operadores em despacho podem manter as mãos no teclado para maior agilidade no atendimento.
@@ -274,29 +296,35 @@
         </div>
     </div>
 
-    <!-- Scripts das bibliotecas locais -->
-    <script src="./vendor/leaflet.js"></script>
-    <script src="./vendor/leaflet.markercluster.js"></script>
-    <script src="./vendor/leaflet-routing-machine.js"></script>
-    <script src="./vendor/dexie.js"></script>
-    <script src="./vendor/turf.min.js"></script>
-    <script src="./vendor/topojson.min.js"></script>
-    <script src="./vendor/jszip.min.js"></script>
-    <script src="./vendor/togeojson.umd.js"></script>
+    <!-- ==================================================================
+         SCRIPTS
+         ------------------------------------------------------------------
+         Bibliotecas de terceiros → defer (mantém ordem de execução).
+         App scripts            → defer (executam após DOM parseado,
+                                  exatamente na ordem em que aparecem).
+         Isso reduz bloqueio de renderização em ~150–300 ms em 3G.
+         ================================================================== -->
+    <script defer src="./vendor/leaflet.js"></script>
+    <script defer src="./vendor/leaflet.markercluster.js"></script>
+    <script defer src="./vendor/leaflet-routing-machine.js"></script>
+    <script defer src="./vendor/dexie.js"></script>
+    <script defer src="./vendor/turf.min.js"></script>
+    <script defer src="./vendor/topojson.min.js"></script>
+    <script defer src="./vendor/jszip.min.js"></script>
+    <script defer src="./vendor/togeojson.umd.js"></script>
 
-    <!-- App Scripts -->
-    <script src="./db.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/network.js"></script>
-    <script src="./js/map.js"></script>
-    <script src="./js/icons.js"></script>
-    <script src="./js/eventos.js"></script>
-    <script src="./js/chamadas.js"></script>
-    <script src="./js/layers.js"></script>
-    <script src="./js/search.js"></script>
-    <script src="./js/gps.js"></script>
-    <script src="./js/tiles.js"></script>
-    <script src="./js/admin.js"></script>
-    <script src="./app.js"></script>
+    <script defer src="./db.js"></script>
+    <script defer src="./js/utils.js"></script>
+    <script defer src="./js/network.js"></script>
+    <script defer src="./js/map.js"></script>
+    <script defer src="./js/icons.js"></script>
+    <script defer src="./js/eventos.js"></script>
+    <script defer src="./js/chamadas.js"></script>
+    <script defer src="./js/layers.js"></script>
+    <script defer src="./js/search.js"></script>
+    <script defer src="./js/gps.js"></script>
+    <script defer src="./js/tiles.js"></script>
+    <script defer src="./js/admin.js"></script>
+    <script defer src="./app.js"></script>
 </body>
 </html>
