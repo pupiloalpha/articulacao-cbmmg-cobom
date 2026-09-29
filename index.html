@@ -7,28 +7,16 @@
 
     <!-- ==================================================================
          SEGURANÇA — Metatags de defesa em profundidade
-         ------------------------------------------------------------------
-         GitHub Pages não permite custom HTTP headers, então usamos as
-         metatags equivalentes (exceto frame-ancestors, que só funciona
-         via header e é ignorado pelo browser quando em <meta>).
+         ==================================================================
+         script-src 'self' SEM 'unsafe-inline': todos os handlers inline
+         foram convertidos para event delegation (data-cobom-action) em
+         js/utils.js. Nenhum <script> inline no HTML.
+         style-src mantém 'unsafe-inline' (Leaflet e a app geram style="..."
+         extensivamente; CSS-injection é vetor de risco muito menor).
          ================================================================== -->
-
-    <!-- Content Security Policy:
-           • script-src 'self' 'unsafe-inline' → bloqueia scripts externos.
-             'unsafe-inline' ainda é necessário por causa dos onclick="..."
-             gerados em JS. Refatoração futura (event delegation) permitirá
-             remover 'unsafe-inline' e fechar a porta de XSS por completo.
-           • style-src 'self' 'unsafe-inline' → Leaflet e a app usam
-             style="..." inline extensivamente.
-           • img-src: data: para ícones SVG inline do Leaflet; blob: para
-             tiles OSM servidos via object-URL do IndexedDB.
-           • connect-src: domínios estritamente necessários.
-           • worker-src: 'self' blob: para possíveis Web Workers futuros.
-           • object-src 'none' + base-uri 'self' → desliga vetores clássicos.
-    -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' 'unsafe-inline';
+        script-src 'self';
         style-src 'self' 'unsafe-inline';
         img-src 'self' data: blob:;
         font-src 'self' data:;
@@ -46,20 +34,14 @@
         upgrade-insecure-requests;
     ">
 
-    <!-- Referrer-Policy: não vaza URLs internas (ex.: query strings
-         com coordenadas) para servidores externos. -->
     <meta name="referrer" content="strict-origin-when-cross-origin">
 
-    <!-- Permissions-Policy: apenas o estritamente necessário. -->
     <meta http-equiv="Permissions-Policy"
           content="geolocation=(self), camera=(), microphone=(), payment=(), usb=()">
 
-    <!-- X-Content-Type-Options (mitiga MIME sniffing; suportado em meta). -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
-    <!-- ==================================================================
-         PWA + Ícones
-         ================================================================== -->
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#8e1b1b">
 
@@ -76,21 +58,14 @@
     <meta name="msapplication-TileColor" content="#8e1b1b">
     <meta name="msapplication-TileImage" content="./icons/icon-152.png">
 
-    <!-- ==================================================================
-         PERFORMANCE — preconnect + dns-prefetch
-         ------------------------------------------------------------------
-         Antecipa a abertura de sockets TLS para endpoints externos que a
-         app usa em runtime. Reduz em ~100–200 ms a primeira requisição.
-         ================================================================== -->
+    <!-- Performance: preconnect + dns-prefetch -->
     <link rel="preconnect" href="https://a.tile.openstreetmap.org" crossorigin>
     <link rel="preconnect" href="https://nominatim.openstreetmap.org" crossorigin>
     <link rel="preconnect" href="https://router.project-osrm.org" crossorigin>
     <link rel="preconnect" href="https://painel-fogo-proxy.pesmesquita.workers.dev" crossorigin>
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
 
-    <!-- ==================================================================
-         CSS (bloqueante por natureza — mantido, mas curto)
-         ================================================================== -->
+    <!-- CSS -->
     <link rel="stylesheet" href="./vendor/leaflet.css">
     <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css">
     <link rel="stylesheet" href="./vendor/leaflet.markercluster.css">
@@ -239,7 +214,10 @@
             <h3 id="editFeatureModalTitle">✏️ Editar Feição</h3>
             <div id="editFeatureCategory" class="edit-feature-subtitle"></div>
 
-            <form id="editFeatureForm" onsubmit="return false;">
+            <!-- ⚠️ Div em vez de form: eliminava o único onsubmit inline do app.
+                 Todos os botões abaixo têm type="button" e são tratados via
+                 addEventListener em js/admin.js. -->
+            <div id="editFeatureForm">
                 <div id="createLayerSelector" class="form-group-edit hidden" style="margin-bottom:12px;">
                     <label style="font-weight:600;">Camada de destino:</label>
                     <select id="targetLayerSelect" style="width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
@@ -270,7 +248,7 @@
                         <button type="button" id="saveFeatureBtn" class="btn" style="background:#27ae60; color:white; font-weight:bold;">💾 Salvar Alterações</button>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -296,14 +274,7 @@
         </div>
     </div>
 
-    <!-- ==================================================================
-         SCRIPTS
-         ------------------------------------------------------------------
-         Bibliotecas de terceiros → defer (mantém ordem de execução).
-         App scripts            → defer (executam após DOM parseado,
-                                  exatamente na ordem em que aparecem).
-         Isso reduz bloqueio de renderização em ~150–300 ms em 3G.
-         ================================================================== -->
+    <!-- Bibliotecas + App scripts (todos defer, ordem preservada) -->
     <script defer src="./vendor/leaflet.js"></script>
     <script defer src="./vendor/leaflet.markercluster.js"></script>
     <script defer src="./vendor/leaflet-routing-machine.js"></script>

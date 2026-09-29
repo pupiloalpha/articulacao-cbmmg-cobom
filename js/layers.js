@@ -867,11 +867,13 @@ if (type === 'HIDRANTE') {
     const hasCoords = Number.isFinite(evLat) && Number.isFinite(evLng);
     const coordsStr = hasCoords ? `${evLat.toFixed(5)}, ${evLng.toFixed(5)}` : '-';
     const copyBtn = hasCoords
-        ? `<button type="button" class="btn-copy-coords-inline"
-                   title="Copiar coordenadas do evento"
-                   aria-label="Copiar coordenadas"
-                   onclick="event.stopPropagation(); event.preventDefault(); window.copyFeatureCoords(${evLat}, ${evLng});">📋</button>`
-        : '';
+    ? `<button type="button" class="btn-copy-coords-inline"
+               title="Copiar coordenadas do evento"
+               aria-label="Copiar coordenadas"
+               data-cobom-action="copy-coords"
+               data-lat="${evLat}"
+               data-lng="${evLng}">📋</button>`
+    : '';
 
     // ---------- Índice de prioridade ----------
     const indice      = props.indice_prioridade  != null ? Number(props.indice_prioridade)  : null;
@@ -1298,28 +1300,35 @@ if (type === 'HIDRANTE') {
  * Popup da feição. O botão "Rota até Aqui" respeita a direção correta:
  *  - UNIDADE_BM  → viatura sai da Unidade e vai ao endereço pesquisado (reverseRoute=true)
  *  - Demais      → rota do endereço pesquisado até a feição (reverseRoute=false)
+ *
+ * ⚠️ Todos os botões usam data-cobom-action + data-* (sem onclick inline),
+ *    permitindo CSP 'script-src self' sem 'unsafe-inline'.
  */
 function formatFeaturePopup(feature) {
     const tooltipHtml = formatFeatureTooltip(feature);
     const coords = getFeatureCoords(feature);
     const props = feature.properties || {};
-    const name = getFeatureDisplayName(feature).replace(/'/g, "\\'");
+    const nameRaw = getFeatureDisplayName(feature);
+    const name = escapeHtml(nameRaw);                    // atributo-safe
     const isPoint = feature.geometry && feature.geometry.type === 'Point';
     const classification = getFeatureClassification(feature);
 
     const closeBtnHtml = `
         <button type="button" class="btn-popup-close"
-                onclick="if (typeof map !== 'undefined' && map) map.closePopup();"
-                title="Fechar popup">×</button>
+                data-cobom-action="close-popup"
+                title="Fechar popup"
+                aria-label="Fechar popup">×</button>
     `;
 
-    const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : 'null';
-    const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : 'null';
+    const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : null;
+    const featureIdx = feature._featureIndex !== undefined ? feature._featureIndex : null;
 
     const editBtnHtml =
-        layerDbId !== 'null' && featureIdx !== 'null' && window.isAdmin
-            ? `<button class="btn-popup-action btn-popup-edit"
-                       onclick="window.openEditFeatureModal(${layerDbId}, ${featureIdx})">
+        layerDbId !== null && featureIdx !== null && window.isAdmin
+            ? `<button type="button" class="btn-popup-action btn-popup-edit"
+                       data-cobom-action="edit-feature"
+                       data-layer-id="${layerDbId}"
+                       data-feature-index="${featureIdx}">
                    ✏️ Editar Dados
                </button>`
             : '';
@@ -1331,16 +1340,25 @@ function formatFeaturePopup(feature) {
         const reverseRoute = classification === 'UNIDADE_BM';
         actionsHtml = `
             <div class="feature-popup-actions">
-                <button class="btn-popup-action btn-popup-origin"
-                        onclick="window.setOriginFromFeature(${coords.lat}, ${coords.lng}, '${name}')">
+                <button type="button" class="btn-popup-action btn-popup-origin"
+                        data-cobom-action="set-origin"
+                        data-lat="${coords.lat}"
+                        data-lng="${coords.lng}"
+                        data-name="${name}">
                     🎯 Definir Origem
                 </button>
-                <button class="btn-popup-action btn-popup-route"
-                        onclick="window.routeToFeature(${coords.lng}, ${coords.lat}, '${name}', ${reverseRoute})">
+                <button type="button" class="btn-popup-action btn-popup-route"
+                        data-cobom-action="route-to"
+                        data-lng="${coords.lng}"
+                        data-lat="${coords.lat}"
+                        data-name="${name}"
+                        data-reverse="${reverseRoute}">
                     🚗 Rota até Aqui
                 </button>
-                <button class="btn-popup-action btn-popup-copy"
-                        onclick="window.copyFeatureCoords(${coords.lat}, ${coords.lng})">
+                <button type="button" class="btn-popup-action btn-popup-copy"
+                        data-cobom-action="copy-coords"
+                        data-lat="${coords.lat}"
+                        data-lng="${coords.lng}">
                     📋 Copiar Coord.
                 </button>
                 ${editBtnHtml}
@@ -1355,16 +1373,25 @@ function formatFeaturePopup(feature) {
 
         actionsHtml = `
             <div class="feature-popup-actions">
-                <button class="btn-popup-action btn-popup-origin"
-                        onclick="window.setOriginFromFeature(${evLat}, ${evLng}, '${name}')">
+                <button type="button" class="btn-popup-action btn-popup-origin"
+                        data-cobom-action="set-origin"
+                        data-lat="${evLat}"
+                        data-lng="${evLng}"
+                        data-name="${name}">
                     🎯 Definir Origem
                 </button>
-                <button class="btn-popup-action btn-popup-route"
-                        onclick="window.routeToFeature(${evLng}, ${evLat}, '${name}', false)">
+                <button type="button" class="btn-popup-action btn-popup-route"
+                        data-cobom-action="route-to"
+                        data-lng="${evLng}"
+                        data-lat="${evLat}"
+                        data-name="${name}"
+                        data-reverse="false">
                     🚗 Rota até Aqui
                 </button>
-                <button class="btn-popup-action btn-popup-copy"
-                        onclick="window.copyFeatureCoords(${evLat}, ${evLng})">
+                <button type="button" class="btn-popup-action btn-popup-copy"
+                        data-cobom-action="copy-coords"
+                        data-lat="${evLat}"
+                        data-lng="${evLng}">
                     ${copyLabel}
                 </button>
                 ${editBtnHtml}

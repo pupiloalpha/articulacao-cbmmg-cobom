@@ -584,12 +584,16 @@ function _briefRow(icon, label, value, distanceText = '', extraClass = '', route
 
     let routeBtn = '';
     if (route && route.coord) {
-        const safeName = String(route.name || 'Destino').replace(/'/g, "\\'");
+        const routeName = escapeHtml(String(route.name || 'Destino'));
         const reverse = !!route.reverseRoute;
         routeBtn = `
             <button type="button" class="btn-brief-route"
                     title="Calcular rota até aqui"
-                    onclick="event.stopPropagation(); if (typeof window.routeToFeature === 'function') window.routeToFeature(${route.coord.lng}, ${route.coord.lat}, '${safeName}', ${reverse});">
+                    data-cobom-action="route-to"
+                    data-lng="${route.coord.lng}"
+                    data-lat="${route.coord.lat}"
+                    data-name="${routeName}"
+                    data-reverse="${reverse}">
                 🚗
             </button>`;
     }
@@ -919,33 +923,42 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhuma unidade BM encontrada.</p>';
     } else {
         topUnits.forEach((res, i) => {
-            const straightKm = res.distanceKm.toFixed(2);
-            const isTop3 = i < 3;
-            const initialBadge = isTop3
-                ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando...</span>`
-                : `<span class="eta-badge-straight">➡️ ${straightKm} km (reta)</span>`;
+    const straightKm = res.distanceKm.toFixed(2);
+    const isTop3 = i < 3;
+    const initialBadge = isTop3
+        ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando...</span>`
+        : `<span class="eta-badge-straight">➡️ ${straightKm} km (reta)</span>`;
 
-            // reverseRoute = true → rota Unidade → origem
-            const recBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADA</span>' : '';
-            const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
-            html += `
-                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-unit-card-${i}"
-                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, true)">
-                    <div class="dispatch-unit-header">
-                        <div class="dispatch-unit-name">
-                            <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
-                        </div>
-                        <div style="display:flex; gap:4px; align-items:center;">
-                            ${recBadge}
-                            <button class="btn-external-nav" title="Abrir no Google Maps/GPS" onclick="event.stopPropagation(); window.open('${gmapUrl}', '_blank')">🧭 GPS</button>
-                        </div>
-                    </div>
-                    <div class="dispatch-unit-details">
-                        <span>${res.subtitle}</span>
-                        <div id="eta-container-unit-${i}">${initialBadge}</div>
-                    </div>
-                </div>`;
-        });
+    const safeName = escapeHtml(res.featureName);
+    const safeSubtitle = escapeHtml(res.subtitle);
+    const recBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADA</span>' : '';
+    const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
+    html += `
+        <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-unit-card-${i}"
+             data-cobom-action="focus-feature"
+             data-lng="${res.destination[0]}"
+             data-lat="${res.destination[1]}"
+             data-name="${safeName}"
+             data-distance="${res.distanceKm}"
+             data-reverse="true">
+            <div class="dispatch-unit-header">
+                <div class="dispatch-unit-name">
+                    <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
+                </div>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    ${recBadge}
+                    <button type="button" class="btn-external-nav"
+                            title="Abrir no Google Maps/GPS"
+                            data-cobom-action="open-external"
+                            data-url="${escapeHtml(gmapUrl)}">🧭 GPS</button>
+                </div>
+            </div>
+            <div class="dispatch-unit-details">
+                <span>${safeSubtitle}</span>
+                <div id="eta-container-unit-${i}">${initialBadge}</div>
+            </div>
+        </div>`;
+});
     }
     html += `</div>`;
 
@@ -962,29 +975,40 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhum hospital encontrado.</p>';
     } else {
         topHospitals.forEach((res, i) => {
-            const straightKm = res.distanceKm.toFixed(2);
-            const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
-            const hospGmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
-            const recHospBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADO</span>' : '';
-            // reverseRoute = false → rota origem → Hospital
-            html += `
-                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-hosp-card-${i}"
-                     onclick="focusOnFeature(${res.destination[0]}, ${res.destination[1]}, '${res.featureName.replace(/'/g, "\\'")}', ${res.distanceKm}, false)">
-                    <div class="dispatch-unit-header">
-                        <div class="dispatch-unit-name">
-                            <span class="dispatch-unit-rank">#${i + 1}</span> ${res.featureName}
-                        </div>
-                        <div style="display:flex; gap:4px; align-items:center;">
-                            ${recHospBadge}
-                            <button class="btn-external-nav" title="Abrir no Google Maps/GPS" onclick="event.stopPropagation(); window.open('${hospGmapUrl}', '_blank')">🧭 GPS</button>
-                        </div>
-                    </div>
-                    <div class="dispatch-unit-details">
-                        <span>${res.subtitle}</span>
-                        <div id="eta-container-hosp-${i}">${initialBadge}</div>
-                    </div>
-                </div>`;
-        });
+    const straightKm = res.distanceKm.toFixed(2);
+    const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
+    const hospGmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
+    const recHospBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADO</span>' : '';
+
+    const safeName = escapeHtml(res.featureName);
+    const safeSubtitle = escapeHtml(res.subtitle);
+
+    html += `
+        <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-hosp-card-${i}"
+             data-cobom-action="focus-feature"
+             data-lng="${res.destination[0]}"
+             data-lat="${res.destination[1]}"
+             data-name="${safeName}"
+             data-distance="${res.distanceKm}"
+             data-reverse="false">
+            <div class="dispatch-unit-header">
+                <div class="dispatch-unit-name">
+                    <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
+                </div>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    ${recHospBadge}
+                    <button type="button" class="btn-external-nav"
+                            title="Abrir no Google Maps/GPS"
+                            data-cobom-action="open-external"
+                            data-url="${escapeHtml(hospGmapUrl)}">🧭 GPS</button>
+                </div>
+            </div>
+            <div class="dispatch-unit-details">
+                <span>${safeSubtitle}</span>
+                <div id="eta-container-hosp-${i}">${initialBadge}</div>
+            </div>
+        </div>`;
+});
     }
     html += `</div></div>`;
 

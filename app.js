@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v11';
+const DATA_VERSION = 'v12';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;

@@ -1,4 +1,5 @@
 // js/utils.js - Utilitários gerais (normalização, municípios, toast, tiles)
+// + Delegação de eventos (data-cobom-action) + escapeHtml global
 
 // Dicionário de Códigos IBGE de Municípios de Minas Gerais (RMBH + principais sedes)
 const IBGE_MUNICIPALITIES = {
@@ -65,6 +66,147 @@ const IBGE_MUNICIPALITIES = {
     '3152105': 'Ponte Nova'
 };
 
+// ===========================================================================
+// SANITIZAÇÃO — escapeHtml global (consolidado; usado por search.js,
+// admin.js, layers.js, map.js, etc.)
+// ---------------------------------------------------------------------------
+// Implementação única via regex + mapa de substituição (mais rápido que
+// 5 .replace encadeados). Escapa os 5 caracteres críticos em HTML:
+//   & < > " '  →  &amp; &lt; &gt; &quot; &#39;
+// É seguro tanto para conteúdo de elementos quanto para valores de
+// atributos HTML delimitados por " ou '.
+// ===========================================================================
+const _ESCAPE_HTML_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => _ESCAPE_HTML_MAP[c]);
+}
+
+// ===========================================================================
+// DELEGAÇÃO DE EVENTOS — substitui onclick inline (CSP hardening)
+// ---------------------------------------------------------------------------
+// Todos os botões gerados dinamicamente em popups, tooltips e cards de
+// despacho usam data-cobom-action + data-* para se comunicarem com este
+// handler único, eliminando a necessidade de 'unsafe-inline' no CSP.
+//
+// Uso: <button data-cobom-action="acao" data-param1="..." data-param2="...">
+//
+// ⚠️ O listener é instalado em CAPTURE PHASE. Isso garante que ele
+// intercepte o clique ANTES que o Leaflet o processe (o Leaflet escuta
+// eventos no popup-wrapper e pode interromper a propagação). Ao chamar
+// stopPropagation() em capture, o evento não atinge o alvo nem borbulha.
+// ===========================================================================
+function initCobomActionDelegation() {
+    // Idempotente — evita dupla instalação.
+    if (window.__cobomActionDelegationInstalled) return;
+    window.__cobomActionDelegationInstalled = true;
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cobom-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.cobomAction;
+        if (!action) return;
+
+        // Interrompe propagação para evitar handlers paralelos do Leaflet.
+        e.stopPropagation();
+        e.preventDefault();
+
+        try {
+            switch (action) {
+                case 'close-popup':
+                    if (typeof map !== 'undefined' && map) map.closePopup();
+                    return;
+
+                case 'edit-feature': {
+                    const layerId = Number(btn.dataset.layerId);
+                    const featureIndex = Number(btn.dataset.featureIndex);
+                    if (!Number.isFinite(layerId) || !Number.isFinite(featureIndex)) return;
+                    if (typeof window.openEditFeatureModal === 'function') {
+                        window.openEditFeatureModal(layerId, featureIndex);
+                    }
+                    return;
+                }
+
+                case 'set-origin': {
+                    const lat = parseFloat(btn.dataset.lat);
+                    const lng = parseFloat(btn.dataset.lng);
+                    const name = btn.dataset.name || 'Ponto';
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (typeof window.setOriginFromFeature === 'function') {
+                        window.setOriginFromFeature(lat, lng, name);
+                    }
+                    return;
+                }
+
+                case 'route-to': {
+                    const lng = parseFloat(btn.dataset.lng);
+                    const lat = parseFloat(btn.dataset.lat);
+                    const name = btn.dataset.name || 'Destino';
+                    const reverse = btn.dataset.reverse === 'true';
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (typeof window.routeToFeature === 'function') {
+                        window.routeToFeature(lng, lat, name, reverse);
+                    }
+                    return;
+                }
+
+                case 'copy-coords': {
+                    const lat = parseFloat(btn.dataset.lat);
+                    const lng = parseFloat(btn.dataset.lng);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (typeof window.copyFeatureCoords === 'function') {
+                        window.copyFeatureCoords(lat, lng);
+                    }
+                    return;
+                }
+
+                case 'open-external': {
+                    const url = btn.dataset.url;
+                    if (!url) return;
+                    // Defense-in-depth: só http(s). Bloqueia javascript:, data:, vbscript:.
+                    if (!/^https?:\/\//i.test(url)) {
+                        console.warn('[COBOM] URL bloqueada (não http/https):', url);
+                        return;
+                    }
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    return;
+                }
+
+                case 'focus-feature': {
+                    const lng = parseFloat(btn.dataset.lng);
+                    const lat = parseFloat(btn.dataset.lat);
+                    const name = btn.dataset.name || 'Destino';
+                    const distance = parseFloat(btn.dataset.distance) || 0;
+                    const reverse = btn.dataset.reverse === 'true';
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (typeof focusOnFeature === 'function') {
+                        focusOnFeature(lng, lat, name, distance, reverse);
+                    }
+                    return;
+                }
+
+                default:
+                    // Ação desconhecida — silencioso (não quebra o app).
+                    return;
+            }
+        } catch (err) {
+            console.warn(`[COBOM Action] Erro em "${action}":`, err);
+        }
+    }, true); // <-- CAPTURE PHASE
+}
+
+// Instala imediatamente. `document` já existe quando este script executa,
+// mesmo com <script defer> (que roda após o parse do HTML).
+initCobomActionDelegation();
+
 /**
  * Obtém o nome do município a partir do código IBGE ou código de setor censitário
  */
@@ -87,7 +229,6 @@ function getMunicipalityName(cdSetorOrCdMun) {
 
 /**
  * Extrai o nome do município a partir do nome da camada
- * Ex.: "Belo Horizonte - Logradouros" → "Belo Horizonte"
  */
 function getMunicipalityFromLayerName(layerName) {
     if (!layerName) return '';
@@ -156,11 +297,7 @@ function expandSearchQuery(query) {
 }
 
 /**
- * Extrai/constrói informações estruturadas do logradouro a partir das propriedades
- * e, se necessário, do nome da camada (fallback para arquivos agregados).
- *
- * @param {object} props - properties da feature
- * @param {string} [layerName] - nome da camada (ex.: "Belo Horizonte - Logradouros")
+ * Extrai/constrói informações estruturadas do logradouro
  */
 function getFeatureStreetInfo(props, layerName = '') {
     if (!props) return null;
@@ -170,15 +307,12 @@ function getFeatureStreetInfo(props, layerName = '') {
     let tipLog = props.NM_TIP_LOG || '';
     let titLog = props.NM_TIT_LOG || '';
 
-    // 1º tenta pelo código IBGE (quando existir)
     let munName = getMunicipalityName(props.CD_SETOR || props.CD_MUN);
 
-    // 2º fallback: nome da camada
     if (!munName && layerName) {
         munName = getMunicipalityFromLayerName(layerName);
     }
 
-    // Formato padrão Censo IBGE / arquivos simplificados
     if (props.NM_LOG) {
         streetOnly = String(props.NM_LOG).trim();
         const parts = [tipLog, titLog, streetOnly].filter(Boolean);
@@ -208,16 +342,13 @@ function getFeatureStreetInfo(props, layerName = '') {
     };
 }
 
-/**
- * Extrai o nome textual simples do logradouro
- */
 function getFeatureStreetName(props, layerName = '') {
     const info = getFeatureStreetInfo(props, layerName);
     return info ? info.fullName : '';
 }
 
 /**
- * Função utilitária de notificações Toast (não bloqueantes)
+ * Notificações Toast (não bloqueantes)
  */
 function showToast(message, type = 'info', duration = 3000) {
     let toastContainer = document.getElementById('toast-container');
@@ -284,26 +415,15 @@ function lat2tile(lat, zoom) {
     );
 }
 
-// ---------------------------------------------------------------------------
-// Parse de endereço com número + interpolação aproximada em faces de logradouro
-// ---------------------------------------------------------------------------
-
 /**
- * Extrai a parte do logradouro e o número (se existir) de uma query.
- * Exemplos:
- *   "Rua das Flores 123"     → { streetPart: "rua das flores", number: 123, hasNumber: true }
- *   "Av. Afonso Pena, 1500"  → { streetPart: "avenida afonso pena", number: 1500, hasNumber: true }
- *   "Rua das Flores"         → { streetPart: "rua das flores", number: null, hasNumber: false }
+ * Parse de endereço com número + interpolação aproximada em faces de logradouro
  */
 function parseAddressQuery(query) {
     if (!query) return { streetPart: '', number: null, hasNumber: false };
 
     let q = String(query).trim();
-
-    // Remove pontuação comum de endereço, mantém espaços
     q = q.replace(/[,;]/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // Padrões de número: "123", "nº 123", "n. 123", "num 123", "n 123"
     const numberRegex = /(?:n[ºo°.]?\s*|num\.?\s*|n\s+)?(\d{1,5})\s*$/i;
     const match = q.match(numberRegex);
 
@@ -313,11 +433,9 @@ function parseAddressQuery(query) {
     if (match) {
         number = parseInt(match[1], 10);
         streetPart = q.slice(0, match.index).trim();
-        // Remove possíveis "nº", "n.", etc. que ficaram no final do streetPart
         streetPart = streetPart.replace(/(?:n[ºo°.]?\s*|num\.?\s*|n\s+)$/i, '').trim();
     }
 
-    // Normaliza o nome do logradouro (usa a função já existente)
     const normalizedStreet = expandSearchQuery(streetPart);
 
     return {
@@ -330,31 +448,21 @@ function parseAddressQuery(query) {
 
 /**
  * Interpola um ponto aproximado ao longo dos segmentos de uma rua
- * com base no número do endereço e no total de residências (TOT_RES).
- *
- * @param {Array} features - features GeoJSON da mesma rua (LineString/MultiLineString)
- * @param {number} number - número do endereço solicitado
- * @param {number} totalRes - soma de TOT_RES dos segmentos (ou estimativa)
- * @returns {{lat: number, lng: number}|null}
  */
 function interpolatePointOnStreet(features, number, totalRes) {
     if (!features || features.length === 0 || !number || number < 1) return null;
     if (typeof turf === 'undefined') return null;
 
-    // Estimativa de "capacidade" da rua
-    // Usamos TOT_RES * 2 (lado par/ímpar) ou, na falta, um valor conservador
     const estimatedCapacity = Math.max(
         (totalRes > 0 ? totalRes * 2 : 0),
-        features.length * 8,          // fallback mínimo por segmento
+        features.length * 8,
         20
     );
 
-    // Se o número estiver muito acima da capacidade estimada → recusar
     if (number > estimatedCapacity * 1.4) {
-        return null; // sinaliza "fora da faixa"
+        return null;
     }
 
-    // Coleta todos os segmentos com comprimento e peso
     const segments = [];
     let totalLength = 0;
     let totalWeight = 0;
@@ -378,18 +486,14 @@ function interpolatePointOnStreet(features, number, totalRes) {
 
     if (segments.length === 0 || totalLength < 1) return null;
 
-    // Posição normalizada 0–1 (com leve bias para o início da rua)
-    // Usamos o número relativo à capacidade estimada
     const ratio = Math.min(1, Math.max(0, (number - 1) / Math.max(estimatedCapacity - 1, 1)));
 
-    // Percorre os segmentos acumulando peso (ou comprimento)
     let accumulated = 0;
     const target = ratio * (totalWeight > 0 ? totalWeight : totalLength);
 
     for (const seg of segments) {
         const segWeight = totalWeight > 0 ? seg.weight : seg.length;
         if (accumulated + segWeight >= target) {
-            // Ponto dentro deste segmento
             const localRatio = segWeight > 0
                 ? (target - accumulated) / segWeight
                 : 0.5;
@@ -399,7 +503,6 @@ function interpolatePointOnStreet(features, number, totalRes) {
                 const [lng, lat] = along.geometry.coordinates;
                 return { lat, lng };
             } catch (e) {
-                // fallback para o ponto médio do segmento
                 try {
                     const center = turf.center(seg.feature);
                     return {
@@ -414,7 +517,6 @@ function interpolatePointOnStreet(features, number, totalRes) {
         accumulated += segWeight;
     }
 
-    // Último segmento (por segurança)
     const last = segments[segments.length - 1];
     try {
         const along = turf.along(last.feature, last.length * 0.95, { units: 'meters' });
@@ -429,7 +531,6 @@ function interpolatePointOnStreet(features, number, totalRes) {
 
 /**
  * Dado um streetKey (ou nome + município), retorna todas as features
- * daquela rua a partir das camadas já carregadas no IndexedDB.
  */
 async function getStreetFeaturesByKey(streetKeyOrName, munName = '') {
     const layers = await DB.getLayers();
@@ -439,7 +540,6 @@ async function getStreetFeaturesByKey(streetKeyOrName, munName = '') {
 
     for (const layer of layers) {
         if (!layer?.geojson?.features) continue;
-        // Só camadas de logradouro
         if (!layer.name || !(layer.name.includes('Logradouros') || layer.name.includes('Ruas'))) continue;
 
         for (const feature of layer.geojson.features) {
