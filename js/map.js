@@ -569,6 +569,58 @@ async function buildOriginBriefing(lat, lng) {
     };
 }
 
+// ===========================================================================
+// ÍCONES SVG DO BRIEFING DA ORIGEM
+// ---------------------------------------------------------------------------
+// Antes: emojis (🚒 🚨 🏥 💧 🔥) — renderização inconsistente entre SOs,
+// sem controle de cor, aspecto "informal" para ambiente operacional.
+//
+// Agora: SVG stroke-based (Feather-style) em currentColor, permitindo
+// tintura por categoria via CSS variable --icon-color. Cada ícone carrega
+// sua cor institucional, reforçando a leitura rápida em sala de operação.
+// ===========================================================================
+const ORIGIN_BRIEF_ICONS = {
+    // Cabeçalho — pin institucional vermelho
+    pin: {
+        color: '#8e1b1b',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+    },
+    // Responsabilidade BM — escudo com check
+    shield: {
+        color: '#c0392b',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>'
+    },
+    // Unidade BM mais próxima — caminhão de bombeiros
+    truck: {
+        color: '#c0392b',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="11" rx="1.5"/><path d="M15 9h4l3 3v5h-7V9z"/><circle cx="6.5" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>'
+    },
+    // Hospital / UPA — cruz médica
+    hospital: {
+        color: '#2980b9',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'
+    },
+    // Hidrante — gota d'água
+    droplet: {
+        color: '#2e86c1',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>'
+    },
+    // Evento de fogo — chama
+    flame: {
+        color: '#e67e22',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>'
+    },
+    // Aviso (fora de polígonos) — triângulo de alerta
+    alert: {
+        color: '#e67e22',
+        svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+    },
+    // Botão de rota — seta de navegação (fill, herda currentColor)
+    route: {
+        svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>'
+    }
+};
+
 function _fmtDistance(km) {
     if (km == null || !Number.isFinite(km)) return '';
     if (km < 1) return `${Math.round(km * 1000)} m`;
@@ -576,8 +628,22 @@ function _fmtDistance(km) {
     return `${km.toFixed(1)} km`;
 }
 
-function _briefRow(icon, label, value, distanceText = '', extraClass = '', route = null) {
+/**
+ * Renderiza uma linha do briefing com ícone SVG temático, rótulo,
+ * valor destacado, distância opcional e botão de rota (quando aplicável).
+ *
+ * @param {string} iconKey          Chave em ORIGIN_BRIEF_ICONS
+ * @param {string} label            Rótulo (ex.: "Hidrante mais próximo")
+ * @param {string} value            Valor pré-escapado (HTML-safe)
+ * @param {string} [distanceText]   Distância formatada ("1.2 km")
+ * @param {string} [extraClass]     Ex.: 'origin-brief-muted'
+ * @param {Object} [route]          { coord:{lat,lng}, name, reverseRoute }
+ */
+function _briefRow(iconKey, label, value, distanceText = '', extraClass = '', route = null) {
     if (!value) return '';
+
+    const iconDef = ORIGIN_BRIEF_ICONS[iconKey] || ORIGIN_BRIEF_ICONS.pin;
+
     const dist = distanceText
         ? `<span class="origin-brief-distance">${distanceText}</span>`
         : '';
@@ -588,19 +654,22 @@ function _briefRow(icon, label, value, distanceText = '', extraClass = '', route
         const reverse = !!route.reverseRoute;
         routeBtn = `
             <button type="button" class="btn-brief-route"
-                    title="Calcular rota até aqui"
+                    title="Calcular rota"
+                    aria-label="Calcular rota até ${routeName}"
                     data-cobom-action="route-to"
                     data-lng="${route.coord.lng}"
                     data-lat="${route.coord.lat}"
                     data-name="${routeName}"
                     data-reverse="${reverse}">
-                🚗
+                ${ORIGIN_BRIEF_ICONS.route.svg}
             </button>`;
     }
 
     return `
         <div class="origin-brief-row">
-            <div class="origin-brief-icon">${icon}</div>
+            <span class="origin-brief-icon"
+                  style="--icon-color: ${iconDef.color};"
+                  aria-hidden="true">${iconDef.svg}</span>
             <div class="origin-brief-text">
                 <div class="origin-brief-label">${label}</div>
                 <div class="origin-brief-value-row">
@@ -620,19 +689,32 @@ async function updateOriginPopup(lat, lng, description) {
         ? escapeHtml(description || 'Origem')
         : (description || 'Origem');
 
-    // 1) Estado "carregando" imediato
+    const pinSvg = ORIGIN_BRIEF_ICONS.pin.svg;
+
+    // -------------------------------------------------------------------
+    // 1) Estado "carregando" — header com SVG + spinner CSS (sem emoji)
+    // -------------------------------------------------------------------
     originMarker.setPopupContent(`
         <div class="origin-brief">
             <div class="origin-brief-header">
-                <div class="origin-brief-header-title">📍 ${safeDesc}</div>
-                <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                <span class="origin-brief-header-icon" aria-hidden="true">${pinSvg}</span>
+                <div class="origin-brief-header-content">
+                    <div class="origin-brief-header-eyebrow">Origem definida</div>
+                    <div class="origin-brief-header-title">${safeDesc}</div>
+                    <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                </div>
             </div>
-            <div class="origin-brief-loading">⏳ Analisando entorno operacional...</div>
+            <div class="origin-brief-loading">
+                <span class="origin-brief-spinner" aria-hidden="true"></span>
+                Analisando entorno operacional…
+            </div>
         </div>
     `);
     originMarker.openPopup();
 
+    // -------------------------------------------------------------------
     // 2) Cálculo assíncrono
+    // -------------------------------------------------------------------
     let briefing;
     try {
         briefing = await buildOriginBriefing(lat, lng);
@@ -641,7 +723,6 @@ async function updateOriginPopup(lat, lng, description) {
         briefing = null;
     }
 
-    // Descarta se outro cálculo mais recente foi disparado (drag/GPS)
     if (token !== _originBriefingToken) return;
     if (!originMarker) return;
 
@@ -649,29 +730,34 @@ async function updateOriginPopup(lat, lng, description) {
         ? escapeHtml
         : (s => String(s == null ? '' : s));
 
-    let html = `<div class="origin-brief">
-        <div class="origin-brief-header">
-            <div class="origin-brief-header-title">📍 ${safeDesc}</div>
-            <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
-        </div>
-        <div class="origin-brief-body">`;
+    let html = `
+        <div class="origin-brief">
+            <div class="origin-brief-header">
+                <span class="origin-brief-header-icon" aria-hidden="true">${pinSvg}</span>
+                <div class="origin-brief-header-content">
+                    <div class="origin-brief-header-eyebrow">Origem definida</div>
+                    <div class="origin-brief-header-title">${safeDesc}</div>
+                    <div class="origin-brief-header-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                </div>
+            </div>
+            <div class="origin-brief-body">`;
 
     if (!briefing) {
         html += `<div class="origin-brief-muted" style="padding:10px 0;">Não foi possível analisar o entorno.</div>`;
     } else {
-        // Responsabilidade territorial BM
+        // --- Responsabilidade territorial BM ---
         if (briefing.bmArticulation) {
-            html += _briefRow('🚒', 'Responsabilidade BM',
+            html += _briefRow('shield', 'Responsabilidade BM',
                 esc(briefing.bmArticulation.featureName),
                 esc(briefing.bmArticulation.layerName || ''));
         } else {
-            html += _briefRow('🚒', 'Responsabilidade BM',
+            html += _briefRow('alert', 'Responsabilidade BM',
                 'Fora de polígonos mapeados', '', 'origin-brief-muted');
         }
 
-        // Unidade BM mais próxima  → rota Unidade → origem (reverseRoute = true)
+        // --- Unidade BM mais próxima (rota Unidade → origem) ---
         if (briefing.nearestUnit) {
-            html += _briefRow('🚨', 'Unidade BM mais próxima',
+            html += _briefRow('truck', 'Unidade BM mais próxima',
                 esc(briefing.nearestUnit.name),
                 _fmtDistance(briefing.nearestUnit.distance),
                 '',
@@ -682,10 +768,10 @@ async function updateOriginPopup(lat, lng, description) {
                 });
         }
 
-        // Hospital / UPA mais próxima → rota origem → hospital (reverseRoute = false)
+        // --- Hospital / UPA de referência (rota origem → hospital) ---
         if (briefing.nearestHospital) {
             const tipo = briefing.nearestHospital.isUpa ? 'UPA' : 'Hospital';
-            html += _briefRow('🏥', `${tipo} de referência mais próxima`,
+            html += _briefRow('hospital', `${tipo} de referência mais próxima`,
                 esc(briefing.nearestHospital.name),
                 _fmtDistance(briefing.nearestHospital.distance),
                 '',
@@ -696,9 +782,9 @@ async function updateOriginPopup(lat, lng, description) {
                 });
         }
 
-        // Hidrante mais próximo
+        // --- Hidrante mais próximo ---
         if (briefing.nearestHidrante) {
-            html += _briefRow('💧', 'Hidrante mais próximo',
+            html += _briefRow('droplet', 'Hidrante mais próximo',
                 `Hidrante ${esc(briefing.nearestHidrante.name)}`,
                 _fmtDistance(briefing.nearestHidrante.distance),
                 '',
@@ -709,9 +795,9 @@ async function updateOriginPopup(lat, lng, description) {
                 });
         }
 
-        // Evento de fogo mais próximo
+        // --- Evento de fogo mais próximo ---
         if (briefing.nearestFogo) {
-            html += _briefRow('🔥', 'Evento de fogo mais próximo',
+            html += _briefRow('flame', 'Evento de fogo mais próximo',
                 `Evento #${esc(briefing.nearestFogo.id ?? '-')}` +
                 (briefing.nearestFogo.status ? ` • ${esc(briefing.nearestFogo.status)}` : ''),
                 _fmtDistance(briefing.nearestFogo.distance),
@@ -722,10 +808,9 @@ async function updateOriginPopup(lat, lng, description) {
                     reverseRoute: false
                 });
         } else {
-            html += _briefRow('🔥', 'Evento de fogo mais próximo',
+            html += _briefRow('flame', 'Evento de fogo mais próximo',
                 'Nenhum evento em MG', '', 'origin-brief-muted');
         }
-
     }
 
     html += `</div></div>`;
@@ -856,10 +941,10 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
     let jurisdictionHtml = '';
 
-    if (bmArticulation) {
+        if (bmArticulation) {
         jurisdictionHtml += `
             <div class="jurisdiction-item jurisdiction-bm">
-                <span class="jurisdiction-icon">🚒</span>
+                <span class="jurisdiction-icon">${svgIcon('truck', 18)}</span>
                 <div class="jurisdiction-text">
                     <span class="jurisdiction-name">${bmArticulation.featureName}</span>
                     <small class="jurisdiction-layer">Unidade da Articulação BM</small>
@@ -869,22 +954,21 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     } else {
         jurisdictionHtml += `
             <div class="jurisdiction-item jurisdiction-empty">
-                <span class="jurisdiction-icon">⚠️</span>
+                <span class="jurisdiction-icon">${svgIcon('alert', 18)}</span>
                 <div class="jurisdiction-text"><span class="jurisdiction-name">Fora de polígonos mapeados</span></div>
             </div>`;
     }
 
-        if (samuInfo) {
+    if (samuInfo) {
         const esc = (typeof escapeHtml === 'function')
             ? escapeHtml
             : (s => String(s == null ? '' : s));
 
-        // Rótulo amigável da camada que resolveu a informação
         const fonteLabel = samuInfo.fonte === 'municipio-geocode'
-            ? '🌐 Município confirmado'
+            ? svgIcon('globe', 11) + ' Município confirmado'
             : samuInfo.fonte === 'municipio-poligono'
-                ? '📐 Município (base territorial)'
-                : '🗺️ Macrorregião (genérico)';
+                ? svgIcon('map', 11) + ' Município (base territorial)'
+                : svgIcon('compass', 11) + ' Macrorregião (genérico)';
 
         const sedeTxt = samuInfo.sede
             ? ` • Sede: ${esc(samuInfo.sede)}`
@@ -892,7 +976,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
         jurisdictionHtml += `
             <div class="jurisdiction-item jurisdiction-samu">
-                <span class="jurisdiction-icon">📞</span>
+                <span class="jurisdiction-icon">${svgIcon('phone', 18)}</span>
                 <div class="jurisdiction-text">
                     <span class="jurisdiction-name">${esc(samuInfo.central)}</span>
                     <small class="jurisdiction-layer">
@@ -906,7 +990,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
 
     html += `
         <div class="dispatch-jurisdiction-card">
-            <div class="dispatch-jurisdiction-title">🚨 Responsabilidade Territorial</div>
+            <div class="dispatch-jurisdiction-title">${svgIcon('truck', 14)} Responsabilidade Territorial</div>
             <div class="dispatch-jurisdiction-list">${jurisdictionHtml}</div>
         </div>`;
 
@@ -914,7 +998,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // Direção da rota: Unidade → Local pesquisado (a viatura sai da Unidade)
     html += `
         <div class="dispatch-section-header">
-            <span class="dispatch-section-title">🚒 Unidades BM mais próximas (Top 10)</span>
+            <span class="dispatch-section-title">${svgIcon('truck', 14)} Unidades BM mais próximas (Top 10)</span>
             <span class="dispatch-section-hint">clique para rota</span>
         </div>
         <div class="dispatch-units-list">`;
@@ -923,42 +1007,44 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhuma unidade BM encontrada.</p>';
     } else {
         topUnits.forEach((res, i) => {
-    const straightKm = res.distanceKm.toFixed(2);
-    const isTop3 = i < 3;
-    const initialBadge = isTop3
-        ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">⏱️ Calculando...</span>`
-        : `<span class="eta-badge-straight">➡️ ${straightKm} km (reta)</span>`;
+            const straightKm = res.distanceKm.toFixed(2);
+            const isTop3 = i < 3;
+            const initialBadge = isTop3
+                ? `<span class="eta-badge-loading" id="eta-badge-unit-${i}">${svgIcon('clock', 11)} Calculando...</span>`
+                : `<span class="eta-badge-straight">${svgIcon('arrow-right', 11)} ${straightKm} km (reta)</span>`;
 
-    const safeName = escapeHtml(res.featureName);
-    const safeSubtitle = escapeHtml(res.subtitle);
-    const recBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADA</span>' : '';
-    const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
-    html += `
-        <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-unit-card-${i}"
-             data-cobom-action="focus-feature"
-             data-lng="${res.destination[0]}"
-             data-lat="${res.destination[1]}"
-             data-name="${safeName}"
-             data-distance="${res.distanceKm}"
-             data-reverse="true">
-            <div class="dispatch-unit-header">
-                <div class="dispatch-unit-name">
-                    <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
-                </div>
-                <div style="display:flex; gap:4px; align-items:center;">
-                    ${recBadge}
-                    <button type="button" class="btn-external-nav"
-                            title="Abrir no Google Maps/GPS"
-                            data-cobom-action="open-external"
-                            data-url="${escapeHtml(gmapUrl)}">🧭 GPS</button>
-                </div>
-            </div>
-            <div class="dispatch-unit-details">
-                <span>${safeSubtitle}</span>
-                <div id="eta-container-unit-${i}">${initialBadge}</div>
-            </div>
-        </div>`;
-});
+            const safeName = escapeHtml(res.featureName);
+            const safeSubtitle = escapeHtml(res.subtitle);
+            const recBadge = i === 0
+                ? `<span class="dispatch-badge-rec">${svgIcon('star', 10)} RECOMENDADA</span>`
+                : '';
+            const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
+            html += `
+                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-unit-card-${i}"
+                     data-cobom-action="focus-feature"
+                     data-lng="${res.destination[0]}"
+                     data-lat="${res.destination[1]}"
+                     data-name="${safeName}"
+                     data-distance="${res.distanceKm}"
+                     data-reverse="true">
+                    <div class="dispatch-unit-header">
+                        <div class="dispatch-unit-name">
+                            <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
+                        </div>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            ${recBadge}
+                            <button type="button" class="btn-external-nav"
+                                    title="Abrir no Google Maps/GPS"
+                                    data-cobom-action="open-external"
+                                    data-url="${escapeHtml(gmapUrl)}">${svgIcon('compass', 11)} GPS</button>
+                        </div>
+                    </div>
+                    <div class="dispatch-unit-details">
+                        <span>${safeSubtitle}</span>
+                        <div id="eta-container-unit-${i}">${initialBadge}</div>
+                    </div>
+                </div>`;
+        });
     }
     html += `</div>`;
 
@@ -966,7 +1052,7 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
     // Direção da rota: Local pesquisado → Hospital (paciente/vítima é transportado até o hospital)
     html += `
         <div class="dispatch-section-header" style="margin-top:14px;">
-            <span class="dispatch-section-title">🏥 Hospitais de Referência (Top 3)</span>
+            <span class="dispatch-section-title">${svgIcon('hospital', 14)} Hospitais de Referência (Top 3)</span>
             <span class="dispatch-section-hint">clique para rota</span>
         </div>
         <div class="dispatch-units-list">`;
@@ -975,40 +1061,41 @@ async function calculateDistancesToAllFeatures(originLat, originLng) {
         html += '<p style="padding:8px; font-size:12px; color:#666;">Nenhum hospital encontrado.</p>';
     } else {
         topHospitals.forEach((res, i) => {
-    const straightKm = res.distanceKm.toFixed(2);
-    const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">⏱️ Calculando...</span>`;
-    const hospGmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
-    const recHospBadge = i === 0 ? '<span class="dispatch-badge-rec">⭐ RECOMENDADO</span>' : '';
+            const initialBadge = `<span class="eta-badge-loading" id="eta-badge-hosp-${i}">${svgIcon('clock', 11)} Calculando...</span>`;
+            const hospGmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${res.destination[1]},${res.destination[0]}`;
+            const recHospBadge = i === 0
+                ? `<span class="dispatch-badge-rec">${svgIcon('star', 10)} RECOMENDADO</span>`
+                : '';
 
-    const safeName = escapeHtml(res.featureName);
-    const safeSubtitle = escapeHtml(res.subtitle);
+            const safeName = escapeHtml(res.featureName);
+            const safeSubtitle = escapeHtml(res.subtitle);
 
-    html += `
-        <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-hosp-card-${i}"
-             data-cobom-action="focus-feature"
-             data-lng="${res.destination[0]}"
-             data-lat="${res.destination[1]}"
-             data-name="${safeName}"
-             data-distance="${res.distanceKm}"
-             data-reverse="false">
-            <div class="dispatch-unit-header">
-                <div class="dispatch-unit-name">
-                    <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
-                </div>
-                <div style="display:flex; gap:4px; align-items:center;">
-                    ${recHospBadge}
-                    <button type="button" class="btn-external-nav"
-                            title="Abrir no Google Maps/GPS"
-                            data-cobom-action="open-external"
-                            data-url="${escapeHtml(hospGmapUrl)}">🧭 GPS</button>
-                </div>
-            </div>
-            <div class="dispatch-unit-details">
-                <span>${safeSubtitle}</span>
-                <div id="eta-container-hosp-${i}">${initialBadge}</div>
-            </div>
-        </div>`;
-});
+            html += `
+                <div class="dispatch-unit-card ${i === 0 ? 'card-top-rec' : ''}" id="dispatch-hosp-card-${i}"
+                     data-cobom-action="focus-feature"
+                     data-lng="${res.destination[0]}"
+                     data-lat="${res.destination[1]}"
+                     data-name="${safeName}"
+                     data-distance="${res.distanceKm}"
+                     data-reverse="false">
+                    <div class="dispatch-unit-header">
+                        <div class="dispatch-unit-name">
+                            <span class="dispatch-unit-rank">#${i + 1}</span> ${safeName}
+                        </div>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            ${recHospBadge}
+                            <button type="button" class="btn-external-nav"
+                                    title="Abrir no Google Maps/GPS"
+                                    data-cobom-action="open-external"
+                                    data-url="${escapeHtml(hospGmapUrl)}">${svgIcon('compass', 11)} GPS</button>
+                        </div>
+                    </div>
+                    <div class="dispatch-unit-details">
+                        <span>${safeSubtitle}</span>
+                        <div id="eta-container-hosp-${i}">${initialBadge}</div>
+                    </div>
+                </div>`;
+        });
     }
     html += `</div></div>`;
 
@@ -1081,7 +1168,7 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
             cand.route = route;
             const durMin = Math.round(route.duration / 60);
             const distKm = (route.distance / 1000).toFixed(1);
-            container.innerHTML = `<span class="eta-badge-ready">🚗 ~${durMin} min (${distKm} km)</span>`;
+            container.innerHTML = `<span class="eta-badge-ready">${svgIcon('route', 11)} ~${durMin} min (${distKm} km)</span>`;
 
             if (type === 'unit' && route.duration < minUnitDuration) {
                 minUnitDuration = route.duration;
@@ -1093,7 +1180,7 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
             }
         } else {
             const km = cand.distanceKm.toFixed(2);
-            container.innerHTML = `<span class="eta-badge-straight">➡️ ${km} km (reta)</span>`;
+            container.innerHTML = `<span class="eta-badge-straight">${svgIcon('arrow-right', 11)} ${km} km (reta)</span>`;
         }
     });
 
@@ -1105,7 +1192,7 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
             const r = topUnits[bestUnitIndex].route;
             const durMin = Math.round(r.duration / 60);
             const distKm = (r.distance / 1000).toFixed(1);
-            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápida: ~${durMin} min (${distKm} km)</span>`;
+            bestContainer.innerHTML = `<span class="eta-badge-best">${svgIcon('star', 11)} Mais rápida: ~${durMin} min (${distKm} km)</span>`;
         }
     }
 
@@ -1117,7 +1204,7 @@ async function fetchTopRoutesAsync(originLat, originLng, topUnits, topHospitals,
             const r = topHospitals[bestHospIndex].route;
             const durMin = Math.round(r.duration / 60);
             const distKm = (r.distance / 1000).toFixed(1);
-            bestContainer.innerHTML = `<span class="eta-badge-best">⭐ Mais rápido: ~${durMin} min (${distKm} km)</span>`;
+            bestContainer.innerHTML = `<span class="eta-badge-best">${svgIcon('star', 11)} Mais rápido: ~${durMin} min (${distKm} km)</span>`;
         }
     }
 }
@@ -1549,8 +1636,8 @@ function drawStraightLine(originPos, lat, lng, name, distance, reverseRoute = fa
                 Sem grafo de vias disponível no momento.
             </small>
         </div>
-        <button id="btnCalcOfflineRoute" class="route-popup-btn">
-            🛣️ Calcular rota aproximada pelas vias locais
+         <button id="btnCalcOfflineRoute" class="route-popup-btn">
+            ${svgIcon('route', 12)} Calcular rota aproximada pelas vias locais
         </button>
     </div>
 `;
@@ -1567,7 +1654,7 @@ function drawStraightLine(originPos, lat, lng, name, distance, reverseRoute = fa
         if (btn) {
             btn.addEventListener('click', async () => {
                 btn.disabled = true;
-                btn.textContent = '⏳ Calculando...';
+                btn.innerHTML = `${svgIcon('clock', 12)} Calculando...`;
                 showToast('Calculando rota offline pelas vias locais...', 'info', 2500);
 
                 try {
@@ -1585,13 +1672,13 @@ function drawStraightLine(originPos, lat, lng, name, distance, reverseRoute = fa
                             5500
                         );
                         btn.disabled = false;
-                        btn.textContent = '🛣️ Calcular rota aproximada pelas vias locais';
+                        btn.innerHTML = `${svgIcon('route', 12)} Calcular rota aproximada pelas vias locais`;
                     }
                 } catch (err) {
                     console.error('Erro na rota offline:', err);
                     showToast('Erro ao calcular rota offline.', 'error');
                     btn.disabled = false;
-                    btn.textContent = '🛣️ Calcular rota aproximada pelas vias locais';
+                    btn.innerHTML = `${svgIcon('route', 12)} Calcular rota aproximada pelas vias locais`;
                 }
             });
         }
@@ -1727,7 +1814,7 @@ async function ensureOriginAvailable() {
         if (gps) {
             setOrigin(gps.lat, gps.lng, 'Localização atual (GPS)');
             calculateDistancesToAllFeatures(gps.lat, gps.lng);
-            showToast('📍 Origem definida via GPS.', 'success', 2500);
+            showToast('Origem definida via GPS.', 'success', 2500);
             return gps;
         }
     }

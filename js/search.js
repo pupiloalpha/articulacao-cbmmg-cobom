@@ -543,7 +543,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
         ? (getNetworkInfo().profileName || '')
         : '';
 
-    resultsDiv.innerHTML = `<div class="search-status-msg">🌐 Buscando no mapa online${profileName ? ' • ' + profileName : ''}...</div>`;
+        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Buscando no mapa online${profileName ? ' • ' + profileName : ''}...</div>`;
 
     // ---------- CACHE HIT ----------
     const cacheKey = `${normalizeStr(rawQuery)}__${normalizeStr(parsed.city || '')}`;
@@ -668,7 +668,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
         }
 
         if (data.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-status-msg">🌐 Nada encontrado online. Verificando base local...</div>';
+                        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Nada encontrado online. Verificando base local...</div>`;
             return false;
         }
 
@@ -681,7 +681,7 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
 
     } catch (error) {
         console.error('Erro na busca online:', error);
-        resultsDiv.innerHTML = '<div class="search-status-msg">⚠️ Busca online indisponível (CORS/rede). Tentando base local...</div>';
+                resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('alert', 13)} Busca online indisponível (CORS/rede). Tentando base local...</div>`;
         return false;
     }
 }
@@ -695,11 +695,11 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
     const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
-    resultsDiv.innerHTML = '<div class="search-status-msg">🔍 Pesquisando endereço no banco local...</div>';
+    resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('search', 13)} Pesquisando endereço no banco local...</div>`;
 
     // Carregamento progressivo de logradouros (apenas offline)
     try {
-        resultsDiv.innerHTML = '<div class="search-status-msg">📥 Verificando base de logradouros...</div>';
+        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('download', 13)} Verificando base de logradouros...</div>`;
         await loadStreetDataFromGitHub(rawQuery);
         invalidateStreetIndex();
     } catch (e) {
@@ -722,7 +722,7 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
     // 0. Caminho especial para INTERSEÇÃO offline
     // ============================================================
     if (parsed.isIntersection && parsed.streetA && parsed.streetB) {
-        resultsDiv.innerHTML = '<div class="search-status-msg">🔀 Calculando interseção offline...</div>';
+        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('crosshair-shuffle', 13)} Calculando interseção offline...</div>`;
 
         const streetIndex = await getOrBuildStreetIndex();
         const tokensA = expandSearchQuery(parsed.streetA).split(/\s+/).filter(t => t.length >= 2);
@@ -922,7 +922,7 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
     if (topResults.length > 0) {
         displaySearchResults(topResults);
     } else {
-        resultsDiv.innerHTML = '<div class="search-status-msg">📴 Modo Offline: Nenhum endereço correspondente na base local.</div>';
+        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('wifi-off', 13)} Modo Offline: Nenhum endereço correspondente na base local.</div>`;
     }
 }
 
@@ -1033,7 +1033,7 @@ async function searchAddress(query, targetId = 'searchResults') {
         if (map) map.setView([lat, lng], 16);
         calculateDistancesToAllFeatures(lat, lng);
 
-        showToast(`📍 Origem definida: ${label}`, 'success', 3000);
+        showToast(`${svgIcon('pin', 13)} Origem definida: ${label}`, 'success', 3000);
         return;
     }
 
@@ -1091,7 +1091,7 @@ function displaySearchResults(results, targetId = 'searchResults') {
 
         let extraBadge = '';
         if (result.isIntersection) {
-            extraBadge = `<span class="search-result-mun-badge" style="background:#fef3c7;color:#92400e;">🔀 Esquina</span>`;
+            extraBadge = `<span class="search-result-mun-badge" style="background:#fef3c7;color:#92400e;">${svgIcon('crosshair-shuffle', 10)} Esquina</span>`;
         } else if (result.usedInterpolation || result.interpolationFailed) {
             extraBadge = `<span class="search-result-mun-badge" style="background:#e8f4f8;color:#1a5276;">aprox.</span>`;
         } else if (result.source === 'online_osm' && result.houseNumber) {
@@ -1100,7 +1100,7 @@ function displaySearchResults(results, targetId = 'searchResults') {
 
         item.innerHTML = `
             <div class="search-result-header">
-                <span class="search-result-title">📍 ${escapeHtml(result.title)}</span>
+                <span class="search-result-title">${svgIcon('pin', 12)} ${escapeHtml(result.title)}</span>
                 ${result.munBadge ? `<span class="search-result-mun-badge">${escapeHtml(result.munBadge)}</span>` : ''}
                 ${extraBadge}
             </div>

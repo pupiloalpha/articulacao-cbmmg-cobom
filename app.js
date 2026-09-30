@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v12';
+const DATA_VERSION = 'v13';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -172,7 +172,7 @@ function exitMapOriginMode(restore = true) {
     mapClickMode = false;
 
     const btn = document.getElementById('mapOriginBtn');
-    if (btn) btn.textContent = '🎯 Ponto no mapa';
+    if (btn) btn.innerHTML = `${svgIcon('target', 15)} Ponto no Mapa`;
     if (map) map.getContainer().style.cursor = '';
 
     if (restore) {
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncViewCheckboxes('none');
 
                 mapClickMode = true;
-                mapOriginBtn.textContent = 'Cancelar marcação';
+                mapOriginBtn.innerHTML = `${svgIcon('x', 15)} Cancelar marcação`;
                 if (map) map.getContainer().style.cursor = 'crosshair';
                 showToast('Clique no mapa para definir a origem (feições ocultas temporariamente).', 'info', 4000);
             }
@@ -659,17 +659,17 @@ function initTheme() {
     const savedTheme = localStorage.getItem('cobom_theme') || 'light';
     const toggleBtn = document.getElementById('themeToggleBtn');
 
-    function applyTheme(theme) {
+        function applyTheme(theme) {
         if (theme === 'dark') {
             document.body.classList.add('dark-theme');
             if (toggleBtn) {
-                toggleBtn.textContent = '☀️';
+                toggleBtn.innerHTML = svgIcon('sun', 18);
                 toggleBtn.title = 'Alternar para Modo Diurno';
             }
         } else {
             document.body.classList.remove('dark-theme');
             if (toggleBtn) {
-                toggleBtn.textContent = '🌙';
+                toggleBtn.innerHTML = svgIcon('moon', 18);
                 toggleBtn.title = 'Alternar para Modo Noturno (COBOM)';
             }
         }

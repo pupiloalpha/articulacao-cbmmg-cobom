@@ -68,14 +68,14 @@ function setupGpsTracking() {
             gpsWatchId = null;
             if (gpsAccuracyCircle && map) map.removeLayer(gpsAccuracyCircle);
             gpsAccuracyCircle = null;
-            gpsBtn.textContent = '📍 Minha Localização';
+            gpsBtn.innerHTML = `${svgIcon('pin', 15)} Minha Localização`;
             gpsBtn.style.background = '';
             showToast('Rastreamento GPS desativado.', 'info');
             return;
         }
 
-        gpsBtn.textContent = '🔄 Rastreando...';
-        gpsBtn.style.background = '#27ae60';
+        gpsBtn.innerHTML = `${svgIcon('pin', 15)} Minha Localização`;
+        gpsBtn.style.background = '';
         showToast('Obtendo localização GPS...', 'info');
 
         // Reset do estado de throttling a cada nova sessão

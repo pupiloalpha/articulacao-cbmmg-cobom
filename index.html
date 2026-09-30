@@ -78,28 +78,49 @@
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
             <h2>COBOM-BH<br>Articulação CBMMG</h2>
-            <div style="display:flex; gap:6px; align-items:center;">
-                <button id="themeToggleBtn" class="btn-icon" title="Modo Noturno (COBOM) / Diurno" aria-label="Alternar Tema">🌙</button>
-                <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir">☰</button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                <button id="themeToggleBtn" class="btn-icon" title="Modo Noturno (COBOM) / Diurno" aria-label="Alternar Tema">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <button id="sidebarToggle" class="btn-icon" title="Recolher/Expandir" aria-label="Recolher painel">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
             </div>
         </div>
         <div id="status-indicator" class="status-indicator offline">Offline</div>
-        <div id="auth-section">
-            <button id="adminLoginBtn" class="btn btn-sm">🔑 Login Admin</button>
-            <button id="adminLogoutBtn" class="btn btn-sm hidden">🔓 Sair Admin</button>
+                <div id="auth-section">
+            <button id="adminLoginBtn" class="btn btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Login Admin
+            </button>
+            <button id="adminLogoutBtn" class="btn btn-sm hidden">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                Sair Admin
+            </button>
         </div>
-        <div class="search-container">
+                <div class="search-container">
             <div class="search-input-group">
                 <input type="text" id="searchInput" placeholder="Pesquisar endereço ou coordenada... [F2]">
-                <button id="searchBtn" class="btn" title="Buscar Endereço (Enter)">🔍</button>
+                <button id="searchBtn" class="btn" title="Buscar Endereço (Enter)" aria-label="Buscar">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
             </div>
 
             <div class="btn-grid-actions">
-                <button id="useMyLocationBtn" class="btn" title="Usar localização GPS (Alt+G)">📍 GPS Atual</button>
-                <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">🎯 Ponto no Mapa</button>
+                <button id="useMyLocationBtn" class="btn" title="Usar localização GPS (Alt+G)">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    GPS Atual
+                </button>
+                <button id="mapOriginBtn" class="btn" title="Clique no mapa para definir um ponto de origem">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Ponto no Mapa
+                </button>
             </div>
 
-            <button id="resetBtn" class="btn btn-danger">🗑️ Limpar Pesquisa</button>
+            <button id="resetBtn" class="btn btn-danger">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Limpar Pesquisa
+            </button>
 
             <div id="searchResults"></div>
             <div id="distanceResults" class="dispatch-results-container"></div>
@@ -112,7 +133,10 @@
             </div>
             <button id="addMarkerBtn" class="btn">Adicionar POI</button>
             <button id="addPolygonBtn" class="btn">Desenhar Polígono</button>
-            <button id="importChamadasBtn" class="btn" style="background:#c0392b;">🚨 Importar Chamadas (CSV)</button>
+                        <button id="importChamadasBtn" class="btn" style="background:#c0392b;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Importar Chamadas (CSV)
+            </button>
             <input type="file" id="chamadasFileInput" accept=".csv,text/csv" hidden>
             <button id="exportBackupBtn" class="btn">Exportar Backup</button>
             <button id="importBackupBtn" class="btn">Importar Backup</button>
@@ -148,8 +172,11 @@
             <ul id="legendUl" class="legend-list"></ul>
         </div>
 
-        <div class="sidebar-footer">
-            <button id="shortcutsBtn" class="btn-footer-link" title="Ver lista de atalhos de teclado operacionais">⌨️ Atalhos Operacionais (193)</button>
+                <div class="sidebar-footer">
+            <button id="shortcutsBtn" class="btn-footer-link" title="Ver lista de atalhos de teclado operacionais">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+                Atalhos Operacionais (193)
+            </button>
         </div>
     </div>
 
@@ -158,9 +185,13 @@
 
     <div id="areaSearchPanel" class="area-search-panel hidden">
         <div class="area-search-header">
-            <span class="area-search-icon">🔎</span>
+            <span class="area-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
             <input type="text" id="areaSearchInput" placeholder="Buscar COB, BBM, CIA IND..." autocomplete="off" spellcheck="false">
-            <button type="button" id="areaSearchClose" class="area-search-close" title="Fechar" aria-label="Fechar">×</button>
+            <button type="button" id="areaSearchClose" class="area-search-close" title="Fechar" aria-label="Fechar">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <div id="areaSearchResults" class="area-search-results"></div>
     </div>
@@ -179,13 +210,17 @@
     </button>
 
 <div id="floatingSearch" class="floating-search">
-    <div class="floating-search-box" id="floatingSearchBox">
-        <span class="floating-search-icon">🔍</span>
+        <div class="floating-search-box" id="floatingSearchBox">
+        <span class="floating-search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
         <input type="text" id="floatingSearchInput"
                placeholder="Pesquisar endereço, local ou coordenada... [F2]"
                autocomplete="off" spellcheck="false">
         <button type="button" id="floatingSearchClear" class="btn-clear"
-                title="Limpar busca" aria-label="Limpar busca">✕</button>
+                title="Limpar busca" aria-label="Limpar busca">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
         <button type="button" id="floatingSearchBtn" class="btn-buscar" title="Buscar">Buscar</button>
     </div>
     <div id="floatingSearchResults" class="floating-search-results hidden"></div>

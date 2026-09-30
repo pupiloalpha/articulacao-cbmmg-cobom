@@ -661,7 +661,7 @@ function setupDrawingTools() {
                 map.on('click', handleMapClickForMarker);
                 addMarkerBtn.classList.add('active');
                 addMarkerBtn.textContent = '✕ Cancelar POI';
-                showToast('📍 Modo POI ativo: clique no mapa para posicionar o ponto.', 'info', 4500);
+                showToast('Modo POI ativo: clique no mapa para posicionar o ponto.', 'info', 4500);
             }
         });
     }
@@ -693,7 +693,7 @@ function setupDrawingTools() {
                 map.on('click', handleMapClickForPolygon);
                 addPolygonBtn.classList.add('active');
                 addPolygonBtn.textContent = '✓ Finalizar Polígono';
-                showToast('🗺️ Clique no mapa para adicionar vértices. Depois clique em "✓ Finalizar Polígono".', 'info', 5000);
+                showToast('Clique no mapa para adicionar vértices. Depois clique em "✓ Finalizar Polígono".', 'info', 5000);
             }
         });
     }
@@ -724,7 +724,7 @@ function handleMapClickForPolygon(e) {
     const n = polygonPoints.length;
     if (n === 1) showToast('1º vértice marcado.', 'info', 2000);
     else if (n === 2) showToast('2 vértices. Adicione pelo menos mais 1.', 'info', 2000);
-    else showToast(`${n} vértices. Clique em "✓ Finalizar Polígono" quando pronto.`, 'info', 2000);
+    else showToast(`${n} vértices. Clique em "Finalizar Polígono" quando pronto.`, 'info', 2000);
 }
 
 function finishPolygonAndOpenModal() {

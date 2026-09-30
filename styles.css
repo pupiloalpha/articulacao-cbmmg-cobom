@@ -1664,13 +1664,52 @@ body.dark-theme .jurisdiction-badge-samu {
     min-height: 38px;
 }
 
-/* Pilha de ícones (até 3 + contador) */
+/* ==========================================================================
+   PILHA DE ÍCONES NA LISTA DE CAMADAS (.layer-icon-stack)
+   --------------------------------------------------------------------------
+   É um <button> usado apenas como invólucro clicável dos ícones. Sem
+   `background` explícito, o navegador aplica o system color `buttonface`
+   — que em dark theme aparece como um quadrado claro (“branco”) em
+   contraste com o card escuro `#0f172a`.
+   ========================================================================== */
 .layer-icon-stack {
     display: inline-flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
     padding: 1px 0;
+
+    /* Neutroso o UA stylesheet do <button> */
+    background: transparent;
+    border: none;
+    outline: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Foco acessível — só aparece para navegação por teclado */
+.layer-icon-stack:focus-visible {
+    outline: 2px solid var(--accent-color, #2980b9);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Reforço defensivo para dark theme: garante que nem o UA stylesheet
+   nem extensões do navegador reintroduzam background claro. */
+body.dark-theme .layer-icon-stack {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Hover sutil para sinalizar que o stack é clicável (mantém coerência
+   com o hover dos .layer-btn de ação). */
+.layer-icon-stack:hover .layer-icon-badge {
+    transform: translateY(-1px);
 }
 
 /* Cada ícone circular pequeno */
@@ -1987,81 +2026,185 @@ body.dark-theme .jurisdiction-badge-samu {
 }
 
 /* ==========================================================================
-   POPUP DE BRIEFING DA ORIGEM (enriquecido)
+   POPUP DE BRIEFING DA ORIGEM (redesign 2025)
+   --------------------------------------------------------------------------
+   Estrutura:
+     .origin-brief                    container raiz
+     .origin-brief-header             faixa superior institucional
+       .origin-brief-header-icon      círculo com SVG do pin
+       .origin-brief-header-content
+         .origin-brief-header-eyebrow pequeno rótulo tipo "chip"
+         .origin-brief-header-title   nome/endereço
+         .origin-brief-header-coords  coordenadas em monospace
+     .origin-brief-body               lista de linhas
+     .origin-brief-row                linha
+       .origin-brief-icon             círculo tintado com SVG
+       .origin-brief-text
+         .origin-brief-label
+         .origin-brief-value-row
+           .origin-brief-value
+           .origin-brief-distance
+           .btn-brief-route           botão circular de rota
    ========================================================================== */
+
+/* ---- Reset do wrapper Leaflet ---- */
 .feature-popup.origin-brief-popup .leaflet-popup-content {
     margin: 0 !important;
     padding: 0 !important;
     width: auto !important;
+    line-height: 1.4;
 }
 
 .origin-brief {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 12px;
-    color: #2c3e50;
+    font-size: 12.5px;
+    color: var(--text-color);
     min-width: 300px;
-    max-width: 380px;
+    max-width: 400px;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
+/* ==========================================================================
+   HEADER — faixa institucional com pin SVG
+   ========================================================================== */
 .origin-brief-header {
-    padding: 10px 12px;
-    background: linear-gradient(135deg, #c0392b 0%, #7b241c 100%);
-    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #b02525 0%, #7b1a1a 100%);
+    color: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.origin-brief-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 50%;
+    color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+.origin-brief-header-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: #ffffff;
+}
+
+.origin-brief-header-content {
+    min-width: 0;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    border-radius: 6px 6px 0 0;
+    gap: 1px;
+}
+
+.origin-brief-header-eyebrow {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.78;
 }
 
 .origin-brief-header-title {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1.25;
     word-break: break-word;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
 }
 
 .origin-brief-header-coords {
     font-size: 10.5px;
-    font-family: monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.2px;
     opacity: 0.85;
 }
 
+/* ==========================================================================
+   BODY — lista de linhas
+   ========================================================================== */
 .origin-brief-body {
-    padding: 4px 12px 10px;
-    background: #fff;
-    border-radius: 0 0 6px 6px;
+    padding: 4px 10px 10px;
+    background: var(--card-bg, #ffffff);
 }
 
+/* ---- Estado "carregando" ---- */
 .origin-brief-loading {
-    padding: 14px 12px;
-    text-align: center;
-    color: #7f8c8d;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 14px;
+    color: var(--text-muted, #7f8c8d);
     font-style: italic;
-    background: #fff;
-    border-radius: 0 0 6px 6px;
     font-size: 12px;
+    background: var(--card-bg, #ffffff);
 }
 
+.origin-brief-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(142, 27, 27, 0.18);
+    border-top-color: #8e1b1b;
+    border-radius: 50%;
+    animation: origin-brief-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes origin-brief-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   LINHA DO BRIEFING
+   ========================================================================== */
 .origin-brief-row {
     display: flex;
-    gap: 9px;
-    padding: 7px 0;
-    border-bottom: 1px solid #f0f2f5;
+    gap: 11px;
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--card-border, #f0f2f5);
     align-items: flex-start;
 }
+
 .origin-brief-row:last-child {
     border-bottom: none;
 }
 
+/* ---- Ícone circular tintado ---- */
 .origin-brief-icon {
-    font-size: 16px;
-    line-height: 1.2;
+    --icon-color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
     flex-shrink: 0;
-    width: 22px;
-    text-align: center;
-    user-select: none;
+    border-radius: 50%;
+    color: var(--icon-color);
+    background: color-mix(in srgb, var(--icon-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--icon-color) 22%, transparent);
+    transition: transform 0.15s ease;
 }
 
+.origin-brief-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.origin-brief-row:hover .origin-brief-icon {
+    transform: scale(1.06);
+}
+
+/* ---- Corpo do texto ---- */
 .origin-brief-text {
     flex: 1;
     min-width: 0;
@@ -2070,69 +2213,201 @@ body.dark-theme .jurisdiction-badge-samu {
 .origin-brief-label {
     font-size: 9.5px;
     font-weight: 700;
-    color: #7f8c8d;
+    color: var(--text-muted, #7f8c8d);
     text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
 }
 
 .origin-brief-value-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
 }
 
 .origin-brief-value {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-color);
     line-height: 1.35;
     word-break: break-word;
+    flex: 1;
+    min-width: 0;
 }
 
 .origin-brief-distance {
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent-color);
-    font-family: monospace;
+    color: var(--accent-color, #2980b9);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     white-space: nowrap;
     flex-shrink: 0;
+    padding: 2px 7px;
+    background: rgba(41, 128, 185, 0.09);
+    border-radius: 10px;
+    line-height: 1.3;
 }
 
-/* Botão compacto de rota dentro das linhas do briefing */
+/* ==========================================================================
+   BOTÃO DE ROTA — circular, com SVG de seta de navegação
+   --------------------------------------------------------------------------
+   ANTES: emoji 🚗 (colorido, vermelho) sobre fundo azul = baixo contraste.
+   AGORA: botão circular sólido, ícone SVG branco herdado via currentColor,
+          micro-interações de hover/active.
+   ========================================================================== */
 .btn-brief-route {
-    background: var(--accent-color);
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    white-space: nowrap;
-    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     margin-left: 4px;
-    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+    background: var(--accent-color, #2980b9);
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow:
+        0 1px 3px rgba(41, 128, 185, 0.32),
+        0 0 0 1px rgba(41, 128, 185, 0.12);
+    transition:
+        background 0.15s ease,
+        transform 0.12s ease,
+        box-shadow 0.15s ease;
+}
+
+.btn-brief-route svg {
+    width: 14px;
+    height: 14px;
+    /* Seta levemente rotacionada para dar sensação de movimento */
+    transform: rotate(0deg) translateX(1px);
+    transition: transform 0.15s ease;
 }
 
 .btn-brief-route:hover {
-    background: var(--accent-hover);
-    transform: translateY(-1px);
+    background: var(--accent-hover, #1f618d);
+    transform: scale(1.08);
+    box-shadow:
+        0 2px 8px rgba(41, 128, 185, 0.45),
+        0 0 0 3px rgba(41, 128, 185, 0.15);
+}
+
+.btn-brief-route:hover svg {
+    transform: rotate(0deg) translateX(2px);
 }
 
 .btn-brief-route:active {
-    transform: translateY(0);
+    transform: scale(0.94);
+    box-shadow: 0 1px 2px rgba(41, 128, 185, 0.4);
 }
 
+.btn-brief-route:focus-visible {
+    outline: none;
+    box-shadow:
+        0 1px 3px rgba(41, 128, 185, 0.32),
+        0 0 0 3px rgba(41, 128, 185, 0.35);
+}
+
+/* ---- Texto esmaecido (linhas sem dado) ---- */
 .origin-brief-muted {
-    color: #95a5a6;
+    color: var(--text-muted, #95a5a6);
     font-style: italic;
     font-weight: 500;
+}
+
+/* ==========================================================================
+   DARK THEME — ajustes finos do novo layout
+   --------------------------------------------------------------------------
+   O body/valores herdam as variáveis (--card-bg, --text-color, etc.), então
+   já respondem ao dark-theme global. Refinamos apenas o que depende de
+   opacidades fixas.
+   ========================================================================== */
+body.dark-theme .origin-brief-header {
+    background: linear-gradient(135deg, #991b1b 0%, #5c1010 100%);
+    border-bottom-color: rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .origin-brief-header-icon {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+body.dark-theme .origin-brief-icon {
+    background: color-mix(in srgb, var(--icon-color) 22%, transparent);
+    border-color: color-mix(in srgb, var(--icon-color) 38%, transparent);
+}
+
+body.dark-theme .origin-brief-distance {
+    background: rgba(56, 189, 248, 0.14);
+    color: #7dd3fc;
+}
+
+body.dark-theme .btn-brief-route {
+    background: #0284c7;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+body.dark-theme .btn-brief-route:hover {
+    background: #0ea5e9;
+    box-shadow:
+        0 2px 8px rgba(56, 189, 248, 0.4),
+        0 0 0 3px rgba(56, 189, 248, 0.22);
+}
+
+body.dark-theme .origin-brief-loading {
+    background: var(--card-bg, #1e293b);
+    color: var(--text-muted, #94a3b8);
+}
+
+body.dark-theme .origin-brief-spinner {
+    border-color: rgba(168, 35, 35, 0.35);
+    border-top-color: #ef4444;
+}
+
+/* ==========================================================================
+   MOBILE — alvos de toque confortáveis (WCAG 2.5.5)
+   ========================================================================== */
+@media (hover: none) and (pointer: coarse) {
+    .btn-brief-route {
+        width: 36px;
+        height: 36px;
+    }
+    .btn-brief-route svg {
+        width: 16px;
+        height: 16px;
+    }
+    .origin-brief-icon {
+        width: 34px;
+        height: 34px;
+    }
+    .origin-brief-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+/* ==========================================================================
+   PREFERS-REDUCED-MOTION — desliga animações decorativas
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    .btn-brief-route,
+    .btn-brief-route svg,
+    .origin-brief-icon {
+        transition: none;
+    }
+    .btn-brief-route:hover,
+    .origin-brief-row:hover .origin-brief-icon {
+        transform: none;
+    }
+    /* Spinner continua girando (é feedback, não decoração) */
+    .origin-brief-spinner {
+        animation-duration: 1.2s;
+    }
 }
 
 /* ==========================================================================
@@ -2474,19 +2749,6 @@ body.dark-theme .modal-content {
     background-color: var(--sidebar-bg);
     color: var(--text-color);
     border: 1px solid var(--card-border);
-}
-
-body.dark-theme .origin-brief-body {
-    background-color: var(--sidebar-bg);
-    color: var(--text-color);
-}
-
-body.dark-theme .origin-brief-row {
-    border-color: var(--card-border);
-}
-
-body.dark-theme .origin-brief-value {
-    color: var(--text-color);
 }
 
 /* Sidebar Scrollbar no Dark Theme */
@@ -4330,4 +4592,89 @@ body.dark-theme .btn-floating-refresh:hover {
         animation: none;
         opacity: 0.6;
     }
+}
+
+/* ==========================================================================
+   ÍCONES SVG UNIVERSAIS (.ui-icon)
+   --------------------------------------------------------------------------
+   Aplicados a todos os SVG inline gerados por svgIcon(). Garantem
+   alinhamento vertical consistente dentro de botões, badges, chips e
+   cabeçalhos.
+   ========================================================================== */
+.ui-icon {
+    display: inline-block;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+/* Botões com ícone SVG alinhados */
+.btn .ui-icon,
+.btn-buscar .ui-icon,
+.btn-popup-action .ui-icon,
+.btn-external-nav .ui-icon,
+.layer-btn .ui-icon,
+.btn-icon .ui-icon,
+.btn-footer-link .ui-icon,
+.map-chip-icon .ui-icon,
+.dispatch-section-title .ui-icon,
+.dispatch-jurisdiction-title .ui-icon,
+.feature-card-title .ui-icon {
+    margin-right: 4px;
+}
+
+/* Ícones dentro de badges de status (sem margem) */
+.eta-badge-loading .ui-icon,
+.eta-badge-straight .ui-icon,
+.eta-badge-ready .ui-icon,
+.eta-badge-best .ui-icon,
+.search-result-mun-badge .ui-icon,
+.feature-badge .ui-icon,
+.dispatch-badge-rec .ui-icon,
+.jurisdiction-source .ui-icon {
+    margin-right: 2px;
+    vertical-align: middle;
+}
+
+/* Legenda: swatch com SVG já é centralizado pelo _swatchInner */
+.legend-swatch svg,
+.layer-icon-badge svg {
+    display: block;
+    pointer-events: none;
+}
+
+/* Ícone do header institucional (feature-card-header) */
+.feature-card-header .feature-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Botão de cópia dentro do tooltip de evento */
+.btn-copy-coords-inline .ui-icon {
+    margin: 0;
+    vertical-align: middle;
+}
+
+/* Botão flutuante de refresh (o SVG já é passado inline no HTML) */
+.btn-floating-refresh .refresh-icon svg {
+    display: block;
+}
+
+/* Ajuste de halo no dark theme para ícones em círculos */
+body.dark-theme .ui-icon {
+    color: inherit;
+}
+
+/* Ajuste do close button (X) nos popups */
+.btn-popup-close .ui-icon {
+    margin: 0;
+}
+
+/* Chips com SVG */
+.map-chip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }

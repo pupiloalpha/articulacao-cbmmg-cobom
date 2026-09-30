@@ -56,17 +56,17 @@ function getLayerCategory(layer) {
     return winner;
 }
 
-// Metadados visuais por categoria (rótulo, emoji, cor institucional)
+// Metadados visuais por categoria (rótulo, ícone SVG, cor institucional)
 const LAYER_CATEGORY_META = {
-    UNIDADE_BM:   { label: 'Unidades BM',  icon: '🚒', color: '#c0392b' },
-    HOSPITAL:     { label: 'Hospitais',    icon: '🏥', color: '#2980b9' },
-    HIDRANTE:     { label: 'Hidrantes',    icon: '🚰', color: '#1f618d' },
-    EVENTO_FOGO:  { label: 'Fogo',         icon: '🔥', color: '#e67e22' },
-    CHAMADA:      { label: 'Chamadas',     icon: '🚨', color: '#e74c3c' },
-    POLYGON:      { label: 'Articulação',  icon: '🛡️', color: '#0288d1' },
-    MACRORREGIAO: { label: 'Macro',        icon: '🗺️', color: '#8e44ad' },
-    MICRORREGIAO: { label: 'Micro',        icon: '🗺️', color: '#27ae60' },
-    OTHER:        { label: 'Outras',       icon: '📍', color: '#6b7280' }
+    UNIDADE_BM:   { label: 'Unidades BM',  iconKey: 'truck',    color: '#c0392b' },
+    HOSPITAL:     { label: 'Hospitais',    iconKey: 'hospital', color: '#2980b9' },
+    HIDRANTE:     { label: 'Hidrantes',    iconKey: 'droplet',  color: '#1f618d' },
+    EVENTO_FOGO:  { label: 'Fogo',         iconKey: 'flame',    color: '#e67e22' },
+    CHAMADA:      { label: 'Chamadas',     iconKey: 'alert',    color: '#e74c3c' },
+    POLYGON:      { label: 'Articulação',  iconKey: 'shield',   color: '#0288d1' },
+    MACRORREGIAO: { label: 'Macro',        iconKey: 'hospital', color: '#8e44ad' },
+    MICRORREGIAO: { label: 'Micro',        iconKey: 'hospital', color: '#27ae60' },
+    OTHER:        { label: 'Outras',       iconKey: 'pin',      color: '#6b7280' }
 };
 
 const LAYER_CATEGORY_ORDER = [
@@ -611,7 +611,7 @@ function getFeatureDisplayName(feature) {
 
     if (type === 'HOSPITAL') {
         const nome = props['Nome do Hospital'] || props.name || 'Hospital';
-        return isUPA(feature) ? `🚑 ${nome}` : nome;
+        return isUPA(feature) ? `UPA — ${nome}` : nome;
     }
     if (type === 'UNIDADE_BM') {
         return props.name || props['Nome da Unidade'] || 'Unidade Operacional';
@@ -693,7 +693,7 @@ if (type === 'HIDRANTE') {
 
     return `
         <div class="feature-card-header" style="background: linear-gradient(135deg, #1f618d 0%, #2e86c1 100%);">
-            <h4 class="feature-card-title">🚰 Hidrante ${hidranteId}</h4>
+            <h4 class="feature-card-title">${svgIcon('droplet', 16)} Hidrante ${hidranteId}</h4>
             <span class="feature-type-tag">${tipoLabel}</span>
         </div>
         <div class="feature-card-body">
@@ -785,9 +785,9 @@ if (type === 'HIDRANTE') {
         const isSim = (v) => String(v || '').toLowerCase().trim().startsWith('s');
 
         const badges = [];
-        if (isSim(props.alerta))            badges.push('<span class="feature-badge" style="background:#fadbd8;color:#922b21;">⚠️ Alerta</span>');
-        if (isSim(props.destaque))          badges.push('<span class="feature-badge" style="background:#fdebd0;color:#b9770e;">⭐ Destaque</span>');
-        if (isSim(props.envolveAutoridade)) badges.push('<span class="feature-badge" style="background:#e8daef;color:#6c3483;">👮 Autoridade</span>');
+        if (isSim(props.alerta))            badges.push(`<span class="feature-badge" style="background:#fadbd8;color:#922b21;">${svgIcon('alert', 11)} Alerta</span>`);
+        if (isSim(props.destaque))          badges.push(`<span class="feature-badge" style="background:#fdebd0;color:#b9770e;">${svgIcon('star', 11)} Destaque</span>`);
+        if (isSim(props.envolveAutoridade)) badges.push(`<span class="feature-badge" style="background:#e8daef;color:#6c3483;">${svgIcon('shield', 11)} Autoridade</span>`);
 
         const badgesHtml = badges.length
             ? `<div class="feature-info-row" style="flex-wrap:wrap;gap:4px;justify-content:flex-start;">${badges.join(' ')}</div>`
@@ -795,7 +795,7 @@ if (type === 'HIDRANTE') {
 
         return `
             <div class="feature-card-header" style="background: linear-gradient(135deg, ${st.color} 0%, ${st.border} 100%);">
-                <h4 class="feature-card-title">🚨 Chamada ${props.numChamada || 's/n'}</h4>
+                <h4 class="feature-card-title">${svgIcon('alert', 16)} Chamada ${props.numChamada || 's/n'}</h4>
                 <span class="feature-type-tag">${st.label}</span>
             </div>
             <div class="feature-card-body">
@@ -872,7 +872,7 @@ if (type === 'HIDRANTE') {
                aria-label="Copiar coordenadas"
                data-cobom-action="copy-coords"
                data-lat="${evLat}"
-               data-lng="${evLng}">📋</button>`
+               data-lng="${evLng}">${svgIcon('copy', 11)}</button>`
     : '';
 
     // ---------- Índice de prioridade ----------
@@ -883,7 +883,7 @@ if (type === 'HIDRANTE') {
 
     const isAtivo = String(status).toLowerCase().includes('ativo');
     const headerClass = isAtivo ? 'header-unidade' : 'header-micro';
-    const icon = isAtivo ? '🚨' : '👀';
+    const icon = isAtivo ? svgIcon('alert', 16) : svgIcon('eye', 16);
 
     let prioridadeBadge = '<span class="feature-badge badge-tempo-neutro">sem índice</span>';
     if (indice != null && Number.isFinite(indice)) {
@@ -985,7 +985,7 @@ if (type === 'HIDRANTE') {
 
         const headerClass = isUpa ? 'header-upa' : 'header-hospital';
         const typeTag = isUpa ? 'UPA – Pronto Atendimento' : 'Hospital de Referência';
-        const icon = isUpa ? '🚑' : '🏥';
+        const icon = isUpa ? svgIcon('truck', 16) : svgIcon('hospital', 16);
 
         let especialidadesHtml = '';
         if (especialidades) {
@@ -1079,7 +1079,7 @@ if (type === 'HIDRANTE') {
 
         return `
             <div class="feature-card-header header-micro">
-                <h4 class="feature-card-title">🟢 ${microName}</h4>
+                <h4 class="feature-card-title">${svgIcon('hospital', 16)} ${microName}</h4>
                 <span class="feature-type-tag">Microrregião de Saúde</span>
             </div>
             <div class="feature-card-body">
@@ -1160,7 +1160,7 @@ if (type === 'HIDRANTE') {
 
         return `
             <div class="feature-card-header header-macro">
-                <h4 class="feature-card-title">🏥 ${macroName}</h4>
+                <h4 class="feature-card-title">${svgIcon('hospital', 16)} ${macroName}</h4>
                 <span class="feature-type-tag">Macrorregião de Saúde</span>
             </div>
             <div class="feature-card-body">
@@ -1173,7 +1173,7 @@ if (type === 'HIDRANTE') {
                     <div class="feature-info-row" style="flex-direction:column;align-items:flex-start;">
                         <span class="feature-info-label">Central SAMU 192:</span>
                         <span class="feature-info-value" style="text-align:left;font-weight:600;color:#1a5276;">
-                            📞 ${centralSamu}${municipioCentral ? ' — ' + municipioCentral : ''}
+                            ${svgIcon('phone', 13)} ${centralSamu}${municipioCentral ? ' — ' + municipioCentral : ''}
                         </span>
                     </div>` : ''}
                     ${municipiosAtendidos ? `
@@ -1205,7 +1205,7 @@ if (type === 'HIDRANTE') {
 
         return `
             <div class="feature-card-header header-unidade">
-                <h4 class="feature-card-title">🚒 ${unitName}</h4>
+                <h4 class="feature-card-title">${svgIcon('truck', 16)} ${unitName}</h4>
                 <span class="feature-type-tag">Fração BM</span>
             </div>
             <div class="feature-card-body">
@@ -1256,7 +1256,7 @@ if (type === 'HIDRANTE') {
 
         return `
             <div class="feature-card-header header-polygon">
-                <h4 class="feature-card-title">🗺️ ${polyName}</h4>
+                <h4 class="feature-card-title">${svgIcon('map', 16)} ${polyName}</h4>
                 <span class="feature-type-tag">Área Territorial</span>
             </div>
             <div class="feature-card-body">
@@ -1288,7 +1288,7 @@ if (type === 'HIDRANTE') {
 
     return `
         <div class="feature-card-header">
-            <h4 class="feature-card-title">📍 ${props.name || props['Nome da Unidade'] || props['Nome do Hospital'] || 'Feição'}</h4>
+            <h4 class="feature-card-title">${svgIcon('pin', 16)} ${props.name || props['Nome da Unidade'] || props['Nome do Hospital'] || 'Feição'}</h4>
         </div>
         <div class="feature-card-body">
             <p>${props.description || 'Sem descrição adicional.'}</p>
@@ -1317,7 +1317,7 @@ function formatFeaturePopup(feature) {
         <button type="button" class="btn-popup-close"
                 data-cobom-action="close-popup"
                 title="Fechar popup"
-                aria-label="Fechar popup">×</button>
+                aria-label="Fechar popup">${svgIcon('x', 14)}</button>
     `;
 
     const layerDbId = feature._layerDbId !== undefined ? feature._layerDbId : null;
@@ -1329,7 +1329,7 @@ function formatFeaturePopup(feature) {
                        data-cobom-action="edit-feature"
                        data-layer-id="${layerDbId}"
                        data-feature-index="${featureIdx}">
-                   ✏️ Editar Dados
+                   ${svgIcon('edit', 12)} Editar Dados
                </button>`
             : '';
 
@@ -1338,14 +1338,14 @@ function formatFeaturePopup(feature) {
     if (isPoint && coords) {
         // ---------- Pontos (comportamento original) ----------
         const reverseRoute = classification === 'UNIDADE_BM';
-        actionsHtml = `
+                actionsHtml = `
             <div class="feature-popup-actions">
                 <button type="button" class="btn-popup-action btn-popup-origin"
                         data-cobom-action="set-origin"
                         data-lat="${coords.lat}"
                         data-lng="${coords.lng}"
                         data-name="${name}">
-                    🎯 Definir Origem
+                    ${svgIcon('target', 12)} Definir Origem
                 </button>
                 <button type="button" class="btn-popup-action btn-popup-route"
                         data-cobom-action="route-to"
@@ -1353,13 +1353,13 @@ function formatFeaturePopup(feature) {
                         data-lat="${coords.lat}"
                         data-name="${name}"
                         data-reverse="${reverseRoute}">
-                    🚗 Rota até Aqui
+                    ${svgIcon('route', 12)} Rota até Aqui
                 </button>
                 <button type="button" class="btn-popup-action btn-popup-copy"
                         data-cobom-action="copy-coords"
                         data-lat="${coords.lat}"
                         data-lng="${coords.lng}">
-                    📋 Copiar Coord.
+                    ${svgIcon('copy', 12)} Copiar Coord.
                 </button>
                 ${editBtnHtml}
             </div>
@@ -1369,7 +1369,9 @@ function formatFeaturePopup(feature) {
         const evLat = (props.latitude  != null && props.latitude  !== '') ? Number(props.latitude)  : coords.lat;
         const evLng = (props.longitude != null && props.longitude !== '') ? Number(props.longitude) : coords.lng;
         const isEvent = classification === 'EVENTO_FOGO';
-        const copyLabel = isEvent ? '📋 Copiar Coord. do Evento' : '📋 Copiar Coord. (centro)';
+                const copyLabel = isEvent
+            ? `${svgIcon('copy', 12)} Copiar Coord. do Evento`
+            : `${svgIcon('copy', 12)} Copiar Coord. (centro)`;
 
         actionsHtml = `
             <div class="feature-popup-actions">
@@ -1378,7 +1380,7 @@ function formatFeaturePopup(feature) {
                         data-lat="${evLat}"
                         data-lng="${evLng}"
                         data-name="${name}">
-                    🎯 Definir Origem
+                    ${svgIcon('target', 12)} Definir Origem
                 </button>
                 <button type="button" class="btn-popup-action btn-popup-route"
                         data-cobom-action="route-to"
@@ -1386,7 +1388,7 @@ function formatFeaturePopup(feature) {
                         data-lat="${evLat}"
                         data-name="${name}"
                         data-reverse="false">
-                    🚗 Rota até Aqui
+                    ${svgIcon('route', 12)} Rota até Aqui
                 </button>
                 <button type="button" class="btn-popup-action btn-popup-copy"
                         data-cobom-action="copy-coords"
@@ -1584,7 +1586,7 @@ function addLayerToMap(layerData, mode = viewMode, isStreetLayer = false) {
                     layer.bindTooltip(`<strong>${name}</strong>${mun ? `<br><small>${mun}</small>` : ''}`, {
                         sticky: true, direction: 'top', opacity: 0.95, className: 'feature-tooltip'
                     });
-                    layer.bindPopup(`<div style="font-family:sans-serif;font-size:13px;padding:4px 2px;"><strong>🛣️ ${name}</strong>${mun ? `<br><span style="color:#64748b;font-size:12px;">${mun} – MG</span>` : ''}</div>`, { maxWidth: 280 });
+                    layer.bindPopup(`<div style="font-family:sans-serif;font-size:13px;padding:4px 2px;display:flex;align-items:center;gap:6px;">${svgIcon('route', 14)}<strong>${name}</strong>${mun ? `<br><span style="color:#64748b;font-size:12px;">${mun} – MG</span>` : ''}</div>`, { maxWidth: 280 });
                     layer.on('mouseover', e => e.target.setStyle({ weight: 2.6, color: '#334155', opacity: 1 }));
                     layer.on('mouseout', e => geojsonLayer.resetStyle(e.target));
                     return;
@@ -1912,7 +1914,7 @@ async function updateMapChips() {
         chip.title = anyVisible ? `Ocultar ${meta.label}` : `Mostrar ${meta.label}`;
         chip.setAttribute('aria-pressed', String(anyVisible));
         chip.innerHTML = `
-            <span class="map-chip-icon">${meta.icon}</span>
+            <span class="map-chip-icon">${svgIcon(meta.iconKey, 13)}</span>
             <span class="map-chip-label">${meta.label}</span>
             <span class="map-chip-count">${totalFeatures}</span>
         `;
@@ -2264,12 +2266,12 @@ function initAreaSearch() {
     if (!map || typeof L === 'undefined') return;
 
     // Controle Leaflet no canto superior direito
-    const AreaSearchControl = L.Control.extend({
+        const AreaSearchControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function () {
             const btn = L.DomUtil.create('button', 'leaflet-control-area-search');
             btn.type = 'button';
-            btn.innerHTML = '🔎';
+            btn.innerHTML = svgIcon('search', 14);
             btn.title = 'Buscar área BM (COB / BBM / CIA IND)';
             btn.setAttribute('aria-label', 'Buscar área BM');
             L.DomEvent.disableClickPropagation(btn);
@@ -2310,12 +2312,12 @@ function initAreaSearch() {
 
         // ---------- GRUPOS (COB) primeiro ----------
         if (groups.length > 0) {
-            html += `<div class="area-search-section-label">📦 Grupos de articulação</div>`;
+            html += `<div class="area-search-section-label">${svgIcon('package', 11)} Grupos de articulação</div>`;
             html += groups.map((g, gi) => `
                 <button type="button" class="area-search-item area-search-item-group"
                         data-group-index="${gi}">
                     <div class="area-search-item-head">
-                        <span class="area-search-item-title">📦 ${_esc(g.label)}</span>
+                        <span class="area-search-item-title">${svgIcon('package', 13)} ${_esc(g.label)}</span>
                         <span class="area-search-item-count">${g.count}</span>
                     </div>
                     <div class="area-search-item-sub">${_esc(g.previewText)}</div>
@@ -2325,10 +2327,10 @@ function initAreaSearch() {
 
         // ---------- FEIÇÕES INDIVIDUAIS ----------
         if (individuals.length > 0) {
-            html += `<div class="area-search-section-label">📍 Feições individuais</div>`;
+            html += `<div class="area-search-section-label">${svgIcon('pin', 11)} Feições individuais</div>`;
             html += individuals.map((m, i) => `
                 <button type="button" class="area-search-item" data-item-index="${i}">
-                    <div class="area-search-item-title">📍 ${_esc(m.title)}</div>
+                    <div class="area-search-item-title">${svgIcon('pin', 13)} ${_esc(m.title)}</div>
                     ${m.subtitle ? `<div class="area-search-item-sub">${_esc(m.subtitle)}</div>` : ''}
                 </button>
             `).join('');
@@ -2373,7 +2375,7 @@ function initAreaSearch() {
             currentResult = { groups: [], individuals: [] };
             return;
         }
-        results.innerHTML = '<div class="area-search-empty">🔎 Buscando...</div>';
+        results.innerHTML = `<div class="area-search-empty">${svgIcon('search', 14)} Buscando...</div>`;
         currentResult = await searchAreasBM(q);
         renderMatches(currentResult);
     };
