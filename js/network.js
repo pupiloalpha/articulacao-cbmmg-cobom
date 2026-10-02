@@ -170,6 +170,21 @@ function detectNetworkProfile() {
 function getNetworkProfile() { return currentNetworkProfile; }
 function getNetworkInfo()    { return currentNetworkInfo; }
 
+// ---------------------------------------------------------------------------
+// Parâmetros de clima por perfil de rede
+// ---------------------------------------------------------------------------
+const WEATHER_NETWORK_PARAMS = {
+    FAST:     { radarMaxZoom: 7, weatherTileConcurrency: 8, openMeteoTimeout: 5000 },
+    BALANCED: { radarMaxZoom: 7, weatherTileConcurrency: 5, openMeteoTimeout: 4000 },
+    ECONOMY:  { radarMaxZoom: 6, weatherTileConcurrency: 3, openMeteoTimeout: 3500 },
+    MINIMAL:  { radarMaxZoom: 5, weatherTileConcurrency: 2, openMeteoTimeout: 3000 }
+};
+
+function getWeatherNetworkParams() {
+    const key = currentNetworkInfo.profileKey || 'BALANCED';
+    return WEATHER_NETWORK_PARAMS[key] || WEATHER_NETWORK_PARAMS.BALANCED;
+}
+
 // Re-avalia quando a conexão mudar
 if ('connection' in navigator && navigator.connection.addEventListener) {
     navigator.connection.addEventListener('change', () => {
@@ -213,3 +228,4 @@ window.getNetworkProfile    = getNetworkProfile;
 window.getNetworkInfo       = getNetworkInfo;
 window.getDeviceClass       = getDeviceClass;
 window.applyDeviceClassToBody = applyDeviceClassToBody;
+window.getWeatherNetworkParams = getWeatherNetworkParams;

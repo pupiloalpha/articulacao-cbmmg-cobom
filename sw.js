@@ -8,7 +8,7 @@
 //
 // ⚠️ Manter CACHE_NAME sincronizado com DATA_VERSION em app.js.
 
-const CACHE_NAME = 'gis-pwa-cache-v13';  // ⚠️ Bump em conjunto com DATA_VERSION
+const CACHE_NAME = 'gis-pwa-cache-v14';  // ⚠️ Bump em conjunto com DATA_VERSION
 
 const STATIC_ASSETS = [
     './',
@@ -30,6 +30,7 @@ const STATIC_ASSETS = [
     './js/map.js',
     './js/icons.js',
     './js/eventos.js',
+    './js/weather.js',
     './js/chamadas.js',
     './js/layers.js',
     './js/search.js',
@@ -70,7 +71,12 @@ const BYPASS_HOSTS = [
     'nominatim.openstreetmap.org',
     'router.project-osrm.org',
     'painel-fogo-proxy.pesmesquita.workers.dev',
-    'raw.githubusercontent.com'
+    'raw.githubusercontent.com',
+    // Clima
+    'tile.openweathermap.org',
+    'api.rainviewer.com',
+    'tilecache.rainviewer.com',
+    'api.open-meteo.com'
 ];
 
 function shouldBypass(url) {

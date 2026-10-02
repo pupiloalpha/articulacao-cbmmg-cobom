@@ -1897,7 +1897,9 @@ async function updateMapChips() {
         return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
     });
 
+    // Reconstrói a barra
     container.innerHTML = '';
+
     for (const cat of categories) {
         const meta = LAYER_CATEGORY_META[cat] || LAYER_CATEGORY_META.OTHER;
         const layerList = byCategory.get(cat);

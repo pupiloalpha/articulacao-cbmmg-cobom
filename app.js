@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v13';
+const DATA_VERSION = 'v14';
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -374,6 +374,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initOperationalKeyboardShortcuts();
     initShortcutsModal();
+
+    // Camadas meteorológicas ANTES dos chips de categoria — assim os
+    // chips de clima já existem quando updateMapChips() roda e preserva
+    // a ordem visual. (O fix em layers.js já garante robustez mesmo se
+    // a ordem mudar no futuro, mas esta ordem é mais limpa.)
+    if (typeof initWeatherLayers === 'function') {
+        initWeatherLayers();
+    }
 
     // Chips flutuantes + buscador de áreas BM (COB/BBM/CIA IND)
     if (typeof updateMapChips === 'function') updateMapChips();

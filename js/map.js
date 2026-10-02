@@ -560,12 +560,23 @@ async function buildOriginBriefing(lat, lng) {
         }
     }
 
+    // ---------- Open-Meteo: condições atuais na origem ----------
+    let weather = null;
+    try {
+        if (typeof fetchOpenMeteoWeather === 'function') {
+            weather = await fetchOpenMeteoWeather(lat, lng);
+        }
+    } catch (e) {
+        console.warn('Falha ao obter Open-Meteo:', e);
+    }
+
     return {
         bmArticulation,
         nearestUnit,
         nearestHospital,
         nearestHidrante,
-        nearestFogo
+        nearestFogo,
+        weather
     };
 }
 
@@ -810,6 +821,37 @@ async function updateOriginPopup(lat, lng, description) {
         } else {
             html += _briefRow('flame', 'Evento de fogo mais próximo',
                 'Nenhum evento em MG', '', 'origin-brief-muted');
+        }
+
+        // --- Condições meteorológicas (Open-Meteo) ---
+        if (briefing.weather) {
+            const w = briefing.weather;
+            const desc = (typeof describeWeatherCode === 'function')
+                ? describeWeatherCode(w.weatherCode)
+                : { label: '—', icon: 'cloud', color: '#7f8c8d' };
+
+            const temp = w.temperature != null ? `${w.temperature.toFixed(1)}°C` : '—';
+            const wind = w.windSpeed != null ? `${w.windSpeed.toFixed(0)} km/h` : '';
+            const windDir = w.windDirection != null ? `${w.windDirection.toFixed(0)}°` : '';
+            const rain = w.precipitation != null ? `${w.precipitation.toFixed(1)} mm` : '';
+
+            const weatherValue = `${desc.label} • ${temp}` +
+                (wind ? ` • Vento ${wind}${windDir ? ' ' + windDir : ''}` : '') +
+                (rain && w.precipitation > 0 ? ` • Chuva ${rain}` : '');
+
+            // Alerta de tempestade: CAPE alto ou código WMO de tempestade
+            const isStorm = (w.cape != null && w.cape > 1000) ||
+                            (w.weatherCode >= 95) ||
+                            (w.windGusts != null && w.windGusts > 60);
+
+            if (isStorm) {
+                html += _briefRow('zap', '⚠️ Alerta meteorológico',
+                    'Condições favoráveis a tempestade',
+                    '', 'origin-brief-muted');
+            }
+
+            html += _briefRow(desc.icon, 'Condições atuais',
+                weatherValue, '', '', null);
         }
     }
 
