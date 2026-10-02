@@ -5,6 +5,20 @@ const WEATHER_STORAGE_KEY = 'cobom_owm_api_key';
 const WEATHER_OPACITY_KEY = 'cobom_weather_opacity';
 
 // ---------------------------------------------------------------------------
+// Base do proxy OWM no Cloudflare Worker
+// ---------------------------------------------------------------------------
+// A chave OpenWeatherMap NÃO fica no cliente. O Worker
+// (painel-fogo-proxy.pesmesquita.workers.dev) guarda a chave como
+// secret (OWM_API_KEY) e injeta no upstream ao receber chamadas
+// para /owm/{layer}/{z}/{x}/{y}.png.
+//
+// Se o usuário ainda tiver uma chave local em localStorage
+// ('cobom_owm_api_key'), ela é usada como fallback — útil para dev ou
+// para contornar uma falha momentânea do Worker.
+// ---------------------------------------------------------------------------
+const OWM_PROXY_BASE = 'https://painel-fogo-proxy.pesmesquita.workers.dev/owm';
+
+// ---------------------------------------------------------------------------
 // Definição das camadas meteorológicas
 // ---------------------------------------------------------------------------
 const WEATHER_LAYERS = {
@@ -212,29 +226,55 @@ function setOwmApiKey(key) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// OpenWeatherMap (tiles) — estratégia em camadas
+// ---------------------------------------------------------------------------
+// 1) Modo produção: Worker proxy (chave secreta no servidor)
+// 2) Modo dev/emergência: chave local em localStorage
+//
+// O PWA escolhe automaticamente: se há chave local salva, usa-a; caso
+// contrário, delega ao Worker.
+// ---------------------------------------------------------------------------
 function createOwmTileLayer(layerKey) {
     const cfg = WEATHER_LAYERS[layerKey];
     if (!cfg || cfg.isRainViewer) return null;
 
-    const apiKey = getOwmApiKey();
-    if (!apiKey) {
-        console.warn('[Weather] Chave OpenWeatherMap não configurada.');
-        return null;
-    }
-
-    const url = `https://tile.openweathermap.org/map/${cfg.owmLayer}/{z}/{x}/{y}.png?appid=${apiKey}`;
     const weatherParams = (typeof getWeatherNetworkParams === 'function')
         ? getWeatherNetworkParams()
         : {};
 
+    const maxZoom = Math.min(cfg.maxZoom || 18, weatherParams.radarMaxZoom || 18);
+    const hasLocalKey = !!getOwmApiKey();
+
+    // ---------- 1. Modo dev / emergência: chave local ----------
+    if (hasLocalKey) {
+        console.log(`[Weather] ${cfg.label}: usando chave local (modo dev)`);
+        const url = `https://tile.openweathermap.org/map/${cfg.owmLayer}/{z}/{x}/{y}.png?appid=${getOwmApiKey()}`;
+        return L.tileLayer(url, {
+            maxZoom,
+            opacity: cfg.opacity,
+            attribution: '© <a href="https://openweathermap.org/" target="_blank" rel="noopener">OpenWeatherMap</a>',
+            crossOrigin: true,
+            updateWhenIdle: true,
+            keepBuffer: 2,
+            updateWhenZooming: false
+        });
+    }
+
+    // ---------- 2. Modo produção: Worker proxy ----------
+    console.log(`[Weather] ${cfg.label}: usando Worker proxy (chave secreta)`);
+    const url = `${OWM_PROXY_BASE}/${cfg.owmLayer}/{z}/{x}/{y}.png`;
     return L.tileLayer(url, {
-        maxZoom: Math.min(cfg.maxZoom || 18, weatherParams.radarMaxZoom || 18),
+        maxZoom,
         opacity: cfg.opacity,
         attribution: '© <a href="https://openweathermap.org/" target="_blank" rel="noopener">OpenWeatherMap</a>',
         crossOrigin: true,
         updateWhenIdle: true,
         keepBuffer: 2,
-        updateWhenZooming: false
+        updateWhenZooming: false,
+        // Fallback silencioso: se um tile falhar (Worker fora, quota, etc.),
+        // o Leaflet não quebra — apenas não exibe nada naquele quadrante.
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
     });
 }
 
@@ -370,14 +410,10 @@ async function toggleWeatherLayer(layerKey, forceState = null) {
             return;
         }
     } else {
-        if (!getOwmApiKey()) {
-            showToast(
-                'Configure a chave OpenWeatherMap (localStorage.setItem("cobom_owm_api_key", "SUA_CHAVE")). Conta gratuita em openweathermap.org',
-                'warning',
-                6000
-            );
-            return;
-        }
+        // Não exige mais chave local — o Worker proxy cuida disso em produção.
+        // Em dev, se houver chave em localStorage, ela é usada automaticamente.
+        // Se o Worker estiver fora do ar, os tiles falham silenciosamente
+        // (errorTileUrl transparente), sem travar o app.
         layer = createOwmTileLayer(layerKey);
         if (!layer) return;
     }
