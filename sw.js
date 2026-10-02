@@ -71,6 +71,7 @@ const BYPASS_HOSTS = [
     'nominatim.openstreetmap.org',
     'router.project-osrm.org',
     'painel-fogo-proxy.pesmesquita.workers.dev',
+    'panorama.sipam.gov.br',
     'raw.githubusercontent.com',
     // Clima
     'tile.openweathermap.org',
