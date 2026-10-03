@@ -516,21 +516,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================================
 // REFRESH DO MAPA (substitui F5 em mobile/tablet)
 // ------------------------------------------------------------
-// Faz um "soft reload" da aplicação sem recarregar a página:
-//   • Re-renderiza todas as camadas visíveis (IndexedDB → mapa)
-//   • Refresca eventos de fogo (CENSIPAM, se online)
-//   • Limpa rota/linha traçada + popups abertos
-//   • Reaplica o modo de visualização atual
-//   • Zera marcador de origem (opcional, mantém se o usuário quiser)
+// Faz um "soft reload" da aplicação sem recarregar a página,
+// reproduzindo o estado da abertura inicial:
+//   • Limpa campos de busca (sidebar + flutuante)
+//   • Limpa resultados de busca e painel de despacho
+//   • Remove marcador de origem e rota/linha traçada
+//   • Reseta o modo de visualização para "all"
+//   • Re-renderiza todas as camadas (IndexedDB → mapa)
+//   • Refresca eventos de fogo (se online)
+//   • Executa zoomToAllFeatures() (enquadramento inicial)
 //
-// NÃO apaga: caches de tiles, cache de rotas, backup de camadas, dados
-// de logradouros. Isso garante que o offline continue funcional.
+// NÃO apaga: caches de tiles, cache de rotas, backup de camadas,
+// dados de logradouros — garante que o offline continue funcional.
 // ============================================================
 async function refreshMapHard() {
     const btn = document.getElementById('refreshMapBtn');
     if (btn?.disabled) return;   // já está rodando
 
-    // Feedback visual
     if (btn) {
         btn.disabled = true;
         btn.classList.add('is-loading');
@@ -539,7 +541,41 @@ async function refreshMapHard() {
     showToast('Recarregando mapa...', 'info', 2000);
 
     try {
-        // 1. Limpa rota/linha/marcador de destino ativos
+        // ------------------------------------------------------------
+        // 1. Limpa campos de busca (sidebar + flutuante)
+        // ------------------------------------------------------------
+        const searchInput        = document.getElementById('searchInput');
+        const floatingSearchInput = document.getElementById('floatingSearchInput');
+        const floatingSearchBox  = document.getElementById('floatingSearchBox');
+
+        if (searchInput)         searchInput.value = '';
+        if (floatingSearchInput) floatingSearchInput.value = '';
+        if (floatingSearchBox)   floatingSearchBox.classList.remove('has-text');
+
+        // ------------------------------------------------------------
+        // 2. Limpa painéis de resultado
+        // ------------------------------------------------------------
+        const searchResults         = document.getElementById('searchResults');
+        const floatingSearchResults = document.getElementById('floatingSearchResults');
+        const distanceResults       = document.getElementById('distanceResults');
+
+        if (searchResults)         searchResults.innerHTML = '';
+        if (distanceResults)       distanceResults.innerHTML = '';
+        if (floatingSearchResults) {
+            floatingSearchResults.innerHTML = '';
+            floatingSearchResults.classList.add('hidden');
+        }
+
+        // ------------------------------------------------------------
+        // 3. Remove marcador de origem, rotas e linhas traçadas
+        // ------------------------------------------------------------
+        if (originMarker && map) {
+            map.removeLayer(originMarker);
+            originMarker = null;
+        }
+        currentOrigin = null;
+        currentSearchResult = null;
+
         if (window.distanceLine && map) {
             map.removeLayer(window.distanceLine);
             window.distanceLine = null;
@@ -553,12 +589,27 @@ async function refreshMapHard() {
             window.routingControl = null;
         }
 
-        // 2. Fecha popups abertos para evitar estado "fantasma"
+        // Sai dos modos "rota" / "definir origem"
+        if (typeof clearRouteViewState === 'function') clearRouteViewState();
+        if (mapClickMode) exitMapOriginMode(false);
+
+        // ------------------------------------------------------------
+        // 4. Fecha popups abertos
+        // ------------------------------------------------------------
         if (map) {
             try { map.closePopup(); } catch (_) {}
         }
 
-        // 3. Invalida caches voláteis de UI
+        // ------------------------------------------------------------
+        // 5. Reseta modo de visualização para "all"
+        // ------------------------------------------------------------
+        viewMode = 'all';
+        layerVisibility = {};
+        if (typeof syncViewCheckboxes === 'function') syncViewCheckboxes('all');
+
+        // ------------------------------------------------------------
+        // 6. Invalida caches voláteis de UI
+        // ------------------------------------------------------------
         if (typeof invalidateLayerCategoryCache === 'function') {
             invalidateLayerCategoryCache();
         }
@@ -566,12 +617,16 @@ async function refreshMapHard() {
             invalidateStreetIndex();
         }
 
-        // 4. Re-renderiza todas as camadas (IndexedDB → mapa)
+        // ------------------------------------------------------------
+        // 7. Re-renderiza todas as camadas (IndexedDB → mapa)
+        // ------------------------------------------------------------
         if (typeof reloadLayers === 'function') {
             await reloadLayers();
         }
 
-        // 5. Refresca Eventos de Fogo (só se online; usa cache local se offline)
+        // ------------------------------------------------------------
+        // 8. Refresca Eventos de Fogo (silencioso; usa cache se offline)
+        // ------------------------------------------------------------
         if (typeof window.refreshEventosMG === 'function' && navigator.onLine) {
             try {
                 await window.refreshEventosMG({ silent: true });
@@ -580,12 +635,16 @@ async function refreshMapHard() {
             }
         }
 
-        // 6. Reaplica o filtro de visualização atual
-        if (typeof setViewMode === 'function' && typeof viewMode === 'string') {
-            setViewMode(viewMode);
+        // ------------------------------------------------------------
+        // 9. Enquadra o mapa em todas as feições (estado de abertura)
+        // ------------------------------------------------------------
+        if (typeof zoomToAllFeatures === 'function') {
+            zoomToAllFeatures();
         }
 
-        // 7. Reinicializa overlays dependentes do DOM (idempotente)
+        // ------------------------------------------------------------
+        // 10. Atualiza chips flutuantes
+        // ------------------------------------------------------------
         if (typeof updateMapChips === 'function') {
             await updateMapChips();
         }

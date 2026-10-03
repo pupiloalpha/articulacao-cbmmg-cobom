@@ -45,6 +45,138 @@ function invalidateStreetIndex() {
     cachedStreetIndex = null;
 }
 
+// ===========================================================================
+// FUZZY MATCHING — Levenshtein + sugestões a partir do índice local
+// ---------------------------------------------------------------------------
+// Usado para:
+//   • Sugerir correções quando o Nominatim retorna 0 resultados
+//   • Detectar digitação incorreta em nomes de vias ("kubitchek" → "Kubitschek")
+//   • Detectar nomes incompletos ("abraao" → "Abrahão")
+//
+// Apenas consulta o índice local (cachedStreetIndex). Se o índice não
+// estiver construído, retorna [] silenciosamente — sem custo em redes lentas.
+// ===========================================================================
+
+/**
+ * Distância de Levenshtein entre duas strings (custo O(m·n)).
+ * Otimizada para strings curtas (nomes de vias, tokens).
+ */
+function _levenshteinDistance(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    // Garante que b é a string mais curta (menor uso de memória)
+    if (a.length < b.length) { const t = a; a = b; b = t; }
+
+    const prev = new Array(b.length + 1);
+    const curr = new Array(b.length + 1);
+
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+
+    for (let i = 1; i <= a.length; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(
+                prev[j] + 1,        // deleção
+                curr[j - 1] + 1,    // inserção
+                prev[j - 1] + cost  // substituição
+            );
+        }
+        for (let j = 0; j <= b.length; j++) prev[j] = curr[j];
+    }
+    return prev[b.length];
+}
+
+/**
+ * Encontra ruas similares no índice local usando fuzzy matching por token.
+ *
+ * Regras:
+ *   • Token exato             → score +10
+ *   • Token é prefixo/sufixo  → score +6 (ex.: "kubits" ⊂ "kubitschek")
+ *   • Levenshtein ≤ 2         → score + (5 - distância)
+ *   • Todos os tokens da query precisam ter algum match (score ≥ 5)
+ *
+ * @param {string} rawQuery
+ * @param {number} maxSuggestions
+ * @returns {Array} Lista de entradas do índice (com .fullName, .munName, etc.)
+ */
+function findStreetSuggestions(rawQuery, maxSuggestions = 5) {
+    if (!cachedStreetIndex || cachedStreetIndex.length === 0) return [];
+    if (!rawQuery || String(rawQuery).trim().length < 3) return [];
+
+    const parsed = parseAddressQuery(rawQuery);
+    const queryTokens = (parsed.streetPart || normalizeStr(rawQuery))
+        .split(/\s+/)
+        .filter(t => t.length >= 3);
+
+    if (queryTokens.length === 0) return [];
+
+    const scored = [];
+
+    for (const street of cachedStreetIndex) {
+        const streetWords = street.normalizedStreetOnly.split(/\s+/).filter(Boolean);
+        if (streetWords.length === 0) continue;
+
+        let matchedTokens = 0;
+        let totalDistance = 0;
+
+        for (const token of queryTokens) {
+            let bestDist = Infinity;
+
+            for (const word of streetWords) {
+                if (word === token) { bestDist = 0; break; }
+
+                if (word.startsWith(token) || token.startsWith(word)) {
+                    if (bestDist > 1) bestDist = 1;
+                    continue;
+                }
+
+                // Só calcula Levenshtein se os comprimentos são próximos
+                if (Math.abs(word.length - token.length) <= 3) {
+                    const d = _levenshteinDistance(word, token);
+                    if (d < bestDist) bestDist = d;
+                }
+            }
+
+            if (bestDist <= 2) {
+                matchedTokens++;
+                totalDistance += bestDist;
+            }
+        }
+
+        // Todos os tokens precisam ter match razoável
+        if (matchedTokens === queryTokens.length &&
+            totalDistance <= queryTokens.length * 2) {
+            scored.push({
+                street,
+                score: matchedTokens * 10 - totalDistance
+            });
+        }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+
+    // Deduplica por (nome + município)
+    const seen = new Set();
+    const unique = [];
+    for (const s of scored) {
+        const key = `${s.street.normalizedFull}__${s.street.munName}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(s.street);
+        if (unique.length >= maxSuggestions) break;
+    }
+
+    // Filtra sugestões que são IGUAIS à query (evita redundância)
+    const queryNorm = normalizeStr(parsed.streetPart || rawQuery);
+    return unique.filter(st => {
+        const streetNorm = st.normalizedStreetOnly;
+        return streetNorm !== queryNorm && !streetNorm.startsWith(queryNorm + ' ');
+    });
+}
+
 async function getOrBuildStreetIndex() {
     if (cachedStreetIndex && cachedStreetIndex.length > 0) return cachedStreetIndex;
     if (isIndexingStreets) return [];
@@ -455,8 +587,23 @@ function _scoreOnlineResults(data, parsed, rawQuery) {
         const osmType  = String(item.type  || '').toLowerCase();
         const displayName = String(item.display_name || '');
         const displayNorm = normalizeStr(displayName);
-        const firstSegment = String(displayName.split(',')[0] || '').trim();
-        const firstSegNorm = normalizeStr(firstSegment);
+	const firstSegment = String(displayName.split(',')[0] || '').trim();
+	const firstSegNorm = normalizeStr(firstSegment);
+
+	// -------------------------------------------------------------------------
+	// Número do endereço no título
+	// -------------------------------------------------------------------------
+	// Se o usuário digitou um número mas o Nominatim não devolveu
+	// house_number correspondente (comum no endpoint structured), anexamos
+	// o número digitado ao título para deixar claro que a busca considerou-o.
+	// -------------------------------------------------------------------------
+	let displayTitle = firstSegment || 'Sem título';
+	if (parsed.hasNumber && parsed.number > 0) {
+	    const numStr = String(parsed.number);
+	    if (!new RegExp(`(^|\\D)${numStr}(\\D|$)`).test(displayTitle)) {
+	        displayTitle = `${displayTitle}, ${numStr}`;
+	    }
+	}
 
         if (osmClass === 'highway') {
             score += HIGHWAY_TYPE_SCORE[osmType] || 20;
@@ -501,8 +648,8 @@ function _scoreOnlineResults(data, parsed, rawQuery) {
         if (parsed.isIntersection) score += 12;
 
         return {
-            title: firstSegment || 'Sem título',
-            munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
+	    title: displayTitle,   // ← Correção: firstSegment || 'Sem título'
+	    munBadge: addr.city || addr.town || addr.municipality || 'Online (OSM)',
             address: displayName,
             subtitle: displayName,
             lat: parseFloat(item.lat),
@@ -667,10 +814,26 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             }
         }
 
-        if (data.length === 0) {
-                        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Nada encontrado online. Verificando base local...</div>`;
-            return false;
-        }
+	if (data.length === 0) {
+	    // ----------------------------------------------------------------
+	    // Fuzzy fallback: tenta sugerir ruas parecidas pelo índice local
+	    // (apenas se já tiver sido construído — não força build em rede lenta)
+	    // ----------------------------------------------------------------
+	    const profileInfo = (typeof getNetworkInfo === 'function')
+	        ? getNetworkInfo() : {};
+	    const allowSuggestions = profileInfo.profileKey !== 'MINIMAL';
+
+	    if (allowSuggestions) {
+	        const suggestions = findStreetSuggestions(rawQuery, 4);
+	        if (suggestions.length > 0) {
+	            displaySearchResults([], targetId, suggestions, rawQuery);
+	            return true;   // consideramos "resolvido" com sugestões
+	        }
+	    }
+
+	    resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Nada encontrado online. 	Verificando base local...</div>`;
+	    return false;
+	}
 
         // ---------- Cacheia antes do scoring ----------
         _setCachedSearch(cacheKey, data);
@@ -1079,11 +1242,65 @@ async function searchAddress(query, targetId = 'searchResults') {
 
 /**
  * Exibe resultados e, no clique de resultado ONLINE, pré-carrega a malha do município.
+ *
+ * @param {Array}  results     Resultados já ordenados por score
+ * @param {string} targetId    'searchResults' | 'floatingSearchResults'
+ * @param {Array}  suggestions Sugestões fuzzy (opcional, vinda de findStreetSuggestions)
+ * @param {string} rawQuery    Query original (para reexecutar a busca ao clicar numa sugestão)
  */
-function displaySearchResults(results, targetId = 'searchResults') {
+function displaySearchResults(results, targetId = 'searchResults', suggestions = [], rawQuery = '') {
     const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
     resultsDiv.innerHTML = '';
+
+    // ================================================================
+    // Bloco de sugestões fuzzy ("Você quis dizer:")
+    // ================================================================
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+        const sugDiv = document.createElement('div');
+        sugDiv.className = 'search-suggestions';
+
+        const header = document.createElement('div');
+        header.className = 'search-suggestions-header';
+        header.innerHTML = `${svgIcon('info', 12)} Você quis dizer:`;
+        sugDiv.appendChild(header);
+
+        suggestions.forEach(st => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'search-suggestion';
+
+            // Constrói a query corrigida preservando o número digitado
+            const parsed = parseAddressQuery(rawQuery);
+            const correctedQuery = st.fullName
+                + (st.munName ? `, ${st.munName}` : '')
+                + (parsed.hasNumber ? ` ${parsed.number}` : '');
+
+            btn.innerHTML = `${svgIcon('search', 11)} <strong>${escapeHtml(st.fullName)}</strong>` +
+                (st.munName ? ` <small>(${escapeHtml(st.munName)})</small>` : '');
+
+            btn.addEventListener('click', () => {
+                resultsDiv.innerHTML = '';
+                const searchInput = document.getElementById('floatingSearchInput');
+                if (targetId === 'floatingSearchResults' && searchInput) {
+                    searchInput.value = correctedQuery;
+                }
+                searchAddress(correctedQuery, targetId);
+            });
+
+            sugDiv.appendChild(btn);
+        });
+
+        resultsDiv.appendChild(sugDiv);
+
+        // Se só temos sugestões (sem resultados), retornamos cedo
+        if (!Array.isArray(results) || results.length === 0) return;
+    }
+
+    // ================================================================
+    // Resultados normais
+    // ================================================================
+    if (!Array.isArray(results) || results.length === 0) return;
 
     results.forEach(result => {
         const item = document.createElement('div');
@@ -1094,8 +1311,11 @@ function displaySearchResults(results, targetId = 'searchResults') {
             extraBadge = `<span class="search-result-mun-badge" style="background:#fef3c7;color:#92400e;">${svgIcon('crosshair-shuffle', 10)} Esquina</span>`;
         } else if (result.usedInterpolation || result.interpolationFailed) {
             extraBadge = `<span class="search-result-mun-badge" style="background:#e8f4f8;color:#1a5276;">aprox.</span>`;
-        } else if (result.source === 'online_osm' && result.houseNumber) {
+        } else if (result.houseNumber) {
             extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">Nº ${escapeHtml(result.houseNumber)}</span>`;
+        } else if (result.source === 'online_osm' && /\d/.test(result.title || '')) {
+            // Título já traz número — badge neutro
+            extraBadge = `<span class="search-result-mun-badge" style="background:#d5f5e3;color:#1e8449;">Nº ${escapeHtml((result.title.match(/\d+/) || [''])[0])}</span>`;
         }
 
         item.innerHTML = `
