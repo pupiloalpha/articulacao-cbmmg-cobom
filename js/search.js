@@ -177,84 +177,106 @@ function findStreetSuggestions(rawQuery, maxSuggestions = 5) {
     });
 }
 
+/**
+ * Constrói (ou reaproveita) o índice de logradouros usado pela busca offline
+ * e pelo fuzzy matching.
+ *
+ * Promise-safe: se já houver um build em andamento, chamadas concorrentes
+ * aguardam a MESMA promise em vez de receberem [] imediatamente. Isso
+ * corrige a race condition que impedia sugestões na primeira busca.
+ */
+let _streetIndexBuildPromise = null;
+
 async function getOrBuildStreetIndex() {
-    if (cachedStreetIndex && cachedStreetIndex.length > 0) return cachedStreetIndex;
-    if (isIndexingStreets) return [];
+    // Cache hit — índice já construído nesta sessão
+    if (cachedStreetIndex && cachedStreetIndex.length > 0) {
+        return cachedStreetIndex;
+    }
 
-    isIndexingStreets = true;
-    try {
-        const layers = await DB.getLayers();
-        const streetMap = new Map();
+    // Build em andamento — reutiliza a promise existente
+    if (_streetIndexBuildPromise) {
+        return _streetIndexBuildPromise;
+    }
 
-        for (const layerData of layers) {
-            if (!layerData?.geojson?.features) continue;
+    _streetIndexBuildPromise = (async () => {
+        isIndexingStreets = true;
+        try {
+            const layers = await DB.getLayers();
+            const streetMap = new Map();
 
-            for (const feature of layerData.geojson.features) {
-                const props = feature.properties;
-                const geom = feature.geometry;
-                if (!props || !geom) continue;
+            for (const layerData of layers) {
+                if (!layerData?.geojson?.features) continue;
 
-                const streetInfo = getFeatureStreetInfo(props, layerData.name);
-                if (!streetInfo?.fullName) continue;
+                for (const feature of layerData.geojson.features) {
+                    const props = feature.properties;
+                    const geom = feature.geometry;
+                    if (!props || !geom) continue;
 
-                const munCode = streetInfo.cdSetor ? streetInfo.cdSetor.slice(0, 7) : '';
-                const streetKey = `${normalizeStr(streetInfo.fullName)}__${munCode || normalizeStr(streetInfo.munName)}`;
+                    const streetInfo = getFeatureStreetInfo(props, layerData.name);
+                    if (!streetInfo?.fullName) continue;
 
-                if (!streetMap.has(streetKey)) {
-                    streetMap.set(streetKey, {
-                        fullName: streetInfo.fullName,
-                        streetOnly: streetInfo.streetOnly,
-                        tipLog: streetInfo.tipLog,
-                        titLog: streetInfo.titLog,
-                        munName: streetInfo.munName || 'MG',
-                        cdSetor: streetInfo.cdSetor,
-                        totalRes: 0,
-                        totalGeral: 0,
-                        segmentsCount: 0,
-                        minLat: Infinity,
-                        maxLat: -Infinity,
-                        minLng: Infinity,
-                        maxLng: -Infinity,
-                        layerName: layerData.name,
-                        normalizedFull: normalizeStr(streetInfo.fullName),
-                        normalizedWithMun: normalizeStr(`${streetInfo.fullName} ${streetInfo.munName || ''}`),
-                        normalizedStreetOnly: normalizeStr(streetInfo.streetOnly),
-                        streetKey
+                    const munCode = streetInfo.cdSetor ? streetInfo.cdSetor.slice(0, 7) : '';
+                    const streetKey = `${normalizeStr(streetInfo.fullName)}__${munCode || normalizeStr(streetInfo.munName)}`;
+
+                    if (!streetMap.has(streetKey)) {
+                        streetMap.set(streetKey, {
+                            fullName: streetInfo.fullName,
+                            streetOnly: streetInfo.streetOnly,
+                            tipLog: streetInfo.tipLog,
+                            titLog: streetInfo.titLog,
+                            munName: streetInfo.munName || 'MG',
+                            cdSetor: streetInfo.cdSetor,
+                            totalRes: 0,
+                            totalGeral: 0,
+                            segmentsCount: 0,
+                            minLat: Infinity,
+                            maxLat: -Infinity,
+                            minLng: Infinity,
+                            maxLng: -Infinity,
+                            layerName: layerData.name,
+                            normalizedFull: normalizeStr(streetInfo.fullName),
+                            normalizedWithMun: normalizeStr(`${streetInfo.fullName} ${streetInfo.munName || ''}`),
+                            normalizedStreetOnly: normalizeStr(streetInfo.streetOnly),
+                            streetKey
+                        });
+                    }
+
+                    const entry = streetMap.get(streetKey);
+                    entry.segmentsCount++;
+                    entry.totalRes += streetInfo.totalRes;
+                    entry.totalGeral += streetInfo.totalGeral;
+
+                    extractCoordinatesFromGeom(geom, (lng, lat) => {
+                        if (lat < entry.minLat) entry.minLat = lat;
+                        if (lat > entry.maxLat) entry.maxLat = lat;
+                        if (lng < entry.minLng) entry.minLng = lng;
+                        if (lng > entry.maxLng) entry.maxLng = lng;
                     });
                 }
-
-                const entry = streetMap.get(streetKey);
-                entry.segmentsCount++;
-                entry.totalRes += streetInfo.totalRes;
-                entry.totalGeral += streetInfo.totalGeral;
-
-                extractCoordinatesFromGeom(geom, (lng, lat) => {
-                    if (lat < entry.minLat) entry.minLat = lat;
-                    if (lat > entry.maxLat) entry.maxLat = lat;
-                    if (lng < entry.minLng) entry.minLng = lng;
-                    if (lng > entry.maxLng) entry.maxLng = lng;
-                });
             }
-        }
 
-        const indexList = [];
-        for (const entry of streetMap.values()) {
-            if (entry.minLat !== Infinity && entry.minLng !== Infinity) {
-                entry.lat = (entry.minLat + entry.maxLat) / 2;
-                entry.lng = (entry.minLng + entry.maxLng) / 2;
-                entry.displayAddress = `${entry.fullName} - ${entry.munName}, MG`;
-                indexList.push(entry);
+            const indexList = [];
+            for (const entry of streetMap.values()) {
+                if (entry.minLat !== Infinity && entry.minLng !== Infinity) {
+                    entry.lat = (entry.minLat + entry.maxLat) / 2;
+                    entry.lng = (entry.minLng + entry.maxLng) / 2;
+                    entry.displayAddress = `${entry.fullName} - ${entry.munName}, MG`;
+                    indexList.push(entry);
+                }
             }
-        }
 
-        cachedStreetIndex = indexList;
-        return cachedStreetIndex;
-    } catch (e) {
-        console.error('Erro ao construir índice de ruas:', e);
-        return [];
-    } finally {
-        isIndexingStreets = false;
-    }
+            cachedStreetIndex = indexList;
+            return cachedStreetIndex;
+        } catch (e) {
+            console.error('Erro ao construir índice de ruas:', e);
+            return [];
+        } finally {
+            isIndexingStreets = false;
+            _streetIndexBuildPromise = null;
+        }
+    })();
+
+    return _streetIndexBuildPromise;
 }
 
 function extractCoordinatesFromGeom(geom, callback) {
@@ -814,26 +836,33 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             }
         }
 
-	if (data.length === 0) {
-	    // ----------------------------------------------------------------
-	    // Fuzzy fallback: tenta sugerir ruas parecidas pelo índice local
-	    // (apenas se já tiver sido construído — não força build em rede lenta)
-	    // ----------------------------------------------------------------
-	    const profileInfo = (typeof getNetworkInfo === 'function')
-	        ? getNetworkInfo() : {};
-	    const allowSuggestions = profileInfo.profileKey !== 'MINIMAL';
+        if (data.length === 0) {
+            // ----------------------------------------------------------------
+            // Fuzzy fallback: tenta sugerir ruas parecidas pelo índice local.
+            // ----------------------------------------------------------------
+            const profileInfo = (typeof getNetworkInfo === 'function')
+                ? getNetworkInfo() : {};
+            const allowSuggestions = profileInfo.profileKey !== 'MINIMAL';
 
-	    if (allowSuggestions) {
-	        const suggestions = findStreetSuggestions(rawQuery, 4);
-	        if (suggestions.length > 0) {
-	            displaySearchResults([], targetId, suggestions, rawQuery);
-	            return true;   // consideramos "resolvido" com sugestões
-	        }
-	    }
+            if (allowSuggestions) {
+                // Garante que o índice esteja pronto antes de consultá-lo.
+                // getOrBuildStreetIndex() é promise-safe e idempotente.
+                try {
+                    if (!cachedStreetIndex || cachedStreetIndex.length === 0) {
+                        await getOrBuildStreetIndex();
+                    }
+                } catch (_) { /* segue sem sugestões */ }
 
-	    resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Nada encontrado online. 	Verificando base local...</div>`;
-	    return false;
-	}
+                const suggestions = findStreetSuggestions(rawQuery, 4);
+                if (suggestions.length > 0) {
+                    displaySearchResults([], targetId, suggestions, rawQuery);
+                    return true;   // "resolvido" com sugestões fuzzy
+                }
+            }
+
+            resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('globe', 13)} Nada encontrado online. Verificando base local...</div>`;
+            return false;
+        }
 
         // ---------- Cacheia antes do scoring ----------
         _setCachedSearch(cacheKey, data);
@@ -1084,6 +1113,49 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
 
     if (topResults.length > 0) {
         displaySearchResults(topResults);
+        return;
+    }
+
+    // -----------------------------------------------------------------------
+    // Fallback fuzzy offline
+    // -----------------------------------------------------------------------
+    // A busca offline usa substring exata; "abraao" não é substring de
+    // "abrahao", então nunca encontraria Abrahão Caram por esse caminho.
+    // Aplicamos a mesma lógica de Levenshtein usada no caminho online —
+    // assim o usuário recebe "Você quis dizer:" mesmo sem internet.
+    // -----------------------------------------------------------------------
+    const profileInfo = (typeof getNetworkInfo === 'function')
+        ? getNetworkInfo() : {};
+    const allowSuggestions = profileInfo.profileKey !== 'MINIMAL';
+
+    let suggestions = [];
+    if (allowSuggestions) {
+        // getOrBuildStreetIndex() é idempotente; aqui o índice já deve estar
+        // pronto (a função é chamada mais acima), mas garantimos por segurança.
+        try {
+            if (!cachedStreetIndex || cachedStreetIndex.length === 0) {
+                await getOrBuildStreetIndex();
+            }
+            suggestions = findStreetSuggestions(rawQuery, 4);
+        } catch (e) {
+            console.warn('Falha ao gerar sugestões offline:', e);
+        }
+    }
+
+    if (suggestions.length > 0) {
+        displaySearchResults([], targetId, suggestions, rawQuery);
+        return;
+    }
+
+    // -----------------------------------------------------------------------
+    // Nenhum resultado — mensagem distinta conforme o estado real da conexão
+    // -----------------------------------------------------------------------
+    // Quando navigator.onLine === true, o usuário NÃO está offline: apenas
+    // não há correspondência. Exibir "Modo Offline" nesse cenário confunde
+    // o operador no salão de despacho.
+    // -----------------------------------------------------------------------
+    if (navigator.onLine) {
+        resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('search', 13)} Sem correspondência online nem na base local.</div>`;
     } else {
         resultsDiv.innerHTML = `<div class="search-status-msg">${svgIcon('wifi-off', 13)} Modo Offline: Nenhum endereço correspondente na base local.</div>`;
     }
