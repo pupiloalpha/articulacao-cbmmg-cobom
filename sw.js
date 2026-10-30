@@ -6,16 +6,27 @@
 //   • APIs externas          → ignoradas (a app faz fetch direto)
 //   • Tiles OSM / Nominatim / OSRM → ignoradas (IndexedDB / fetch direto)
 //
-// ⚠️ Manter CACHE_NAME sincronizado com DATA_VERSION em app.js.
+// ⚠️ A CADA ATUALIZAÇÃO, trocar a versão nos 3 lugares (mesmo número):
+//      1. ASSET_VERSION abaixo
+//      2. DATA_VERSION em app.js
+//      3. "?v=NN" nos <link>/<script> do app em index.html
+//
+// [v17 – Jeferson Manini] Os arquivos do app (CSS/JS) são pré-cacheados com
+// "?v=NN" — o mesmo endereço usado pelo index.html. Assim, quando sai uma
+// versão nova, o index.html novo pede endereços novos e o navegador não
+// mistura arquivos novos com antigos (nem pelo cache HTTP do GitHub Pages,
+// nem pelo cache deste service worker).
 
-const CACHE_NAME = 'gis-pwa-cache-v16';  // ⚠️ Bump em conjunto com DATA_VERSION (v16 – Jeferson Manini)
+const ASSET_VERSION = '17';
+const CACHE_NAME = `gis-pwa-cache-v${ASSET_VERSION}`;
+const V = `?v=${ASSET_VERSION}`;
 
 const STATIC_ASSETS = [
     './',
     './index.html',
-    './styles.css',
-    './db.js',
-    './app.js',
+    './styles.css' + V,
+    './db.js' + V,
+    './app.js' + V,
     './manifest.json',
     './data/backup_inicial.json',
     './data/ruas/index.json',
@@ -25,19 +36,19 @@ const STATIC_ASSETS = [
     './data/hospitais/hospitais_referencia_mg.geojson',
     './data/samu/samu_centrais.json',
     // Módulos JS
-    './js/network.js',
-    './js/utils.js',
-    './js/map.js',
-    './js/icons.js',
-    './js/eventos.js',
-    './js/weather.js',
-    './js/chamadas.js',
-    './js/layers.js',
-    './js/search.js',
-    './js/multiroute.js',
-    './js/gps.js',
-    './js/tiles.js',
-    './js/admin.js',
+    './js/network.js' + V,
+    './js/utils.js' + V,
+    './js/map.js' + V,
+    './js/icons.js' + V,
+    './js/eventos.js' + V,
+    './js/weather.js' + V,
+    './js/chamadas.js' + V,
+    './js/layers.js' + V,
+    './js/search.js' + V,
+    './js/multiroute.js' + V,
+    './js/gps.js' + V,
+    './js/tiles.js' + V,
+    './js/admin.js' + V,
     // Ícones PWA
     './icons/favicon-16.png',
     './icons/favicon-32.png',
@@ -95,9 +106,11 @@ self.addEventListener('install', event => {
                 console.log('[SW] Cache aberto:', CACHE_NAME);
                 // addAll falha inteiro se QUALQUER asset falhar. Para
                 // robustez, fazemos add individual e logamos os erros.
+                // cache: 'reload' → busca sempre no servidor, nunca no cache
+                // HTTP do navegador (que pode guardar a versão anterior).
                 return Promise.all(
                     STATIC_ASSETS.map(url =>
-                        cache.add(url).catch(err =>
+                        cache.add(new Request(url, { cache: 'reload' })).catch(err =>
                             console.warn('[SW] Falha ao pré-cachear:', url, err.message)
                         )
                     )
@@ -173,7 +186,13 @@ self.addEventListener('fetch', event => {
 async function networkFirstHTML(req) {
     const cache = await caches.open(CACHE_NAME);
     try {
-        const networkResp = await fetch(req);
+        // [v17 – Jeferson Manini] cache: 'no-cache' → sempre confere com o
+        // servidor (resposta rápida "não mudou" quando igual). Sem isso, o
+        // cache HTTP do GitHub Pages (10 min) podia entregar o index.html
+        // antigo logo após uma atualização.
+        let netReq = req;
+        try { netReq = new Request(req, { cache: 'no-cache' }); } catch (_) { /* navegador antigo */ }
+        const networkResp = await fetch(netReq);
         if (networkResp && networkResp.status === 200) {
             // Atualiza cache em background
             cache.put(req, networkResp.clone()).catch(() => {});

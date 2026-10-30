@@ -82,7 +82,7 @@
     <link rel="stylesheet" href="./vendor/leaflet.css">
     <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css">
     <link rel="stylesheet" href="./vendor/leaflet.markercluster.css">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=17">
 </head>
 <body>
 <button id="sidebarShowBtn" class="btn-floating hidden" aria-label="Abrir painel">☰</button>
@@ -398,6 +398,9 @@
     </div>
 
     <!-- Bibliotecas + App scripts (todos defer, ordem preservada) -->
+    <!-- [v17 – Jeferson Manini] "?v=17" nos arquivos do app: a cada versão o
+         navegador busca os arquivos novos em vez de misturar com os antigos
+         do cache. Manter igual a ASSET_VERSION em sw.js e DATA_VERSION em app.js. -->
     <script defer src="./vendor/leaflet.js"></script>
     <script defer src="./vendor/leaflet.markercluster.js"></script>
     <script defer src="./vendor/leaflet-routing-machine.js"></script>
@@ -407,20 +410,20 @@
     <script defer src="./vendor/jszip.min.js"></script>
     <script defer src="./vendor/togeojson.umd.js"></script>
 
-    <script defer src="./db.js"></script>
-    <script defer src="./js/utils.js"></script>
-    <script defer src="./js/network.js"></script>
-    <script defer src="./js/map.js"></script>
-    <script defer src="./js/icons.js"></script>
-    <script defer src="./js/eventos.js"></script>
-    <script defer src="./js/weather.js"></script>
-    <script defer src="./js/chamadas.js"></script>
-    <script defer src="./js/layers.js"></script>
-    <script defer src="./js/search.js"></script>
-    <script defer src="./js/multiroute.js"></script>
-    <script defer src="./js/gps.js"></script>
-    <script defer src="./js/tiles.js"></script>
-    <script defer src="./js/admin.js"></script>
-    <script defer src="./app.js"></script>
+    <script defer src="./db.js?v=17"></script>
+    <script defer src="./js/utils.js?v=17"></script>
+    <script defer src="./js/network.js?v=17"></script>
+    <script defer src="./js/map.js?v=17"></script>
+    <script defer src="./js/icons.js?v=17"></script>
+    <script defer src="./js/eventos.js?v=17"></script>
+    <script defer src="./js/weather.js?v=17"></script>
+    <script defer src="./js/chamadas.js?v=17"></script>
+    <script defer src="./js/layers.js?v=17"></script>
+    <script defer src="./js/search.js?v=17"></script>
+    <script defer src="./js/multiroute.js?v=17"></script>
+    <script defer src="./js/gps.js?v=17"></script>
+    <script defer src="./js/tiles.js?v=17"></script>
+    <script defer src="./js/admin.js?v=17"></script>
+    <script defer src="./app.js?v=17"></script>
 </body>
 </html>

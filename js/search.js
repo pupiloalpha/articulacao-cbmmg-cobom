@@ -698,6 +698,14 @@ function _scoreOnlineResults(data, parsed, rawQuery) {
             if (foundCity.includes(cityNorm) || cityNorm.includes(foundCity)) score += 25;
         }
 
+        // [v17 – Jeferson Manini] bairro informado (CAD) desempata resultados
+        if (parsed.bairro) {
+            const bairroNorm = normalizeStr(parsed.bairro);
+            const foundBairro = normalizeStr(addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || '');
+            if (foundBairro && (foundBairro.includes(bairroNorm) || bairroNorm.includes(foundBairro))) score += 30;
+            else if (displayNorm.includes(bairroNorm)) score += 15;
+        }
+
         if (parsed.isIntersection) score += 12;
 
         return {
@@ -791,7 +799,8 @@ async function searchAddressOnline(rawQuery, parsed, targetId = 'searchResults')
             });
         }
 
-        if (urlJobs.length === 0 || isIncomplete || parsed.isIntersection) {
+        // [v17 – Jeferson Manini] CAD vem sem acentos: busca livre ajuda o Nominatim
+        if (urlJobs.length === 0 || isIncomplete || parsed.isIntersection || parsed.isCad) {
             const freeParams = new URLSearchParams({
                 format: 'json',
                 addressdetails: '1',
@@ -1271,6 +1280,277 @@ function tryParseCoordinates(rawQuery) {
 }
 
 /**
+ * ============================================================
+ * LINHAS DO SIDS / CAD (chamadas ativas)
+ * ------------------------------------------------------------
+ * [v17 – Jeferson Manini] Permite colar na busca uma ou várias
+ * linhas copiadas da lista de chamadas do SIDS, por exemplo:
+ *
+ *   sids...LinhaTabelaChamadasAtivas@2e574f3 <TAB> 2026-48592053-3 <TAB>
+ *   30/10/2026 20:05:47 <TAB> (2) (C) P02004 - VISTORIA EM RISCO ... <TAB>
+ *   RUA VEREADOR JOAO FURTADO, Nº 245 - RETIRO - NOVA LIMA <TAB>
+ *   1BBM/1CIA/1PEL <TAB> ACA6082
+ *
+ * e também só o endereço no padrão do CAD:
+ *   "LOGRADOURO, Nº 245 - BAIRRO - CIDADE"
+ *
+ * O endereço é separado em rua / número / bairro / cidade. A busca
+ * usa rua + número + cidade (o bairro só ajuda a desempatar), em vez
+ * de misturar bairro e "Nº" no nome da rua.
+ * ============================================================
+ */
+const CAD_PROTOCOL_RE = /^\d{4}-\d{6,10}-\d$/;
+const CAD_NUMBER_RE = /^(.+?),\s*N\s*[º°o.]?\s*(\d{1,6}|S\s*\/\s*N)\b\s*(.*)$/i;
+const CAD_STREET_TYPES_RE = /^(RUA|R\.|AVENIDA|AV\.?|ALAMEDA|AL\.|PRA[CÇ]A|P[CÇ]A\.?|TRAVESSA|TV\.?|RODOVIA|ROD\.?|ESTRADA|EST\.?|BECO|VIA|VIELA|LARGO|ANEL|BOULEVARD|BR|MG|LMG|AMG|CONDOM[IÍ]NIO|VILA|S[IÍ]TIO|FAZENDA|CH[AÁ]CARA|LADEIRA|PASSAGEM|SERVID[AÃ]O)\b/i;
+
+// Chamada escolhida por contêiner de resultados (para rótulos e avisos)
+const _activeCadCall = new Map();
+
+function _matchMgMunicipality(name) {
+    if (!name) return null;
+    const n = normalizeStr(name);
+    if (!n) return null;
+    const all = Object.values(IBGE_MUNICIPALITIES || {});
+    return all.find(m => normalizeStr(m) === n) || null;
+}
+
+/**
+ * Separa um endereço no padrão do CAD. Retorna null se não parecer CAD.
+ * @returns {{street, number, complement, bairro, city, cityName, original, query}|null}
+ */
+function parseCadAddress(raw) {
+    if (!raw) return null;
+    const s = String(raw).replace(/\s+/g, ' ').trim();
+    if (s.length < 6) return null;
+
+    const parts = s.split(/\s+[-–]\s+/).map(p => p.trim()).filter(Boolean);
+    const head = parts[0] || '';
+    const numMatch = head.match(CAD_NUMBER_RE);
+
+    // Só trata como CAD com ", Nº 123" ou com "RUA X - BAIRRO - CIDADE"
+    if (!numMatch && parts.length < 3) return null;
+
+    let street = head, number = null, complement = '';
+    if (numMatch) {
+        street = numMatch[1].trim();
+        number = /^\d+$/.test(numMatch[2]) ? parseInt(numMatch[2], 10) : null;
+        complement = numMatch[3].replace(/^[,\s]+/, '').trim();
+    }
+    if (street.length < 3) return null;
+
+    // 3+ partes: "... - BAIRRO - CIDADE". 2 partes: "... - BAIRRO".
+    let bairro = '', city = '';
+    if (parts.length >= 3) {
+        city = parts[parts.length - 1];
+        bairro = parts.slice(1, -1).join(' - ');
+    } else if (parts.length === 2) {
+        bairro = parts[1];
+    }
+    const cityName = _matchMgMunicipality(city);
+
+    const query = [
+        street + (number ? ` ${number}` : ''),
+        bairro,
+        cityName || city
+    ].filter(Boolean).join(', ');
+
+    return { street, number, complement, bairro, city, cityName, original: s, query };
+}
+
+function _looksLikeCadAddressField(f) {
+    if (!f || f.startsWith('(') || /^\d{2}\/\d{2}\/\d{4}/.test(f)) return false;
+    return CAD_NUMBER_RE.test(f.split(/\s+[-–]\s+/)[0]) || CAD_STREET_TYPES_RE.test(f);
+}
+
+/**
+ * Extrai as chamadas de um texto colado do SIDS (uma por linha).
+ * Aceita também linhas "grudadas" (campo de texto remove as quebras).
+ */
+function parseCadCalls(text) {
+    if (!text) return [];
+    const t = String(text);
+    if (!t.includes('\t') && !/LinhaTabelaChamadas/i.test(t)) return [];
+
+    const chunks = t.split(/\r?\n/)
+        .flatMap(line => line.split(/(?=sids\.[\w.]*?@[0-9a-f]+)/i));
+
+    const calls = [];
+    for (const chunk of chunks) {
+        const fields = chunk.split('\t').map(f => f.trim()).filter(Boolean);
+        if (fields.length < 2) continue;
+
+        const protoIdx = fields.findIndex(f => CAD_PROTOCOL_RE.test(f));
+        let addrIdx = -1;
+        // 1º: campo com ", Nº"; 2º: campo que começa com tipo de logradouro
+        for (let i = protoIdx + 1; i < fields.length; i++) {
+            const head = fields[i].split(/\s+[-–]\s+/)[0];
+            if (!fields[i].startsWith('(') && CAD_NUMBER_RE.test(head)) { addrIdx = i; break; }
+        }
+        if (addrIdx < 0) {
+            for (let i = protoIdx + 1; i < fields.length; i++) {
+                if (_looksLikeCadAddressField(fields[i])) { addrIdx = i; break; }
+            }
+        }
+        if (addrIdx < 0) continue;
+
+        const between = fields.slice(Math.max(protoIdx + 1, 0), addrIdx);
+        const natureRaw = between.find(f => /[A-Z]\d{5}\s*-/.test(f) || f.startsWith('(')) || '';
+        const natureMatch = natureRaw.replace(/^(\(\w+\)\s*)+/, '').match(/^([A-Z]\d{5})\s*-\s*(.+)$/);
+        const vehicle = fields[addrIdx + 2] && fields[addrIdx + 2] !== '-' ? fields[addrIdx + 2] : '';
+
+        calls.push({
+            protocol: protoIdx >= 0 ? fields[protoIdx] : '',
+            datetime: between.find(f => /^\d{2}\/\d{2}\/\d{4}/.test(f)) || '',
+            natureCode: natureMatch ? natureMatch[1] : '',
+            nature: natureMatch ? natureMatch[2].trim() : natureRaw.replace(/^(\(\w+\)\s*)+/, '').trim(),
+            natureRaw,
+            address: fields[addrIdx],
+            unit: fields[addrIdx + 1] && fields[addrIdx + 1] !== '-' ? fields[addrIdx + 1] : '',
+            vehicle
+        });
+    }
+    return calls;
+}
+
+function _inputForResultsTarget(targetId) {
+    if (targetId === 'searchResults') return document.getElementById('searchInput');
+    if (targetId === 'floatingSearchResults') return document.getElementById('floatingSearchInput');
+    const custom = _searchSelectHandlers.get(targetId);
+    return custom && custom.inputEl ? custom.inputEl : null;
+}
+
+function _resultsTargetForInput(input) {
+    if (!input) return null;
+    if (input.id === 'searchInput') return 'searchResults';
+    if (input.id === 'floatingSearchInput') return 'floatingSearchResults';
+    if (input.classList.contains('mr-input')) return input.getAttribute('aria-controls');
+    return null;
+}
+
+function _showResultsContainer(targetId) {
+    const div = document.getElementById(targetId);
+    if (!div) return null;
+    div.classList.remove('hidden');
+    div.removeAttribute('data-closed');
+    return div;
+}
+
+function _setSearchInputValue(targetId, value) {
+    const input = _inputForResultsTarget(targetId);
+    if (!input) return;
+    input.value = value;
+    if (targetId === 'floatingSearchResults') {
+        const box = document.getElementById('floatingSearchBox');
+        if (box) box.classList.toggle('has-text', !!value);
+    }
+}
+
+function _fmtCadTime(datetime) {
+    const m = String(datetime || '').match(/^(\d{2})\/(\d{2})\/\d{4}\s+(\d{2}:\d{2})/);
+    return m ? `${m[1]}/${m[2]} ${m[3]}` : (datetime || '');
+}
+
+function _cadCallCardHtml(call) {
+    const meta = [call.unit, call.vehicle].filter(Boolean).map(escapeHtml).join(' · ');
+    return `
+        <div class="cad-call-top">
+            <span class="cad-call-proto">${svgIcon('phone', 11)} ${escapeHtml(call.protocol || 'Chamada')}</span>
+            ${call.datetime ? `<span class="cad-call-time">${escapeHtml(_fmtCadTime(call.datetime))}</span>` : ''}
+        </div>
+        ${call.nature ? `<div class="cad-call-nature" title="${escapeHtml(call.natureRaw)}">${escapeHtml(call.nature)}${call.natureCode ? ` <small>${escapeHtml(call.natureCode)}</small>` : ''}</div>` : ''}
+        <div class="cad-call-addr">${svgIcon('pin', 11)} ${escapeHtml(call.address)}</div>
+        ${meta ? `<div class="cad-call-unit">${meta}</div>` : ''}`;
+}
+
+/**
+ * Várias chamadas coladas → lista para escolher uma.
+ */
+function showCadCallPicker(calls, targetId) {
+    const div = _showResultsContainer(targetId);
+    if (!div) return;
+    _activeCadCall.delete(targetId);
+    _setSearchInputValue(targetId, '');
+    div.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'cad-pick-header';
+    header.innerHTML = `${svgIcon('phone', 12)} ${calls.length} chamadas coladas — escolha uma:`;
+    div.appendChild(header);
+
+    calls.forEach(call => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cad-call-card cad-call-pick';
+        btn.innerHTML = _cadCallCardHtml(call);
+        btn.addEventListener('click', () => searchCadCall(call, targetId));
+        div.appendChild(btn);
+    });
+}
+
+/**
+ * Uma chamada → busca o endereço dela e mostra o cartão da chamada.
+ */
+async function searchCadCall(call, targetId) {
+    const div = _showResultsContainer(targetId);
+    if (!div || !call) return;
+
+    _setSearchInputValue(targetId, call.address);
+    _activeCadCall.set(targetId, call);
+
+    const cad = parseCadAddress(call.address);
+    const query = cad && !detectIntersection(cad.street) ? cad.query : call.address;
+    const parsed = cad && !detectIntersection(cad.street)
+        ? _buildParsedFromCad(cad)
+        : parseAddressQueryWithCity(call.address);
+
+    await _runAddressSearch(query, parsed, targetId);
+
+    // Cartão da chamada no topo dos resultados (se a chamada ainda for a ativa)
+    if (_activeCadCall.get(targetId) !== call) return;
+    const target = document.getElementById(targetId);
+    if (!target || !target.innerHTML.trim()) return;
+    const card = document.createElement('div');
+    card.className = 'cad-call-card cad-call-current';
+    card.innerHTML = _cadCallCardHtml(call);
+    target.prepend(card);
+}
+
+function _buildParsedFromCad(cad) {
+    return {
+        streetPart: expandSearchQuery(cad.street),
+        originalStreet: cad.street,
+        streetPartOriginal: cad.street,
+        number: cad.number,
+        hasNumber: !!cad.number && cad.number > 0,
+        city: cad.cityName || cad.city || null,
+        bairro: cad.bairro || null,
+        isIntersection: false,
+        streetA: null,
+        streetB: null,
+        isCad: true
+    };
+}
+
+// Colar no campo de busca: intercepta o texto bruto (com as quebras de
+// linha) antes que o campo de uma linha só junte tudo.
+document.addEventListener('paste', (e) => {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const targetId = _resultsTargetForInput(input);
+    if (!targetId) return;
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    const calls = parseCadCalls(text);
+    if (!calls.length) return;
+
+    e.preventDefault();
+    if (calls.length === 1) searchCadCall(calls[0], targetId);
+    else showCadCallPicker(calls, targetId);
+}, true);
+
+window.parseCadCalls = parseCadCalls;
+window.parseCadAddress = parseCadAddress;
+
+/**
  * Função principal de entrada da busca.
  * Decide automaticamente entre online (prioritário) e offline.
  */
@@ -1278,8 +1558,14 @@ async function searchAddress(query, targetId = 'searchResults') {
     const resultsDiv = document.getElementById(targetId);
     if (!resultsDiv) return;
 
-    const rawQuery = String(query).trim();
+    let rawQuery = String(query).trim();
     if (!rawQuery) { resultsDiv.innerHTML = ''; return; }
+
+    // [v17 – Jeferson Manini] Linha(s) colada(s) do SIDS
+    const cadCalls = parseCadCalls(rawQuery);
+    if (cadCalls.length > 1) { showCadCallPicker(cadCalls, targetId); return; }
+    if (cadCalls.length === 1) { await searchCadCall(cadCalls[0], targetId); return; }
+    _activeCadCall.delete(targetId);
 
     // ============================================================
     // ATALHO: a query é uma coordenada? Define a origem diretamente,
@@ -1311,7 +1597,8 @@ async function searchAddress(query, targetId = 'searchResults') {
         if (map) map.setView([lat, lng], 16);
         calculateDistancesToAllFeatures(lat, lng);
 
-        showToast(`${svgIcon('pin', 13)} Origem definida: ${label}`, 'success', 3000);
+        // [v17 – Jeferson Manini] showToast usa textContent: o ícone aparecia como código
+        showToast(`Origem definida: ${label}`, 'success', 3000);
         return;
     }
 
@@ -1320,8 +1607,25 @@ async function searchAddress(query, targetId = 'searchResults') {
         return;
     }
 
-        const parsed = parseAddressQueryWithCity(rawQuery);
+    // [v17 – Jeferson Manini] Endereço no padrão do CAD
+    // ("RUA X, Nº 245 - BAIRRO - CIDADE"): separa rua, número, bairro e cidade
+    let parsed;
+    const cad = parseCadAddress(rawQuery);
+    if (cad && !detectIntersection(cad.street)) {
+        parsed = _buildParsedFromCad(cad);
+        rawQuery = cad.query;
+    } else {
+        parsed = parseAddressQueryWithCity(rawQuery);
+    }
 
+    await _runAddressSearch(rawQuery, parsed, targetId);
+}
+
+/**
+ * Decide entre busca online (prioritária) e offline.
+ * [v17 – Jeferson Manini] extraído de searchAddress() para reuso pelas chamadas do SIDS.
+ */
+async function _runAddressSearch(rawQuery, parsed, targetId) {
     // ============================================================
     // INTERSEÇÕES: roteamento direto para o caminho offline.
     // ------------------------------------------------------------
@@ -1456,7 +1760,8 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
     // ================================================================
     if (!Array.isArray(results) || results.length === 0) return;
 
-    results.forEach(result => {
+    results.forEach(resultItem => {
+        let result = resultItem;
         const item = document.createElement('div');
         item.className = 'search-result-item';
 
@@ -1484,6 +1789,9 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
         item.addEventListener('click', () => {
             // [v16 – Jeferson Manini] Handler customizado (ex.: campo de parada da rota com vários pontos)
             const customHandler = _searchSelectHandlers.get(targetId);
+            // [v17 – Jeferson Manini] chamada do SIDS associada ao resultado
+            const cadCall = _activeCadCall.get(targetId) || null;
+            if (cadCall) result = { ...result, cadCall };
             if (customHandler) {
                 resultsDiv.innerHTML = '';
                 preloadStreetMeshForResult(result);
@@ -1491,7 +1799,10 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
                 return;
             }
 
-            setOrigin(result.lat, result.lng, result.address);
+            const originLabel = cadCall
+                ? `${cadCall.address}${cadCall.protocol ? ` (Chamada ${cadCall.protocol})` : ''}`
+                : result.address;
+            setOrigin(result.lat, result.lng, originLabel);
             if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
 
@@ -1503,7 +1814,10 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
 
             preloadStreetMeshForResult(result);
 
-            if (result.isIntersection) {
+            if (cadCall) {
+                // showToast usa textContent: texto puro, sem ícone/HTML
+                showToast(`Chamada ${cadCall.protocol || ''}: ${cadCall.nature || cadCall.address}`, 'success', 4000);
+            } else if (result.isIntersection) {
                 showToast('Esquina definida (posição aproximada offline).', 'info', 4000);
             } else if (result.usedInterpolation || result.interpolationFailed) {
                 showToast('Busca realizada offline. Posição aproximada.', 'info', 4000);

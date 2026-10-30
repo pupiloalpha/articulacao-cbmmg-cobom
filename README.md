@@ -14,6 +14,7 @@ Aplicação web progressiva (PWA) para visualização, gestão e análise de dad
 - **Cálculo de distâncias**:
   - Em linha reta (via Turf.js)
   - Rotas reais (via OSRM, com cache em IndexedDB)
+- **Colar chamadas do SIDS** direto na busca (uma ou várias linhas)
 - **Rota com vários pontos** (como no Google Maps): de 2 a 10 pontos (A, B, C...), com total e distância/tempo de cada trecho
 - **Origem dinâmica**: defina o ponto de origem por:
   - Clique no mapa
@@ -76,6 +77,14 @@ Aplicação web progressiva (PWA) para visualização, gestão e análise de dad
 
 > **Nota**: Para funcionamento completo offline, instale a aplicação como PWA (pelo navegador) ou utilize o modo offline após o primeiro carregamento.
 
+### Publicar uma atualização
+A cada nova versão, troque o número da versão **nos 3 lugares, com o mesmo número** (ex.: de 17 para 18):
+1. `ASSET_VERSION` em `sw.js`
+2. `DATA_VERSION` em `app.js`
+3. `?v=17` nos `<link>`/`<script>` do app em `index.html` (buscar e substituir `?v=17"` por `?v=18"`)
+
+Isso faz o navegador buscar todos os arquivos novos de uma vez, em vez de misturar arquivos novos com antigos guardados no cache.
+
 ---
 
 ## 🔐 Administração
@@ -126,6 +135,12 @@ Após definir a origem, a aplicação calcula e exibe:
 
 ### Visualizar distância para um ponto
 Nos resultados de distância, clique em qualquer item para focar o mapa e desenhar uma linha (reta ou rota) entre a origem e o destino. Se estiver online, será utilizada a rota real (com cache); offline, apenas a linha reta.
+
+### Colar chamadas do SIDS
+Copie uma ou várias linhas da lista de chamadas ativas do SIDS e cole (`Ctrl` + `V`) em qualquer campo de busca: a busca da barra lateral, a busca flutuante do mapa ou um ponto da **Rota com vários pontos**.
+- **Uma linha:** o campo recebe só o endereço e a busca usa rua, número e cidade (o bairro ajuda a escolher o resultado certo). Um cartão mostra protocolo, natureza, unidade e viatura.
+- **Várias linhas:** aparece a lista das chamadas para escolher uma.
+- Também funciona digitar só o endereço no padrão do CAD: `RUA X, Nº 245 - BAIRRO - CIDADE`.
 
 ### Rota com vários pontos
 Clique em **Rota com vários pontos** (ou `Alt` + `R`) logo abaixo da busca.
