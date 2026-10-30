@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v16';   // v16 (30/10/2026) – Jeferson Manini: rota com vários pontos
+const DATA_VERSION = 'v17';   // v17 (30/10/2026) – Jeferson Manini: atualização sem misturar versões (cache)
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -502,15 +502,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Registro do Service Worker PWA
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        // [v17 – Jeferson Manini] Este trecho roda depois de carregar as
+        // camadas; se o evento 'load' já tiver ocorrido, o listener nunca
+        // dispararia e o modo offline não seria instalado. Registra já.
+        const registerSW = () => {
             navigator.serviceWorker.register('./sw.js')
                 .then(registration => {
-                    console.log('[App] Service Worker registrado:', registration.scope);
+                    if (registration) console.log('[App] Service Worker registrado:', registration.scope);
                 })
                 .catch(error => {
                     console.error('[App] Falha ao registrar Service Worker:', error);
                 });
-        });
+        };
+        if (document.readyState === 'complete') registerSW();
+        else window.addEventListener('load', registerSW, { once: true });
 
         navigator.serviceWorker.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'SW_ACTIVATED') {

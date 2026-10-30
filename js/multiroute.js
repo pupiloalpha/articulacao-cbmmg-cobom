@@ -254,7 +254,8 @@ function _mrRenderStops(focusId = null) {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'mr-input' + (_mrIsResolved(stop) ? ' is-resolved' : '');
-        input.placeholder = `${_mrPlaceholder(index, total)} — endereço ou coordenada`;
+        // [v17 – Jeferson Manini] texto curto: não fica cortado no campo
+        input.placeholder = _mrPlaceholder(index, total);
         input.autocomplete = 'off';
         input.spellcheck = false;
         input.value = stop.label || '';
@@ -376,7 +377,8 @@ function _mrBindInput(stopId, input, results) {
             const items = _mrResultItems(results);
             const active = items.find(el => el.classList.contains('mr-kb-active'));
             const resultItems = items.filter(el => el.classList.contains('search-result-item'));
-            const target = active || resultItems[0];
+            const callItems = items.filter(el => el.classList.contains('cad-call-pick'));
+            const target = active || resultItems[0] || callItems[0];
             if (target && !results.hasAttribute('data-closed')) {
                 target.click();
                 return;
@@ -406,7 +408,7 @@ function _mrBindInput(stopId, input, results) {
 
 function _mrResultItems(results) {
     if (results.hasAttribute('data-closed')) return [];
-    return Array.from(results.querySelectorAll('.search-result-item, .mr-quick-item, .search-suggestion'));
+    return Array.from(results.querySelectorAll('.search-result-item, .mr-quick-item, .search-suggestion, .cad-call-pick'));
 }
 
 function _mrCloseResults(results) {
@@ -469,6 +471,23 @@ function _mrShowQuickOptions(stopId, results) {
 
 function _mrApplySearchResult(stopId, result) {
     if (!result || !Number.isFinite(result.lat) || !Number.isFinite(result.lng)) return;
+
+    // [v17 – Jeferson Manini] Ponto vindo de uma chamada do SIDS: usa o
+    // endereço do CAD como rótulo e guarda o protocolo
+    if (result.cadCall) {
+        const call = result.cadCall;
+        const cad = typeof parseCadAddress === 'function' ? parseCadAddress(call.address) : null;
+        const label = cad
+            ? `${cad.street}${cad.number ? `, ${cad.number}` : ''}${(cad.cityName || cad.city) ? ` – ${cad.cityName || cad.city}` : ''}`
+            : call.address;
+        _mrSetStop(stopId, {
+            lat: result.lat,
+            lng: result.lng,
+            label,
+            address: `${call.address}${call.protocol ? ` · Chamada ${call.protocol}` : ''}${call.nature ? ` · ${call.nature}` : ''}`
+        });
+        return;
+    }
 
     let label = result.title || result.address || _mrCoordLabel(result.lat, result.lng);
     const mun = result.munBadge;
@@ -1188,7 +1207,7 @@ function _mrRenderSummary(result) {
         <div class="mr-legs">${legsHtml}</div>
         <div class="mr-summary-actions">
             <button type="button" class="mr-link-btn" data-mr-action="copy">${svgIcon('copy', 13)} Copiar resumo</button>
-            <button type="button" class="mr-link-btn" data-cobom-action="open-external" data-url="${escapeHtml(_mrGoogleMapsUrl(stops))}">${svgIcon('map', 13)} Abrir no Google Maps</button>
+            <button type="button" class="mr-link-btn" data-cobom-action="open-external" data-url="${escapeHtml(_mrGoogleMapsUrl(stops))}" title="Abrir esta rota no Google Maps">${svgIcon('map', 13)} Google Maps</button>
         </div>`;
 }
 
