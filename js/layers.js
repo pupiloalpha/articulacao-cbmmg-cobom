@@ -1470,6 +1470,12 @@ function _bindMarkerInteractions(marker, feature) {
         marker.setZIndexOffset(0);
     });
     marker.on('click', (e) => {
+        // [v16 – Jeferson Manini] Rota com vários pontos: clique na feição define o ponto em marcação
+        if (window.MultiRoute && window.MultiRoute.isPicking()) {
+            L.DomEvent.stopPropagation(e);
+            window.MultiRoute.pickFromFeature(e, feature);
+            return;
+        }
         if (mapClickMode) { L.DomEvent.stopPropagation(e); handleFeatureClick(e, feature, marker); }
     });
 }
@@ -1502,6 +1508,12 @@ function _bindPolygonInteractions(layer, feature, getParentGeoJSON) {
         if (parent) parent.resetStyle(layer);
     });
     layer.on('click', (e) => {
+        // [v16 – Jeferson Manini] Rota com vários pontos: clique na feição define o ponto em marcação
+        if (window.MultiRoute && window.MultiRoute.isPicking()) {
+            L.DomEvent.stopPropagation(e);
+            window.MultiRoute.pickFromFeature(e, feature);
+            return;
+        }
         if (mapClickMode) { L.DomEvent.stopPropagation(e); handleFeatureClick(e, feature, layer); }
     });
 }

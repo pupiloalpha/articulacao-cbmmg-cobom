@@ -45,6 +45,37 @@ function invalidateStreetIndex() {
     cachedStreetIndex = null;
 }
 
+// ============================================================
+// HANDLERS DE SELEÇÃO POR CONTÊINER DE RESULTADOS
+// [v16 – Jeferson Manini] usado pela rota com vários pontos
+// ------------------------------------------------------------
+// Por padrão, clicar num resultado define a ORIGEM principal.
+// Outros módulos (ex.: rota com vários pontos) podem registrar um
+// handler próprio para um contêiner de resultados específico;
+// nesse caso o clique chama o handler em vez de setOrigin().
+//   registerSearchSelectHandler('mrResults_0', {
+//       onSelect: (result) => {...},   // { lat, lng, title, address, source }
+//       inputEl:  <input>              // opcional — recebe a query corrigida
+//   });
+// ============================================================
+const _searchSelectHandlers = new Map();
+
+function registerSearchSelectHandler(targetId, handler) {
+    if (!targetId) return;
+    if (handler && typeof handler.onSelect === 'function') {
+        _searchSelectHandlers.set(targetId, handler);
+    } else {
+        _searchSelectHandlers.delete(targetId);
+    }
+}
+
+function unregisterSearchSelectHandler(targetId) {
+    _searchSelectHandlers.delete(targetId);
+}
+
+window.registerSearchSelectHandler = registerSearchSelectHandler;
+window.unregisterSearchSelectHandler = unregisterSearchSelectHandler;
+
 // ===========================================================================
 // FUZZY MATCHING — Levenshtein + sugestões a partir do índice local
 // ---------------------------------------------------------------------------
@@ -978,7 +1009,7 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
 
         if (matchedResults.length > 0) {
             matchedResults.sort((a, b) => b.score - a.score);
-            displaySearchResults(matchedResults.slice(0, 6));
+            displaySearchResults(matchedResults.slice(0, 6), targetId); // [v16 – Jeferson Manini] respeita o contêiner
             return;
         }
         // Se não achou interseção, continua o fluxo normal offline
@@ -1112,7 +1143,7 @@ async function searchAddressOffline(rawQuery, parsed, targetId = 'searchResults'
     const topResults = matchedResults.slice(0, 15);
 
     if (topResults.length > 0) {
-        displaySearchResults(topResults);
+        displaySearchResults(topResults, targetId); // [v16 – Jeferson Manini] respeita o contêiner
         return;
     }
 
@@ -1264,6 +1295,18 @@ async function searchAddress(query, targetId = 'searchResults') {
             resultsDiv.classList.add('hidden');
         }
 
+        // [v16 – Jeferson Manini] campo de parada da rota com vários pontos
+        const customHandler = _searchSelectHandlers.get(targetId);
+        if (customHandler) {
+            customHandler.onSelect({
+                lat, lng,
+                title: label,
+                address: label,
+                source: 'coords'
+            });
+            return;
+        }
+
         setOrigin(lat, lng, label);
         if (map) map.setView([lat, lng], 16);
         calculateDistancesToAllFeatures(lat, lng);
@@ -1313,6 +1356,41 @@ async function searchAddress(query, targetId = 'searchResults') {
 }
 
 /**
+ * Ao escolher um resultado ONLINE, pré-carrega a malha de logradouros do
+ * município em segundo plano — garante busca e rota offline depois.
+ * [v16 – Jeferson Manini] extraído do clique em resultado para reuso.
+ */
+function preloadStreetMeshForResult(result) {
+    if (!result || result.source !== 'online_osm' || !navigator.onLine) return;
+
+    let munToLoad = null;
+    if (result.munBadge && result.munBadge !== 'Online (OSM)') {
+        munToLoad = result.munBadge;
+    } else if (result.address) {
+        const parts = result.address.split(',').map(p => p.trim());
+        const allMuns = Object.values(IBGE_MUNICIPALITIES || {});
+        for (const part of parts) {
+            const found = allMuns.find(m => normalizeStr(m) === normalizeStr(part));
+            if (found) { munToLoad = found; break; }
+        }
+    }
+
+    if (munToLoad && typeof ensureStreetDataForMunicipality === 'function') {
+        ensureStreetDataForMunicipality(munToLoad)
+            .then(ok => {
+                if (ok) {
+                    console.log(`Malha de logradouros pré-carregada: ${munToLoad}`);
+                    if (typeof invalidateStreetIndex === 'function') invalidateStreetIndex();
+                }
+            })
+            .catch(e => console.warn('Pré-carregamento de malha falhou:', e));
+    } else if (typeof loadStreetDataFromGitHub === 'function') {
+        loadStreetDataFromGitHub(result.title || result.address)
+            .catch(e => console.warn('Pré-carregamento via query falhou:', e));
+    }
+}
+
+/**
  * Exibe resultados e, no clique de resultado ONLINE, pré-carrega a malha do município.
  *
  * @param {Array}  results     Resultados já ordenados por score
@@ -1357,6 +1435,10 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
                 if (targetId === 'floatingSearchResults' && searchInput) {
                     searchInput.value = correctedQuery;
                 }
+                const customHandler = _searchSelectHandlers.get(targetId);
+                if (customHandler && customHandler.inputEl) {
+                    customHandler.inputEl.value = correctedQuery;
+                }
                 searchAddress(correctedQuery, targetId);
             });
 
@@ -1400,6 +1482,15 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
         `;
 
         item.addEventListener('click', () => {
+            // [v16 – Jeferson Manini] Handler customizado (ex.: campo de parada da rota com vários pontos)
+            const customHandler = _searchSelectHandlers.get(targetId);
+            if (customHandler) {
+                resultsDiv.innerHTML = '';
+                preloadStreetMeshForResult(result);
+                customHandler.onSelect(result);
+                return;
+            }
+
             setOrigin(result.lat, result.lng, result.address);
             if (map) map.setView([result.lat, result.lng], 16);
             resultsDiv.innerHTML = '';
@@ -1410,33 +1501,7 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
 
             calculateDistancesToAllFeatures(result.lat, result.lng);
 
-            if (result.source === 'online_osm' && navigator.onLine) {
-                let munToLoad = null;
-                if (result.munBadge && result.munBadge !== 'Online (OSM)') {
-                    munToLoad = result.munBadge;
-                } else if (result.address) {
-                    const parts = result.address.split(',').map(p => p.trim());
-                    const allMuns = Object.values(IBGE_MUNICIPALITIES || {});
-                    for (const part of parts) {
-                        const found = allMuns.find(m => normalizeStr(m) === normalizeStr(part));
-                        if (found) { munToLoad = found; break; }
-                    }
-                }
-
-                if (munToLoad && typeof ensureStreetDataForMunicipality === 'function') {
-                    ensureStreetDataForMunicipality(munToLoad)
-                        .then(ok => {
-                            if (ok) {
-                                console.log(`Malha de logradouros pré-carregada: ${munToLoad}`);
-                                if (typeof invalidateStreetIndex === 'function') invalidateStreetIndex();
-                            }
-                        })
-                        .catch(e => console.warn('Pré-carregamento de malha falhou:', e));
-                } else if (typeof loadStreetDataFromGitHub === 'function') {
-                    loadStreetDataFromGitHub(result.title || result.address)
-                        .catch(e => console.warn('Pré-carregamento via query falhou:', e));
-                }
-            }
+            preloadStreetMeshForResult(result);
 
             if (result.isIntersection) {
                 showToast('Esquina definida (posição aproximada offline).', 'info', 4000);
