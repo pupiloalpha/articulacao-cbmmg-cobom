@@ -14,6 +14,7 @@ Aplicação web progressiva (PWA) para visualização, gestão e análise de dad
 - **Cálculo de distâncias**:
   - Em linha reta (via Turf.js)
   - Rotas reais (via OSRM, com cache em IndexedDB)
+- **Rota com vários pontos** (como no Google Maps): de 2 a 10 pontos (A, B, C...), com total e distância/tempo de cada trecho
 - **Origem dinâmica**: defina o ponto de origem por:
   - Clique no mapa
   - Busca de endereço
@@ -125,6 +126,15 @@ Após definir a origem, a aplicação calcula e exibe:
 
 ### Visualizar distância para um ponto
 Nos resultados de distância, clique em qualquer item para focar o mapa e desenhar uma linha (reta ou rota) entre a origem e o destino. Se estiver online, será utilizada a rota real (com cache); offline, apenas a linha reta.
+
+### Rota com vários pontos
+Clique em **Rota com vários pontos** (ou `Alt` + `R`) logo abaixo da busca.
+- Preencha cada ponto com endereço, coordenada, **Minha localização (GPS)**, **Local pesquisado** ou **Marcar no mapa** (clique no mapa ou numa feição, como uma unidade ou hospital).
+- **Adicionar parada** inclui mais pontos (até 10). As setas ↑/↓ reordenam e **Inverter** troca a ordem toda.
+- Os pinos A, B, C podem ser arrastados no mapa para ajustar a posição.
+- O resumo mostra a distância e o tempo total e de cada trecho; clique num trecho para enquadrá-lo no mapa.
+- **Copiar resumo** gera um texto para repassar à guarnição; **Abrir no Google Maps** abre a mesma rota no navegador/celular.
+- Sem internet, cada trecho é calculado pela malha local de logradouros (ou em linha reta, se a malha não estiver disponível), marcado com "~".
 
 ### Gerenciar camadas
 Na lista de camadas, cada entrada possui:

@@ -8,7 +8,7 @@
 //
 // ⚠️ Manter CACHE_NAME sincronizado com DATA_VERSION em app.js.
 
-const CACHE_NAME = 'gis-pwa-cache-v15';  // ⚠️ Bump em conjunto com DATA_VERSION
+const CACHE_NAME = 'gis-pwa-cache-v16';  // ⚠️ Bump em conjunto com DATA_VERSION (v16 – Jeferson Manini)
 
 const STATIC_ASSETS = [
     './',
@@ -34,6 +34,7 @@ const STATIC_ASSETS = [
     './js/chamadas.js',
     './js/layers.js',
     './js/search.js',
+    './js/multiroute.js',
     './js/gps.js',
     './js/tiles.js',
     './js/admin.js',

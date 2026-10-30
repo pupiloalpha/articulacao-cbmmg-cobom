@@ -130,6 +130,38 @@
                 </button>
             </div>
 
+            <!-- Rota com vários pontos — Jeferson Manini, atualização v16 (30/10/2026) -->
+            <button id="multiRouteBtn" class="btn mr-toggle-btn" type="button"
+                    title="Calcular rota entre dois ou mais endereços (Alt+R)"
+                    aria-expanded="false" aria-controls="multiRoutePanel">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+                Rota com vários pontos
+            </button>
+
+            <div id="multiRoutePanel" class="mr-panel hidden" role="region" aria-label="Rota com vários pontos">
+                <div class="mr-header">
+                    <span class="mr-title">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+                        Rota com vários pontos
+                    </span>
+                    <button type="button" id="mrCloseBtn" class="mr-icon-btn" title="Fechar rota (Esc)" aria-label="Fechar rota">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div id="mrStopsList" class="mr-stops"></div>
+                <div class="mr-actions">
+                    <button type="button" id="mrAddStopBtn" class="mr-link-btn">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Adicionar parada
+                    </button>
+                    <button type="button" id="mrReverseBtn" class="mr-link-btn" title="Inverter a ordem dos pontos">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V4"/><polyline points="3 8 7 4 11 8"/><path d="M17 4v16"/><polyline points="13 16 17 20 21 16"/></svg>
+                        Inverter
+                    </button>
+                </div>
+                <div id="mrSummary" class="mr-summary" aria-live="polite"></div>
+            </div>
+
             <button id="resetBtn" class="btn btn-danger">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 Limpar Pesquisa
@@ -354,6 +386,7 @@
                 <div class="shortcut-item"><span>Executar pesquisa no campo de busca</span><div><kbd>Enter</kbd></div></div>
                 <div class="shortcut-item"><span>Definir origem via GPS da viatura</span><div><kbd>Alt</kbd> + <kbd>G</kbd></div></div>
                 <div class="shortcut-item"><span>Despacho rápido para Unidade #1</span><div><kbd>Alt</kbd> + <kbd>1</kbd></div></div>
+                <div class="shortcut-item"><span>Rota com vários pontos (abrir/fechar)</span><div><kbd>Alt</kbd> + <kbd>R</kbd></div></div>
                 <div class="shortcut-item"><span>Alternar Modo Noturno (COBOM)</span><div><kbd>Alt</kbd> + <kbd>N</kbd></div></div>
                 <div class="shortcut-item"><span>Limpar rota ativa / fechar janelas</span><div><kbd>Esc</kbd></div></div>
                 <div class="shortcut-item"><span>Recarregar mapa</span><div><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
@@ -384,6 +417,7 @@
     <script defer src="./js/chamadas.js"></script>
     <script defer src="./js/layers.js"></script>
     <script defer src="./js/search.js"></script>
+    <script defer src="./js/multiroute.js"></script>
     <script defer src="./js/gps.js"></script>
     <script defer src="./js/tiles.js"></script>
     <script defer src="./js/admin.js"></script>

@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v15';
+const DATA_VERSION = 'v16';   // v16 (30/10/2026) – Jeferson Manini: rota com vários pontos
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -112,9 +112,13 @@ function isMobileViewport() {
  *
  * Em viewports móveis, recolhe a sidebar para liberar espaço de tela.
  */
-async function enterRouteViewMode() {
-    // Recolhe a sidebar em mobile (idempotente: só age se estiver aberta)
-    if (isMobileViewport()) {
+async function enterRouteViewMode(options = {}) {
+    const { collapseSidebar = true } = options;
+
+    // Recolhe a sidebar em mobile (idempotente: só age se estiver aberta).
+    // [v16 – Jeferson Manini] A rota com vários pontos passa
+    // collapseSidebar=false: o operador ainda está preenchendo os pontos.
+    if (collapseSidebar && isMobileViewport()) {
         const sidebar = document.getElementById('sidebar');
         const showBtn = document.getElementById('sidebarShowBtn');
         if (sidebar && !sidebar.classList.contains('collapsed')) {
@@ -405,6 +409,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 exitMapOriginMode(true);
                 showToast('Marcação de origem cancelada.', 'info');
             } else {
+                // [v16 – Jeferson Manini] Cancela a marcação de ponto da rota com vários pontos, se ativa
+                if (window.MultiRoute && window.MultiRoute.isPicking()) window.MultiRoute.cancelPick();
+
                 previousViewModeBeforeOrigin = viewMode;
                 previousLayerVisibilityBeforeOrigin = { ...layerVisibility };
 
@@ -589,6 +596,9 @@ async function refreshMapHard() {
             window.routingControl = null;
         }
 
+        // [v16 – Jeferson Manini] Encerra a rota com vários pontos (a visualização é restaurada abaixo)
+        if (window.MultiRoute) window.MultiRoute.close({ restoreView: false, silent: true });
+
         // Sai dos modos "rota" / "definir origem"
         if (typeof clearRouteViewState === 'function') clearRouteViewState();
         if (mapClickMode) exitMapOriginMode(false);
@@ -672,6 +682,9 @@ async function resetAll() {
     if (distanceResults) distanceResults.innerHTML = '';
     if (searchInput) searchInput.value = '';
 
+    // [v16 – Jeferson Manini] Encerra a rota com vários pontos (a visualização é restaurada abaixo)
+    if (window.MultiRoute) window.MultiRoute.close({ restoreView: false, silent: true });
+
     // Sai do "modo rota" e limpa o estado salvo
     clearRouteViewState();
 
@@ -703,6 +716,7 @@ async function resetAll() {
     }
 
     currentOrigin = null;
+    currentSearchResult = null;
 
     if (map) {
         zoomToAllFeatures();
@@ -798,6 +812,13 @@ function initOperationalKeyboardShortcuts() {
             return;
         }
 
+        // Alt + R: Abrir/fechar rota com vários pontos [v16 – Jeferson Manini]
+        if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+            e.preventDefault();
+            if (window.MultiRoute) window.MultiRoute.toggle();
+            return;
+        }
+
         // Alt + N: Alternar Modo Noturno (COBOM) / Diurno
         if (e.altKey && (e.key === 'n' || e.key === 'N')) {
             e.preventDefault();
@@ -844,7 +865,16 @@ function initOperationalKeyboardShortcuts() {
                 return;
             }
 
-            // 3. Se há rota ativa ou origem traçada, restaura visão inicial
+            // 3. [v16 – Jeferson Manini] Rota com vários pontos: cancela a marcação no mapa ou encerra a rota
+            if (window.MultiRoute) {
+                if (window.MultiRoute.handleEscape()) return;
+                if (window.MultiRoute.isOpen()) {
+                    window.MultiRoute.close();
+                    return;
+                }
+            }
+
+            // 4. Se há rota ativa ou origem traçada, restaura visão inicial
             if (window.distanceLine || window.routingControl) {
                 resetAll();
             }
