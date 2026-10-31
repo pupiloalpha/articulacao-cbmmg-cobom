@@ -17,7 +17,7 @@
 // mistura arquivos novos com antigos (nem pelo cache HTTP do GitHub Pages,
 // nem pelo cache deste service worker).
 
-const ASSET_VERSION = '17';
+const ASSET_VERSION = '18';
 const CACHE_NAME = `gis-pwa-cache-v${ASSET_VERSION}`;
 const V = `?v=${ASSET_VERSION}`;
 
@@ -46,6 +46,7 @@ const STATIC_ASSETS = [
     './js/layers.js' + V,
     './js/search.js' + V,
     './js/multiroute.js' + V,
+    './js/sids-calls.js' + V,
     './js/gps.js' + V,
     './js/tiles.js' + V,
     './js/admin.js' + V,

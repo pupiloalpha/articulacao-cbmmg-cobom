@@ -8,7 +8,7 @@
 // do IndexedDB são limpas, forçando o recarregamento das informações
 // atualizadas do repositório.
 // ============================================================
-const DATA_VERSION = 'v17';   // v17 (30/10/2026) – Jeferson Manini: atualização sem misturar versões (cache)
+const DATA_VERSION = 'v18';   // v17 (30/10/2026) – Jeferson Manini: atualização sem misturar versões (cache)
 
 // Variáveis de estado global compartilhadas entre módulos
 let map;
@@ -385,6 +385,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // a ordem mudar no futuro, mas esta ordem é mais limpa.)
     if (typeof initWeatherLayers === 'function') {
         initWeatherLayers();
+    }
+
+    // [v18] Painel de chamadas SIDS (desktop-only, já checa device internamente)
+    if (typeof initSidsCalls === 'function') {
+        initSidsCalls();
     }
 
     // Chips flutuantes + buscador de áreas BM (COB/BBM/CIA IND)
@@ -824,6 +829,15 @@ function initOperationalKeyboardShortcuts() {
             return;
         }
 
+        // [v18] Alt + C: Alternar painel de chamadas SIDS
+        if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+            e.preventDefault();
+            if (typeof window.toggleSidsPanel === 'function') {
+                window.toggleSidsPanel();
+            }
+            return;
+        }
+
         // Alt + N: Alternar Modo Noturno (COBOM) / Diurno
         if (e.altKey && (e.key === 'n' || e.key === 'N')) {
             e.preventDefault();
@@ -870,7 +884,18 @@ function initOperationalKeyboardShortcuts() {
                 return;
             }
 
-            // 3. [v16 – Jeferson Manini] Rota com vários pontos: cancela a marcação no mapa ou encerra a rota
+            // 3. [v18] Painel de chamadas do SIDS: fecha o modal
+            const sidsPanel = document.getElementById('sidsCallsPanel');
+            if (sidsPanel && !sidsPanel.classList.contains('hidden')) {
+                if (typeof window.closeSidsPanel === 'function') {
+                    window.closeSidsPanel();
+                } else {
+                    sidsPanel.classList.add('hidden');
+                }
+                return;
+            }
+
+            // 4. [v16 – Jeferson Manini] Rota com vários pontos: cancela a marcação no mapa ou encerra a rota
             if (window.MultiRoute) {
                 if (window.MultiRoute.handleEscape()) return;
                 if (window.MultiRoute.isOpen()) {
@@ -879,7 +904,7 @@ function initOperationalKeyboardShortcuts() {
                 }
             }
 
-            // 4. Se há rota ativa ou origem traçada, restaura visão inicial
+            // 5. Se há rota ativa ou origem traçada, restaura visão inicial
             if (window.distanceLine || window.routingControl) {
                 resetAll();
             }

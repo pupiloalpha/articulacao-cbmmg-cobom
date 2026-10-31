@@ -1816,6 +1816,100 @@ async function focusOnFeature(lng, lat, name, distance, reverseRoute = false) {
     }
 }
 
+// ===========================================================================
+// POIs PRÓXIMOS (reutilizável)
+// ---------------------------------------------------------------------------
+// Encontra os N POIs mais próximos de um ponto, agrupados por tipo.
+// Otimizado para chamadas repetidas (uma vez por parada de rota):
+//   • Pré-filtro por bbox em graus (descarta antes de chamar turf.distance)
+//   • Skip imediato de features OTHER/MUNICIPIO (evita classificação pesada)
+//   • Cache de camadas por 30 s (evita DB.getLayers repetido em popups)
+//   • Aceita `layers` pré-carregado para batch (ex.: análise de rota inteira)
+// ===========================================================================
+let _findPoiLayersCache = null;
+let _findPoiLayersCacheTime = 0;
+const FIND_POI_LAYERS_TTL = 30000;
+
+async function findNearbyPOIs(lat, lng, opts = {}) {
+    const {
+        maxDistanceKm = 5,
+        topUnits      = 3,
+        topHospitals  = 2,
+        topHydrants   = 3,
+        topEvents     = 2,
+        layers        = null
+    } = opts;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return { units: [], hospitals: [], hydrants: [], events: [] };
+    }
+
+    // ---- Cache curto de camadas (evita 5-10 DB reads em popups rápidos) ----
+    let allLayers = layers;
+    if (!allLayers) {
+        const now = Date.now();
+        if (_findPoiLayersCache && (now - _findPoiLayersCacheTime) < FIND_POI_LAYERS_TTL) {
+            allLayers = _findPoiLayersCache;
+        } else {
+            allLayers = await DB.getLayers();
+            _findPoiLayersCache = allLayers;
+            _findPoiLayersCacheTime = now;
+        }
+    }
+
+    const originPoint = turf.point([lng, lat]);
+    const buckets = { units: [], hospitals: [], hydrants: [], events: [] };
+
+    // Pré-filtro de bbox (1° lat ≈ 111 km)
+    const maxDegLat = maxDistanceKm / 111;
+    const cosLat = Math.cos(lat * Math.PI / 180) || 0.001;
+    const maxDegLng = maxDistanceKm / (111 * cosLat);
+
+    for (const layer of allLayers) {
+        if (!layer?.geojson?.features) continue;
+        for (const f of layer.geojson.features) {
+            const cls = getFeatureClassification(f);
+            if (cls === 'OTHER' || cls === 'MUNICIPIO') continue;
+
+            let coord = null;
+            if (f.geometry?.type === 'Point') {
+                coord = { lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] };
+            } else if (cls === 'EVENTO_FOGO' &&
+                       (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon')) {
+                try {
+                    const c = turf.center(f);
+                    coord = { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+                } catch (_) { continue; }
+            }
+            if (!coord) continue;
+
+            if (Math.abs(coord.lat - lat) > maxDegLat) continue;
+            if (Math.abs(coord.lng - lng) > maxDegLng) continue;
+
+            const dKm = turf.distance(originPoint, turf.point([coord.lng, coord.lat]), { units: 'kilometers' });
+            if (dKm > maxDistanceKm) continue;
+
+            const item = { distanceKm: dKm, coord, properties: f.properties || {}, feature: f };
+
+            if (cls === 'UNIDADE_BM')       buckets.units.push(item);
+            else if (cls === 'HOSPITAL')    buckets.hospitals.push(item);
+            else if (cls === 'HIDRANTE')    buckets.hydrants.push(item);
+            else if (cls === 'EVENTO_FOGO') buckets.events.push(item);
+        }
+    }
+
+    const sortSlice = (arr, n) => arr.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, n);
+
+    return {
+        units:     sortSlice(buckets.units, topUnits),
+        hospitals: sortSlice(buckets.hospitals, topHospitals),
+        hydrants:  sortSlice(buckets.hydrants, topHydrants),
+        events:    sortSlice(buckets.events, topEvents)
+    };
+}
+
+window.findNearbyPOIs = findNearbyPOIs;
+
 window.setOriginFromFeature = function (lat, lng, name) {
     if (map) {
         setOrigin(lat, lng, name);

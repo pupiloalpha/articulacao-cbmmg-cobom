@@ -5700,3 +5700,949 @@ body.dark-theme .cad-call-proto { color: #f87171; }
     width: calc(100% - 16px);
 }
 .floating-search-results .cad-pick-header { margin-top: 8px; }
+
+/* ==========================================================================
+   POIs PRÓXIMOS AOS PONTOS DA ROTA (js/multiroute.js + js/map.js)
+   --------------------------------------------------------------------------
+   Lista compacta no popup do pino e análise consolidada no painel lateral.
+   Usa as variáveis de tema (--card-*, --text-*) para herdar dark mode.
+   ========================================================================== */
+
+/* ---- Estado "carregando" ---- */
+.mr-poi-loading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--card-border);
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+/* ---- Container da lista (popup) ---- */
+.mr-poi-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--card-border);
+}
+
+/* ---- Seção por categoria ---- */
+.mr-poi-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mr-poi-section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0 2px 2px;
+}
+
+/* ---- Item individual ---- */
+.mr-poi-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 6px;
+    background: var(--card-hover-bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--text-color);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mr-poi-item:hover {
+    background: var(--card-bg);
+    border-color: var(--accent-color);
+}
+
+.mr-poi-item:active {
+    transform: scale(0.98);
+}
+
+.mr-poi-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent-color);
+    flex-shrink: 0;
+}
+
+.mr-poi-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.mr-poi-distance {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ---- Painel consolidado (Superfície B) ---- */
+.mr-poi-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--card-border);
+}
+
+.mr-poi-summary.hidden,
+.mr-poi-summary:empty {
+    display: none;
+}
+
+.mr-poi-stop-block {
+    padding: 8px 10px;
+    background: var(--card-hover-bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-color);
+}
+
+.mr-poi-stop-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 4px;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.mr-poi-stop-block .mr-poi-section-title {
+    margin-top: 6px;
+}
+
+.mr-poi-empty {
+    font-size: 10.5px;
+    font-style: italic;
+    color: var(--text-muted);
+    padding: 2px 0;
+}
+
+/* ---- Dark theme: realces ---- */
+body.dark-theme .mr-poi-item {
+    background: #0f172a;
+}
+
+body.dark-theme .mr-poi-item:hover {
+    background: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .mr-poi-stop-block {
+    background: #0f172a;
+}
+
+/* ---- Botão "POIs da Rota" levemente diferenciado ---- */
+#mrAnalyzeBtn {
+    color: #0e7490;
+}
+#mrAnalyzeBtn:hover:not(:disabled) {
+    background: rgba(14, 116, 144, 0.10);
+}
+body.dark-theme #mrAnalyzeBtn {
+    color: #22d3ee;
+}
+body.dark-theme #mrAnalyzeBtn:hover:not(:disabled) {
+    background: rgba(34, 211, 238, 0.12);
+}
+
+/* Em telas muito estreitas, .mr-actions vira coluna */
+@media (max-width: 420px) {
+    .mr-actions {
+        flex-wrap: wrap;
+    }
+    .mr-actions .mr-link-btn {
+        flex: 1 1 45%;
+        justify-content: center;
+    }
+}
+
+/* ==========================================================================
+   POIs COM AÇÃO DE ADICIONAR À ROTA (v18)
+   --------------------------------------------------------------------------
+   Cada item de POI tem DOIS botões:
+     • .mr-poi-add     → linha principal; clique adiciona à rota
+     • .mr-poi-locate  → botão circular pequeno; só centraliza o mapa
+   ========================================================================== */
+
+.mr-poi-row {
+    display: flex;
+    align-items: stretch;
+    gap: 3px;
+    margin-bottom: 3px;
+}
+
+.mr-poi-add {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+    background: var(--card-hover-bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--text-color);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mr-poi-add:hover {
+    background: var(--card-bg);
+    border-color: var(--accent-color);
+}
+
+.mr-poi-add:active {
+    transform: scale(0.98);
+}
+
+.mr-poi-add .mr-poi-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent-color);
+    flex-shrink: 0;
+}
+
+.mr-poi-add .mr-poi-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.mr-poi-add .mr-poi-distance {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Botão pequeno de "centralizar no POI" */
+.mr-poi-locate {
+    flex: 0 0 auto;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-hover-bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mr-poi-locate:hover {
+    background: var(--card-bg);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.mr-poi-locate:active {
+    transform: scale(0.94);
+}
+
+.mr-poi-locate svg {
+    pointer-events: none;
+}
+
+/* ---- Dark theme ---- */
+body.dark-theme .mr-poi-add {
+    background: #0f172a;
+}
+
+body.dark-theme .mr-poi-add:hover {
+    background: #1e293b;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .mr-poi-locate {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+body.dark-theme .mr-poi-locate:hover {
+    background: #1e293b;
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* ---- Toque: alvos maiores ---- */
+@media (hover: none) and (pointer: coarse) {
+    .mr-poi-add {
+        padding: 7px 9px;
+        font-size: 12px;
+    }
+    .mr-poi-locate {
+        width: 34px;
+        min-height: 34px;
+    }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    .mr-poi-add,
+    .mr-poi-locate {
+        transition: none;
+    }
+    .mr-poi-add:active,
+    .mr-poi-locate:active {
+        transform: none;
+    }
+}
+
+/* ==========================================================================
+   [v18] PAINEL DE CHAMADAS SIDS (desktop-only)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Botão flutuante (empilhado acima do clima)
+   -------------------------------------------------------------------------- */
+.btn-floating-calls {
+    position: fixed;
+    right: 16px;
+    /* Acima do weather (74px) + botão weather (48px) + gap (10px) = 132px */
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    z-index: 1002;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #c0392b;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.22),
+        0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: background 0.15s ease, transform 0.12s ease,
+                box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-floating-calls:hover {
+    background: #a93226;
+    transform: translateY(-1px);
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.28),
+        0 1px 3px rgba(0, 0, 0, 0.16);
+}
+
+.btn-floating-calls:active { transform: scale(0.94); }
+
+.btn-floating-calls.is-active {
+    background: #8e1b1b;
+    box-shadow:
+        0 0 0 3px rgba(192, 57, 43, 0.35),
+        0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+.sids-calls-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.sids-calls-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #c0392b;
+    border: 2px solid #c0392b;
+    font-size: 10px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.sids-calls-badge.hidden { display: none; }
+
+/* --------------------------------------------------------------------------
+   Painel popover
+   -------------------------------------------------------------------------- */
+.sids-calls-panel {
+    position: fixed;
+    right: 16px;
+    /* Acima do botão (48px) + seu bottom (132px) + folga (10px) = 190px */
+    bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+    z-index: 1003;
+    width: min(400px, calc(100vw - 32px));
+    max-height: min(620px, calc(100vh - 210px));
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow:
+        0 12px 36px rgba(0, 0, 0, 0.22),
+        0 2px 6px rgba(0, 0, 0, 0.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: sids-panel-in 0.18s ease-out;
+}
+
+.sids-calls-panel.hidden { display: none; }
+
+@keyframes sids-panel-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+.sids-calls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #c0392b 0%, #8e1b1b 100%);
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.sids-calls-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.sids-calls-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.sids-calls-close {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.sids-calls-close:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* --------------------------------------------------------------------------
+   Área de input
+   -------------------------------------------------------------------------- */
+.sids-calls-input-area {
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+#sidsCallsInput {
+    width: 100%;
+    min-height: 64px;
+    max-height: 140px;
+    resize: vertical;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.4;
+    background: #ffffff;
+    color: var(--text-color);
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#sidsCallsInput:focus {
+    outline: none;
+    border-color: #c0392b;
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15);
+}
+
+#sidsCallsInput::placeholder {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #94a3b8;
+}
+
+.sids-calls-input-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.sids-calls-add-btn {
+    background: #c0392b !important;
+    color: #ffffff !important;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 6px;
+    min-height: 32px;
+}
+.sids-calls-add-btn:hover:not(:disabled) { background: #a93226 !important; }
+.sids-calls-add-btn:disabled {
+    background: #e2e8f0 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+}
+
+.sids-calls-link-btn {
+    background: transparent;
+    border: none;
+    color: #7f8c8d;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+.sids-calls-link-btn:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+/* --------------------------------------------------------------------------
+   Lista de chamadas
+   -------------------------------------------------------------------------- */
+.sids-calls-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    background: #ffffff;
+    min-height: 60px;
+}
+
+.sids-calls-list::-webkit-scrollbar { width: 6px; }
+.sids-calls-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.sids-calls-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.sids-calls-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.sids-calls-empty svg { color: #cbd5e1; margin-bottom: 6px; }
+.sids-calls-empty p { margin: 4px 0; }
+.sids-calls-empty-hint { font-size: 11px; color: #b0b8c1; }
+
+/* --------------------------------------------------------------------------
+   Card
+   -------------------------------------------------------------------------- */
+.sids-calls-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
+    margin-bottom: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #c0392b;
+    border-radius: 6px;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.sids-calls-card:last-child { margin-bottom: 0; }
+
+.sids-calls-card:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.sids-calls-card.is-selected {
+    background: #fef2f2;
+    border-color: #c0392b;
+    box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.12);
+}
+
+.sids-calls-card-cb {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    cursor: pointer;
+    accent-color: #c0392b;
+}
+
+.sids-calls-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.sids-calls-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.sids-calls-card-proto {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #c0392b;
+    font-variant-numeric: tabular-nums;
+}
+
+.sids-calls-card-time {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.sids-calls-card-del {
+    background: transparent;
+    border: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 4px;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.sids-calls-card-del:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.sids-calls-card-nature {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.3;
+}
+.sids-calls-card-nature small {
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    margin-left: 2px;
+}
+
+.sids-calls-card-addr {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 11px;
+    color: #334155;
+    line-height: 1.35;
+}
+.sids-calls-card-addr svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #c0392b;
+}
+
+.sids-calls-card-meta {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.sids-calls-card-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+}
+
+.sids-calls-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #334155;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sids-calls-action:hover {
+    background: #ecfdf5;
+    border-color: #10b981;
+    color: #047857;
+}
+
+.sids-calls-action[data-action="route"]:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
+
+/* --------------------------------------------------------------------------
+   Barra de ações em lote (rodapé fixo)
+   -------------------------------------------------------------------------- */
+.sids-calls-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #1e293b;
+    border-top: 1px solid #0f172a;
+    color: #e2e8f0;
+    flex-shrink: 0;
+}
+.sids-calls-bulk-bar.hidden { display: none; }
+
+.sids-calls-bulk-info {
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.sids-calls-bulk-route {
+    background: #27ae60 !important;
+    color: #ffffff !important;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 5px;
+    min-height: 30px;
+    white-space: nowrap;
+}
+.sids-calls-bulk-route:hover { background: #219a52 !important; }
+
+/* --------------------------------------------------------------------------
+   Botão "Guardar todas" no picker do SIDS (search.js)
+   -------------------------------------------------------------------------- */
+.cad-pick-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.cad-pick-save-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #27ae60;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.cad-pick-save-all:hover { background: #219a52; }
+
+/* --------------------------------------------------------------------------
+   Dark theme
+   -------------------------------------------------------------------------- */
+body.dark-theme .btn-floating-calls {
+    background: #a82323;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.55),
+        0 1px 3px rgba(0, 0, 0, 0.35);
+}
+body.dark-theme .btn-floating-calls:hover { background: #c9302c; }
+body.dark-theme .btn-floating-calls.is-active {
+    background: #8e1b1b;
+    box-shadow:
+        0 0 0 3px rgba(168, 35, 35, 0.35),
+        0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-theme .sids-calls-badge {
+    background: #0f172a;
+    color: #f87171;
+    border-color: #f87171;
+}
+
+body.dark-theme .sids-calls-panel {
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .sids-calls-header {
+    background: linear-gradient(135deg, #991b1b 0%, #5c1010 100%);
+}
+
+body.dark-theme .sids-calls-close { color: #ffffff; }
+body.dark-theme .sids-calls-close:hover { background: rgba(255, 255, 255, 0.25); }
+
+body.dark-theme .sids-calls-input-area {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
+
+body.dark-theme #sidsCallsInput {
+    background: #0b1120;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+body.dark-theme #sidsCallsInput:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+body.dark-theme #sidsCallsInput::placeholder { color: #64748b; }
+
+body.dark-theme .sids-calls-add-btn:disabled {
+    background: #1e293b !important;
+    color: #64748b !important;
+}
+
+body.dark-theme .sids-calls-link-btn { color: #94a3b8; }
+body.dark-theme .sids-calls-link-btn:hover {
+    background: rgba(185, 28, 28, 0.25);
+    color: #fca5a5;
+}
+
+body.dark-theme .sids-calls-list { background: #0f172a; }
+
+body.dark-theme .sids-calls-empty { color: #64748b; }
+body.dark-theme .sids-calls-empty svg { color: #334155; }
+body.dark-theme .sids-calls-empty-hint { color: #475569; }
+
+body.dark-theme .sids-calls-card {
+    background: #0b1120;
+    border-color: #334155;
+    border-left-color: #ef4444;
+}
+body.dark-theme .sids-calls-card:hover {
+    background: #1e293b;
+    border-color: #475569;
+}
+body.dark-theme .sids-calls-card.is-selected {
+    background: rgba(120, 53, 15, 0.35);
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+body.dark-theme .sids-calls-card-proto { color: #f87171; }
+body.dark-theme .sids-calls-card-time { color: #64748b; }
+
+body.dark-theme .sids-calls-card-del:hover {
+    background: rgba(185, 28, 28, 0.25);
+    color: #fca5a5;
+}
+
+body.dark-theme .sids-calls-card-nature { color: #e2e8f0; }
+body.dark-theme .sids-calls-card-nature small { color: #94a3b8; }
+body.dark-theme .sids-calls-card-addr { color: #cbd5e1; }
+body.dark-theme .sids-calls-card-addr svg { color: #f87171; }
+body.dark-theme .sids-calls-card-meta { color: #94a3b8; }
+
+body.dark-theme .sids-calls-action {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+body.dark-theme .sids-calls-action:hover {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #6ee7b7;
+}
+body.dark-theme .sids-calls-action[data-action="route"]:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+    color: #93c5fd;
+}
+
+body.dark-theme .sids-calls-bulk-bar {
+    background: #1e293b;
+    border-top-color: #0f172a;
+}
+body.dark-theme .sids-calls-bulk-info { color: #e2e8f0; }
+
+/* --------------------------------------------------------------------------
+   Prefers-reduced-motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .sids-calls-panel { animation: none; }
+    .btn-floating-calls,
+    .sids-calls-card,
+    .sids-calls-close { transition: none; }
+    .btn-floating-calls:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Esconde o recurso em tablets e celulares (uso exclusivo desktop)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+    .btn-floating-calls,
+    #sidsCallsPanel {
+        display: none !important;
+    }
+}

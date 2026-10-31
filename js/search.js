@@ -1472,9 +1472,33 @@ function showCadCallPicker(calls, targetId) {
     _setSearchInputValue(targetId, '');
     div.innerHTML = '';
 
+    const canSave = typeof window.SidsCalls?.addCalls === 'function';
+
     const header = document.createElement('div');
     header.className = 'cad-pick-header';
-    header.innerHTML = `${svgIcon('phone', 12)} ${calls.length} chamadas coladas — escolha uma:`;
+    header.innerHTML = `
+        <span>${svgIcon('phone', 12)} ${calls.length} chamadas coladas — escolha uma:</span>
+        ${canSave ? `<button type="button" class="cad-pick-save-all"
+                title="Guardar todas na lista SIDS (Alt+C)">
+                ${svgIcon('save', 11)} Guardar todas
+            </button>` : ''}
+    `;
+
+    const saveAllBtn = header.querySelector('.cad-pick-save-all');
+    if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const res = window.SidsCalls.addCalls(calls);
+            if (!res) return;
+            showToast(
+                `${res.added} chamada(s) guardada(s)` +
+                (res.duplicates > 0 ? ` • ${res.duplicates} duplicada(s)` : '') +
+                (res.dropped > 0 ? ` • ${res.dropped} descartada(s) (limite 10)` : ''),
+                res.added > 0 ? 'success' : 'info',
+                4000
+            );
+        });
+    }
     div.appendChild(header);
 
     calls.forEach(call => {
@@ -1831,3 +1855,198 @@ function displaySearchResults(results, targetId = 'searchResults', suggestions =
         resultsDiv.appendChild(item);
     });
 }
+
+// ===========================================================================
+// [v18] GEOCODIFICAÇÃO HEADLESS PARA O PAINEL DE CHAMADAS SIDS
+// ---------------------------------------------------------------------------
+// Extrai da busca (que renderiza em DOM) uma versão que retorna dados puros,
+// para que `sids-calls.js` possa resolver endereços sem tocar na UI.
+// Reutiliza _scoreOnlineResults, o cache LRU _onlineSearchCache, o índice
+// local de ruas e a interpolação por número.
+// ===========================================================================
+
+/**
+ * Geocodifica um endereço no padrão CAD/SIDS.
+ * Retorna { lat, lng, displayName, munBadge, source } ou null.
+ *
+ * @param {string} addressText  Ex.: "RUA X, Nº 245 - BAIRRO - CIDADE"
+ */
+async function geocodeCadAddress(addressText) {
+    if (!addressText) return null;
+    const rawQuery = String(addressText).trim();
+    if (!rawQuery) return null;
+
+    // Reaproveita o parser CAD quando aplicável
+    const cad = parseCadAddress(rawQuery);
+    let parsed, query;
+    if (cad && !detectIntersection(cad.street)) {
+        parsed = _buildParsedFromCad(cad);
+        query = cad.query;
+    } else {
+        parsed = parseAddressQueryWithCity(rawQuery);
+        query = rawQuery;
+    }
+
+    // 1) Online primeiro (se conectado)
+    if (navigator.onLine) {
+        try {
+            const r = await _geocodeCadOnline(query, parsed);
+            if (r) return r;
+        } catch (e) {
+            console.warn('[geocodeCadAddress] Online falhou:', e.message);
+        }
+    }
+
+    // 2) Offline (índice local de logradouros)
+    try {
+        const r = await _geocodeCadOffline(query, parsed);
+        if (r) return r;
+    } catch (e) {
+        console.warn('[geocodeCadAddress] Offline falhou:', e.message);
+    }
+
+    return null;
+}
+
+async function _geocodeCadOnline(rawQuery, parsed) {
+    const profile = (typeof getNetworkProfile === 'function')
+        ? getNetworkProfile()
+        : { nominatimTimeout: 8000, nominatimLimit: 12 };
+
+    const cacheKey = `${normalizeStr(rawQuery)}__${normalizeStr(parsed.city || '')}`;
+    let data = _getCachedSearch(cacheKey);
+
+    if (!data || data.length === 0) {
+        const viewbox = '-51.0,-14.0,-39.5,-23.0';
+        const urlJobs = [];
+        const hasClearStreet = parsed.streetPart && parsed.streetPart.length >= 4;
+
+        if (hasClearStreet) {
+            const streetForNominatim = parsed.streetPartOriginal || parsed.streetPart;
+            const streetParam = parsed.hasNumber
+                ? `${streetForNominatim} ${parsed.number}`.trim()
+                : streetForNominatim;
+
+            const params = new URLSearchParams({
+                format: 'json', addressdetails: '1',
+                limit: String(profile.nominatimLimit),
+                countrycodes: 'BR', 'accept-language': 'pt',
+                street: streetParam, state: 'Minas Gerais',
+                viewbox, bounded: '1'
+            });
+            if (parsed.city) params.set('city', parsed.city);
+            urlJobs.push(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+        }
+
+        if (urlJobs.length === 0 || parsed.isIntersection) {
+            const freeParams = new URLSearchParams({
+                format: 'json', addressdetails: '1',
+                limit: String(profile.nominatimLimit),
+                countrycodes: 'BR', 'accept-language': 'pt',
+                q: `${rawQuery}, Minas Gerais, Brazil`,
+                viewbox, bounded: '1'
+            });
+            urlJobs.push(`https://nominatim.openstreetmap.org/search?${freeParams.toString()}`);
+        }
+
+        const batches = await Promise.all(urlJobs.map(url => {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), profile.nominatimTimeout);
+            return fetch(url, {
+                headers: { 'Accept': 'application/json' },
+                signal: ctrl.signal
+            })
+                .then(r => { clearTimeout(tid); return r.ok ? r.json() : []; })
+                .catch(() => { clearTimeout(tid); return []; });
+        }));
+
+        data = [];
+        const seen = new Set();
+        batches.forEach(arr => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach(item => {
+                if (item.place_id && !seen.has(item.place_id)) {
+                    seen.add(item.place_id);
+                    data.push(item);
+                }
+            });
+        });
+
+        if (data.length === 0) return null;
+        _setCachedSearch(cacheKey, data);
+    }
+
+    const scored = _scoreOnlineResults(data, parsed, rawQuery);
+    if (scored.length === 0) return null;
+
+    const top = scored[0];
+    return {
+        lat: top.lat,
+        lng: top.lng,
+        displayName: top.title || top.address,
+        munBadge: top.munBadge,
+        source: 'online'
+    };
+}
+
+async function _geocodeCadOffline(rawQuery, parsed) {
+    if (!cachedStreetIndex || cachedStreetIndex.length === 0) {
+        await getOrBuildStreetIndex();
+    }
+    const streetIndex = await getOrBuildStreetIndex();
+    if (!streetIndex || streetIndex.length === 0) return null;
+
+    const searchTokens = (parsed.streetPart || expandSearchQuery(rawQuery))
+        .split(/\s+/).filter(Boolean);
+    if (searchTokens.length === 0) return null;
+
+    let best = null, bestScore = 0;
+
+    for (const street of streetIndex) {
+        const matches = searchTokens.every(t =>
+            street.normalizedWithMun.includes(t) ||
+            street.normalizedStreetOnly.includes(t) ||
+            street.normalizedFull.includes(t)
+        );
+        if (!matches) continue;
+
+        let score = 0;
+        const fullNorm = street.normalizedFull;
+        const queryNorm = parsed.streetPart || expandSearchQuery(rawQuery);
+
+        if (fullNorm === queryNorm) score += 100;
+        else if (fullNorm.startsWith(queryNorm)) score += 60;
+        else if (street.normalizedStreetOnly.startsWith(queryNorm)) score += 50;
+        else if (fullNorm.includes(queryNorm)) score += 40;
+        else score += 20;
+
+        if (parsed.hasNumber) score += 5;
+        if (parsed.city && normalizeStr(street.munName).includes(normalizeStr(parsed.city))) {
+            score += 25;
+        }
+
+        if (score > bestScore) { bestScore = score; best = street; }
+    }
+
+    if (!best) return null;
+
+    let lat = best.lat, lng = best.lng;
+    if (parsed.hasNumber) {
+        try {
+            const features = await getStreetFeaturesByKey(best.fullName, best.munName);
+            const pt = interpolatePointOnStreet(features, parsed.number, best.totalRes);
+            if (pt) { lat = pt.lat; lng = pt.lng; }
+        } catch (_) { /* mantém centroide da via */ }
+    }
+
+    return {
+        lat, lng,
+        displayName: parsed.hasNumber
+            ? `${best.fullName}, ${parsed.number}`
+            : best.fullName,
+        munBadge: best.munName,
+        source: 'offline'
+    };
+}
+
+window.geocodeCadAddress = geocodeCadAddress;

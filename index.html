@@ -82,7 +82,7 @@
     <link rel="stylesheet" href="./vendor/leaflet.css">
     <link rel="stylesheet" href="./vendor/leaflet-routing-machine.css">
     <link rel="stylesheet" href="./vendor/leaflet.markercluster.css">
-    <link rel="stylesheet" href="./styles.css?v=17">
+    <link rel="stylesheet" href="./styles.css?v=18">
 </head>
 <body>
 <button id="sidebarShowBtn" class="btn-floating hidden" aria-label="Abrir painel">☰</button>
@@ -158,8 +158,13 @@
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V4"/><polyline points="3 8 7 4 11 8"/><path d="M17 4v16"/><polyline points="13 16 17 20 21 16"/></svg>
                         Inverter
                     </button>
+                    <button type="button" id="mrAnalyzeBtn" class="mr-link-btn" title="Analisar POIs próximos aos pontos da rota">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        POIs da Rota
+                    </button>
                 </div>
                 <div id="mrSummary" class="mr-summary" aria-live="polite"></div>
+                <div id="mrPoiSummary" class="mr-poi-summary hidden" aria-live="polite"></div>
             </div>
 
             <button id="resetBtn" class="btn btn-danger">
@@ -296,6 +301,82 @@
         </div>
     </div>
 
+    <!-- =====================================================================
+         [v18] Painel de Chamadas SIDS (desktop-only)
+         ===================================================================== -->
+    <button id="sidsCallsBtn" class="btn-floating-calls"
+            type="button"
+            title="Chamadas SIDS (Alt+C)"
+            aria-label="Painel de chamadas SIDS"
+            aria-expanded="false"
+            aria-controls="sidsCallsPanel">
+        <span class="sids-calls-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                 stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <line x1="9" y1="11" x2="15" y2="11"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+        </span>
+        <span id="sidsCallsBadge" class="sids-calls-badge hidden">0</span>
+    </button>
+
+    <div id="sidsCallsPanel" class="sids-calls-panel hidden"
+         role="dialog" aria-modal="false" aria-label="Chamadas SIDS">
+        <div class="sids-calls-header">
+            <span class="sids-calls-title">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+                Chamadas SIDS
+                <span id="sidsCallsHeaderCount" class="sids-calls-count">0</span>
+            </span>
+            <button type="button" id="sidsCallsClose" class="sids-calls-close"
+                    aria-label="Fechar painel de chamadas">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                     stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sids-calls-input-area">
+            <textarea id="sidsCallsInput"
+                      placeholder="Cole aqui uma ou várias linhas do SIDS (Ctrl+V) — ou digite um endereço no padrão do CAD..."
+                      rows="3"
+                      spellcheck="false"
+                      aria-label="Área para colar chamadas do SIDS"></textarea>
+            <div class="sids-calls-input-actions">
+                <button type="button" id="sidsCallsAddBtn"
+                        class="btn sids-calls-add-btn" disabled>
+                    + Adicionar
+                </button>
+                <button type="button" id="sidsCallsClearAllBtn"
+                        class="sids-calls-link-btn"
+                        title="Remover todas as chamadas">
+                    Limpar tudo
+                </button>
+            </div>
+        </div>
+
+        <div id="sidsCallsList" class="sids-calls-list"></div>
+
+        <div id="sidsCallsBulkBar" class="sids-calls-bulk-bar hidden">
+            <span id="sidsCallsBulkInfo" class="sids-calls-bulk-info"></span>
+            <button type="button" id="sidsCallsBulkRouteBtn"
+                    class="btn sids-calls-bulk-route">
+                Rota entre chamadas
+            </button>
+        </div>
+    </div>
+
 <div id="floatingSearch" class="floating-search">
         <div class="floating-search-box" id="floatingSearchBox">
         <span class="floating-search-icon" aria-hidden="true">
@@ -398,7 +479,7 @@
     </div>
 
     <!-- Bibliotecas + App scripts (todos defer, ordem preservada) -->
-    <!-- [v17 – Jeferson Manini] "?v=17" nos arquivos do app: a cada versão o
+    <!-- [v17 – Jeferson Manini] "?v=18" nos arquivos do app: a cada versão o
          navegador busca os arquivos novos em vez de misturar com os antigos
          do cache. Manter igual a ASSET_VERSION em sw.js e DATA_VERSION em app.js. -->
     <script defer src="./vendor/leaflet.js"></script>
@@ -410,20 +491,21 @@
     <script defer src="./vendor/jszip.min.js"></script>
     <script defer src="./vendor/togeojson.umd.js"></script>
 
-    <script defer src="./db.js?v=17"></script>
-    <script defer src="./js/utils.js?v=17"></script>
-    <script defer src="./js/network.js?v=17"></script>
-    <script defer src="./js/map.js?v=17"></script>
-    <script defer src="./js/icons.js?v=17"></script>
-    <script defer src="./js/eventos.js?v=17"></script>
-    <script defer src="./js/weather.js?v=17"></script>
-    <script defer src="./js/chamadas.js?v=17"></script>
-    <script defer src="./js/layers.js?v=17"></script>
-    <script defer src="./js/search.js?v=17"></script>
-    <script defer src="./js/multiroute.js?v=17"></script>
-    <script defer src="./js/gps.js?v=17"></script>
-    <script defer src="./js/tiles.js?v=17"></script>
-    <script defer src="./js/admin.js?v=17"></script>
-    <script defer src="./app.js?v=17"></script>
+    <script defer src="./db.js?v=18"></script>
+    <script defer src="./js/utils.js?v=18"></script>
+    <script defer src="./js/network.js?v=18"></script>
+    <script defer src="./js/map.js?v=18"></script>
+    <script defer src="./js/icons.js?v=18"></script>
+    <script defer src="./js/eventos.js?v=18"></script>
+    <script defer src="./js/weather.js?v=18"></script>
+    <script defer src="./js/chamadas.js?v=18"></script>
+    <script defer src="./js/layers.js?v=18"></script>
+    <script defer src="./js/search.js?v=18"></script>
+    <script defer src="./js/multiroute.js?v=18"></script>
+    <script defer src="./js/sids-calls.js?v=18"></script>
+    <script defer src="./js/gps.js?v=18"></script>
+    <script defer src="./js/tiles.js?v=18"></script>
+    <script defer src="./js/admin.js?v=18"></script>
+    <script defer src="./app.js?v=18"></script>
 </body>
 </html>

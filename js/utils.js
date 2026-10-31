@@ -282,6 +282,30 @@ function initCobomActionDelegation() {
                     return;
                 }
 
+                case 'zoom-to': {
+                    const lng = parseFloat(btn.dataset.lng);
+                    const lat = parseFloat(btn.dataset.lat);
+                    const zoom = parseInt(btn.dataset.zoom, 10) || 17;
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (typeof map !== 'undefined' && map) {
+                        map.setView([lat, lng], zoom, { animate: true });
+                    }
+                    return;
+                }
+
+                case 'add-mr-stop': {
+                    const lng  = parseFloat(btn.dataset.lng);
+                    const lat  = parseFloat(btn.dataset.lat);
+                    const name = btn.dataset.name || 'POI';
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    if (window.MultiRoute && typeof window.MultiRoute.addStopFromCoords === 'function') {
+                        window.MultiRoute.addStopFromCoords(lat, lng, name);
+                    } else {
+                        console.warn('[COBOM Action] MultiRoute.addStopFromCoords indisponível.');
+                    }
+                    return;
+                }
+
                 default:
                     // Ação desconhecida — silencioso (não quebra o app).
                     return;

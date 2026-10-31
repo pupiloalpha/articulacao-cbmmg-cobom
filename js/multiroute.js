@@ -39,6 +39,10 @@ let _mrLastResult = null;
 let _mrRegisteredTargets = new Set();
 const _mrSearchTimers = new Map();
 const _mrOsrmCache = new Map();
+// Cache de POIs por parada (chave: "lat,lng" com 5 casas decimais)
+const _mrPoiCache = new Map();
+// Token de geração da análise de POIs — invalida execuções obsoletas
+let _mrPoiAnalysisToken = 0;
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -174,6 +178,8 @@ function closeMultiRoute(options = {}) {
 
     _mrStops = [];
     _mrLastResult = null;
+    _mrPoiCache.clear();
+    _mrClearPoiPanel();
     _mrOpen = false;
 
     if (panel) panel.classList.add('hidden');
@@ -181,6 +187,7 @@ function closeMultiRoute(options = {}) {
     if (list) list.innerHTML = '';
     const summary = document.getElementById('mrSummary');
     if (summary) summary.innerHTML = '';
+
     if (toggleBtn) {
         toggleBtn.classList.remove('active');
         toggleBtn.setAttribute('aria-expanded', 'false');
@@ -511,10 +518,18 @@ function _mrSetStop(stopId, data, options = {}) {
     const stop = _mrFindStop(stopId);
     if (!stop) return;
 
+    // Invalida o cache de POIs da posição ANTIGA (o pino mudou de lugar)
+    if (stop.lat != null && stop.lng != null) {
+        _mrPoiCache.delete(`${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`);
+    }
+
     stop.lat = data.lat;
     stop.lng = data.lng;
     stop.label = data.label;
     stop.address = data.address || data.label;
+
+    // A rota mudou: painel de POIs fica obsoleto
+    _mrClearPoiPanel();
 
     const input = _mrInputFor(stopId);
     if (input) {
@@ -543,10 +558,14 @@ function _mrSetStop(stopId, data, options = {}) {
 function _mrClearStop(stopId) {
     const stop = _mrFindStop(stopId);
     if (!stop) return;
+    if (stop.lat != null && stop.lng != null) {
+        _mrPoiCache.delete(`${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`);
+    }
     stop.lat = null;
     stop.lng = null;
     stop.label = '';
     stop.address = '';
+    _mrClearPoiPanel();
     _mrRenderStops(stopId);
     _mrScheduleCompute(0);
 }
@@ -570,7 +589,15 @@ function _mrRemoveStop(stopId) {
         return;
     }
     if (_mrPickingId === stopId) _mrCancelPick(true);
+
+    // Invalida cache de POI da posição removida
+    const stop = _mrFindStop(stopId);
+    if (stop && stop.lat != null && stop.lng != null) {
+        _mrPoiCache.delete(`${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`);
+    }
+
     _mrStops = _mrStops.filter(s => s.id !== stopId);
+    _mrClearPoiPanel();
     _mrRenderStops();
     _mrScheduleCompute(0);
 }
@@ -581,8 +608,8 @@ function _mrMoveStop(stopId, delta) {
     if (idx < 0 || to < 0 || to >= _mrStops.length) return;
     const [stop] = _mrStops.splice(idx, 1);
     _mrStops.splice(to, 0, stop);
+    _mrClearPoiPanel();
     _mrRenderStops();
-    // mantém o foco no botão equivalente para quem usa teclado
     const btn = document.querySelector(`#mrStopsList .mr-stop[data-id="${stopId}"] [data-mr="${delta < 0 ? 'up' : 'down'}"]`);
     if (btn && !btn.disabled) btn.focus();
     _mrScheduleCompute(0);
@@ -591,6 +618,7 @@ function _mrMoveStop(stopId, delta) {
 function _mrReverseStops() {
     if (_mrStops.length < 2) return;
     _mrStops.reverse();
+    _mrClearPoiPanel();
     _mrRenderStops();
     _mrScheduleCompute(0);
 }
@@ -990,6 +1018,21 @@ function _mrClearMapLayers() {
     _mrLayer = null;
 }
 
+/**
+ * Limpa o painel de análise de POIs e invalida qualquer execução em voo.
+ * Chamado sempre que a rota muda (stop alterado, removido, reordenado,
+ * invertido ou rota encerrada).
+ */
+function _mrClearPoiPanel() {
+    const container = document.getElementById('mrPoiSummary');
+    if (container) {
+        container.innerHTML = '';
+        container.classList.add('hidden');
+    }
+    // Invalida análises em voo para que não sobrescrevam a UI
+    _mrPoiAnalysisToken++;
+}
+
 function _mrRemoveRouteLines() {
     if (!_mrLayer) return;
     _mrLayer._mrLines.forEach(l => _mrLayer.removeLayer(l));
@@ -1034,6 +1077,7 @@ function _mrDrawMarkers() {
             });
         });
         marker.bindPopup('', { className: 'feature-popup', maxWidth: 300, minWidth: 220, autoPanPadding: [30, 50] });
+        marker.on('popupopen', () => _mrEnrichMarkerPopup(marker));
         marker.addTo(layer);
         layer._mrMarkers.push(marker);
     });
@@ -1041,37 +1085,173 @@ function _mrDrawMarkers() {
     _mrUpdateMarkerPopups();
 }
 
-function _mrUpdateMarkerPopups() {
-    if (!_mrLayer) return;
+/**
+ * Constrói o HTML do popup de um pino, opcionalmente incluindo a lista
+ * de POIs próximos (Superfície A).
+ */
+function _mrBuildPopupContent(stop, index, options = {}) {
+    const { pois = null, isLoadingPoi = false } = options;
     const total = _mrStops.length;
+    const letter = _mrLetter(index);
     const resolved = _mrResolvedStops();
     const lastResolvedId = resolved.length ? resolved[resolved.length - 1].id : null;
     const res = _mrLastResult;
 
+    let totals = '';
+    if (res && stop.id === lastResolvedId && resolved.length >= 2) {
+        totals = `<div class="mr-popup-total">
+            <b>Total:</b> ${_mrFmtDist(res.distance)}${res.duration ? ` · ~${_mrFmtTime(res.duration)}` : ''}
+            <small>${resolved.length} pontos · ${escapeHtml(_mrSourceText(res.source))}</small>
+        </div>`;
+    }
+
+    let poisHtml = '';
+    if (isLoadingPoi) {
+        poisHtml = `<div class="mr-poi-loading"><span class="mr-spinner"></span> Buscando POIs próximos...</div>`;
+    } else if (pois) {
+        poisHtml = _mrRenderPoiInline(pois);
+    }
+
+    return `
+        <div class="route-popup">
+            <span class="route-popup-title"><span class="mr-popup-letter mr-badge mr-badge--${_mrRole(index, total)}">${letter}</span> ${escapeHtml(_mrPlaceholder(index, total))}</span>
+            <div class="route-popup-body">
+                ${escapeHtml(stop.address || stop.label)}
+                ${totals}
+                <small class="route-popup-muted">Arraste o pino para ajustar.</small>
+                ${poisHtml}
+            </div>
+        </div>`;
+}
+
+function _mrUpdateMarkerPopups() {
+    if (!_mrLayer) return;
     _mrLayer._mrMarkers.forEach(marker => {
         const index = _mrStops.findIndex(s => s.id === marker._mrStopId);
         if (index < 0) return;
         const stop = _mrStops[index];
-        const letter = _mrLetter(index);
 
-        let totals = '';
-        if (res && stop.id === lastResolvedId && resolved.length >= 2) {
-            totals = `<div class="mr-popup-total">
-                <b>Total:</b> ${_mrFmtDist(res.distance)}${res.duration ? ` · ~${_mrFmtTime(res.duration)}` : ''}
-                <small>${resolved.length} pontos · ${escapeHtml(_mrSourceText(res.source))}</small>
-            </div>`;
-        }
+        // Se o popup já foi enriquecido com POIs, preserva o estado
+        const key = (stop.lat != null && stop.lng != null)
+            ? `${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`
+            : null;
+        const cachedPois = key ? _mrPoiCache.get(key) : null;
 
-        marker.setPopupContent(`
-            <div class="route-popup">
-                <span class="route-popup-title"><span class="mr-popup-letter mr-badge mr-badge--${_mrRole(index, total)}">${letter}</span> ${escapeHtml(_mrPlaceholder(index, total))}</span>
-                <div class="route-popup-body">
-                    ${escapeHtml(stop.address || stop.label)}
-                    ${totals}
-                    <small class="route-popup-muted">Arraste o pino para ajustar.</small>
-                </div>
-            </div>`);
+        marker.setPopupContent(_mrBuildPopupContent(stop, index, { pois: cachedPois }));
     });
+}
+
+/**
+ * Renderiza a lista compacta de POIs no popup do pino (Superfície A).
+ * Cada item tem DOIS botões:
+ *   • Principal (linha)  → adiciona o POI como parada da rota
+ *   • Secundário (🔍)   → apenas centraliza o mapa no POI
+ */
+function _mrRenderPoiInline(pois) {
+    const blocks = [];
+
+    const renderItem = (it, iconKey) => {
+        const name    = _mrPoiDisplayName(it);
+        const dist    = _mrFmtDist(it.distanceKm * 1000);
+        const safeName = escapeHtml(name);
+        return `<div class="mr-poi-row">
+            <button type="button" class="mr-poi-add"
+                    data-cobom-action="add-mr-stop"
+                    data-lat="${it.coord.lat}"
+                    data-lng="${it.coord.lng}"
+                    data-name="${safeName}"
+                    title="Adicionar &quot;${safeName}&quot; à rota (${dist})">
+                <span class="mr-poi-icon">${svgIcon(iconKey, 11)}</span>
+                <span class="mr-poi-name">${safeName}</span>
+                <span class="mr-poi-distance">${dist}</span>
+            </button>
+            <button type="button" class="mr-poi-locate"
+                    data-cobom-action="zoom-to"
+                    data-lat="${it.coord.lat}"
+                    data-lng="${it.coord.lng}"
+                    data-zoom="17"
+                    title="Centralizar mapa neste POI"
+                    aria-label="Centralizar mapa em ${safeName}">
+                ${svgIcon('search', 11)}
+            </button>
+        </div>`;
+    };
+
+    const section = (iconKey, label, items) => {
+        if (!items || items.length === 0) return '';
+        return `<div class="mr-poi-section">
+            <div class="mr-poi-section-title">${svgIcon(iconKey, 10)} ${label}</div>
+            ${items.map(it => renderItem(it, iconKey)).join('')}
+        </div>`;
+    };
+
+    if (pois.units?.length)     blocks.push(section('truck',    'Unidades BM',     pois.units));
+    if (pois.hospitals?.length) blocks.push(section('hospital', 'Hospitais',       pois.hospitals));
+    if (pois.hydrants?.length)  blocks.push(section('droplet',  'Hidrantes',       pois.hydrants));
+    if (pois.events?.length)    blocks.push(section('flame',    'Eventos de Fogo', pois.events));
+
+    if (blocks.length === 0) return '';
+    return `<div class="mr-poi-list">${blocks.join('')}</div>`;
+}
+
+/**
+ * Nome amigável por tipo de POI.
+ */
+function _mrPoiDisplayName(item) {
+    const p = item.properties || {};
+    const f = item.feature;
+    const cls = getFeatureClassification(f);
+    if (cls === 'UNIDADE_BM') return p.name || p['Nome da Unidade'] || 'Unidade BM';
+    if (cls === 'HOSPITAL')   return p['Nome do Hospital'] || p.name || 'Hospital';
+    if (cls === 'HIDRANTE')   return `Hidrante ${p.numHidrante || p.codigo || p.id || 's/n'}`;
+    if (cls === 'EVENTO_FOGO') return `Evento #${p.id_evento ?? '-'}`;
+    return 'POI';
+}
+
+/**
+ * Enriquece o popup de um pino com POIs ao abrir (lazy + cache).
+ */
+async function _mrEnrichMarkerPopup(marker) {
+    const stop = _mrFindStop(marker._mrStopId);
+    if (!stop || !_mrIsResolved(stop)) return;
+    if (typeof findNearbyPOIs !== 'function') return;
+
+    const key = `${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`;
+
+    // Cache hit → renderiza direto
+    if (_mrPoiCache.has(key)) {
+        const idx = _mrStops.findIndex(s => s.id === stop.id);
+        if (idx >= 0 && marker.isPopupOpen()) {
+            marker.setPopupContent(_mrBuildPopupContent(stop, idx, { pois: _mrPoiCache.get(key) }));
+        }
+        return;
+    }
+
+    const idx = _mrStops.findIndex(s => s.id === stop.id);
+    if (idx < 0) return;
+
+    // Estado de loading (não bloqueia a UI)
+    if (marker.isPopupOpen()) {
+        marker.setPopupContent(_mrBuildPopupContent(stop, idx, { isLoadingPoi: true }));
+    }
+
+    try {
+        const pois = await findNearbyPOIs(stop.lat, stop.lng, {
+            maxDistanceKm: 5,
+            topUnits: 3, topHospitals: 2, topHydrants: 3, topEvents: 2
+        });
+        _mrPoiCache.set(key, pois);
+
+        // Só aplica se o popup do mesmo marcador ainda estiver aberto
+        if (marker.isPopupOpen() && _mrFindStop(stop.id)?.lat === stop.lat) {
+            const idx2 = _mrStops.findIndex(s => s.id === stop.id);
+            if (idx2 >= 0) {
+                marker.setPopupContent(_mrBuildPopupContent(stop, idx2, { pois }));
+            }
+        }
+    } catch (e) {
+        console.warn('[Rota] Falha ao buscar POIs:', e);
+    }
 }
 
 function _mrDrawRoute(result) {
@@ -1254,6 +1434,198 @@ function _mrCopySummary() {
 }
 
 // ---------------------------------------------------------------------------
+// SUPERFÍCIE B — Análise consolidada de POIs na rota
+// ---------------------------------------------------------------------------
+async function _mrAnalyzeRoutePOIs() {
+    const container = document.getElementById('mrPoiSummary');
+    const btn = document.getElementById('mrAnalyzeBtn');
+    if (!container) return;
+
+    const stops = _mrResolvedStops();
+    if (stops.length < 2) {
+        container.classList.add('hidden');
+        return;
+    }
+    if (typeof findNearbyPOIs !== 'function') {
+        showToast('Módulo de POIs não disponível.', 'warning');
+        return;
+    }
+
+    // Token de geração — evita que uma análise antiga sobrescreva a nova
+    const token = ++_mrPoiAnalysisToken;
+    const signature = stops.map(s => s.id).join(',');
+
+    if (btn) btn.disabled = true;
+    container.classList.remove('hidden');
+    container.innerHTML = `<div class="mr-hint mr-hint--loading"><span class="mr-spinner" aria-hidden="true"></span> Analisando POIs próximos de ${stops.length} paradas...</div>`;
+
+    try {
+        const layers = await DB.getLayers();
+        if (token !== _mrPoiAnalysisToken) return;
+
+        const results = [];
+        for (const stop of stops) {
+            if (token !== _mrPoiAnalysisToken) return;
+
+            const key = `${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`;
+            let pois = _mrPoiCache.get(key);
+            if (!pois) {
+                pois = await findNearbyPOIs(stop.lat, stop.lng, {
+                    maxDistanceKm: 5,
+                    topUnits: 2, topHospitals: 1, topHydrants: 2, topEvents: 1,
+                    layers
+                });
+                if (token !== _mrPoiAnalysisToken) return;
+                _mrPoiCache.set(key, pois);
+            }
+            results.push({ stop, pois });
+        }
+
+        // Segunda verificação: token + assinatura dos stops
+        if (token !== _mrPoiAnalysisToken) return;
+        const currentSig = _mrResolvedStops().map(s => s.id).join(',');
+        if (currentSig !== signature) return;
+
+        _mrRenderPoiAnalysis(container, results);
+    } catch (e) {
+        if (token === _mrPoiAnalysisToken) {
+            console.error('[Rota] Erro ao analisar POIs:', e);
+            container.innerHTML = `<div class="mr-hint">Não foi possível analisar os POIs.</div>`;
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function _mrRenderPoiAnalysis(container, results) {
+    const anyPoi = results.some(r =>
+        r.pois.units.length || r.pois.hospitals.length ||
+        r.pois.hydrants.length || r.pois.events.length
+    );
+
+    if (!anyPoi) {
+        container.innerHTML = `<div class="mr-hint">${svgIcon('info', 12)} Nenhum POI mapeado num raio de 5 km das paradas.</div>`;
+        return;
+    }
+
+    const renderItem = (it, iconKey) => {
+        const name     = _mrPoiDisplayName(it);
+        const dist     = _mrFmtDist(it.distanceKm * 1000);
+        const safeName = escapeHtml(name);
+        return `<div class="mr-poi-row">
+            <button type="button" class="mr-poi-add"
+                    data-cobom-action="add-mr-stop"
+                    data-lat="${it.coord.lat}"
+                    data-lng="${it.coord.lng}"
+                    data-name="${safeName}"
+                    title="Adicionar &quot;${safeName}&quot; à rota (${dist})">
+                <span class="mr-poi-icon">${svgIcon(iconKey, 11)}</span>
+                <span class="mr-poi-name">${safeName}</span>
+                <span class="mr-poi-distance">${dist}</span>
+            </button>
+            <button type="button" class="mr-poi-locate"
+                    data-cobom-action="zoom-to"
+                    data-lat="${it.coord.lat}"
+                    data-lng="${it.coord.lng}"
+                    data-zoom="17"
+                    title="Centralizar mapa neste POI"
+                    aria-label="Centralizar mapa em ${safeName}">
+                ${svgIcon('search', 11)}
+            </button>
+        </div>`;
+    };
+
+    const blocks = results.map(({ stop, pois }) => {
+        const idx    = _mrStops.findIndex(s => s.id === stop.id);
+        const letter = idx >= 0 ? _mrLetter(idx) : '?';
+        const role   = idx >= 0 ? _mrRole(idx, _mrStops.length) : 'mid';
+
+        const sections = [];
+        const addSection = (iconKey, label, items) => {
+            if (!items.length) return;
+            sections.push(`<div class="mr-poi-section">
+                <div class="mr-poi-section-title">${svgIcon(iconKey, 10)} ${label}</div>
+                ${items.map(it => renderItem(it, iconKey)).join('')}
+            </div>`);
+        };
+
+        addSection('truck',    'Unidades BM',     pois.units);
+        addSection('hospital', 'Hospitais',       pois.hospitals);
+        addSection('droplet',  'Hidrantes',       pois.hydrants);
+        addSection('flame',    'Eventos de Fogo', pois.events);
+
+        return `<div class="mr-poi-stop-block">
+            <div class="mr-poi-stop-header">
+                <span class="mr-badge mr-badge--sm mr-badge--${role}">${letter}</span>
+                ${escapeHtml(stop.label || 'Parada')}
+            </div>
+            ${sections.length ? sections.join('') : '<div class="mr-poi-empty">Sem POIs próximos.</div>'}
+        </div>`;
+    }).join('');
+
+    container.innerHTML = blocks;
+}
+
+/**
+ * Adiciona um POI como parada da rota atual.
+ *
+ * Regras:
+ *   • Se houver uma parada VAZIA (não resolvida), preenche-a primeiro —
+ *     evita "buracos" na rota.
+ *   • Se todas as paradas estiverem preenchidas, ACRESCENTA uma nova
+ *     parada ao final (limite MR_MAX_STOPS).
+ *   • Dispara o recálculo da rota e um toast de confirmação.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {string} name  Nome do POI (usado como label da parada)
+ * @returns {object|null} O stop criado/preenchido, ou null em caso de erro
+ */
+function addStopFromCoords(lat, lng, name) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    if (!_mrOpen) {
+        openMultiRoute({ focus: false });
+    }
+
+    const safeName = String(name || 'POI').trim() || 'POI';
+
+    // 1) Preenche primeiro stop vazio
+    const emptyStop = _mrStops.find(s => !_mrIsResolved(s));
+    let targetStop;
+    let isNew = false;
+
+    if (emptyStop) {
+        targetStop = emptyStop;
+    } else {
+        if (_mrStops.length >= MR_MAX_STOPS) {
+            showToast(`Limite de ${MR_MAX_STOPS} pontos por rota.`, 'warning', 3000);
+            return null;
+        }
+        targetStop = _mrNewStop();
+        _mrStops.push(targetStop);
+        isNew = true;
+    }
+
+    targetStop.lat = lat;
+    targetStop.lng = lng;
+    targetStop.label = safeName;
+    targetStop.address = safeName;
+
+    // Painel de POIs fica obsoleto com a nova parada
+    _mrClearPoiPanel();
+    _mrRenderStops();
+    _mrScheduleCompute(0, { fromUser: true });
+
+    const idx    = _mrStops.indexOf(targetStop);
+    const letter = _mrLetter(idx);
+    const verb   = isNew ? 'adicionado como ponto' : 'definido no ponto';
+    showToast(`POI "${safeName}" ${verb} ${letter}.`, 'success', 2500);
+
+    return targetStop;
+}
+
+// ---------------------------------------------------------------------------
 // Esc global (chamado por app.js)
 // ---------------------------------------------------------------------------
 function _mrHandleEscape() {
@@ -1279,6 +1651,10 @@ function initMultiRoute() {
 
     const reverseBtn = document.getElementById('mrReverseBtn');
     if (reverseBtn) reverseBtn.addEventListener('click', _mrReverseStops);
+
+    // NOVO: análise consolidada de POIs
+    const analyzeBtn = document.getElementById('mrAnalyzeBtn');
+    if (analyzeBtn) analyzeBtn.addEventListener('click', _mrAnalyzeRoutePOIs);
 
     // Delegação dos botões de cada ponto
     const list = document.getElementById('mrStopsList');
@@ -1320,9 +1696,11 @@ window.MultiRoute = {
     close: closeMultiRoute,
     toggle: toggleMultiRoute,
     addStop: addMultiRouteStop,
+    addStopFromCoords: addStopFromCoords,
     isOpen: () => _mrOpen,
     isPicking: () => _mrPickingId !== null,
     cancelPick: () => _mrCancelPick(true),
     pickFromFeature: _mrPickFromFeature,
-    handleEscape: _mrHandleEscape
+    handleEscape: _mrHandleEscape,
+    analyzePOIs: _mrAnalyzeRoutePOIs
 };
